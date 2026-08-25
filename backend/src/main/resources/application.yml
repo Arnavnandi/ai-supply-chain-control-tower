@@ -1,0 +1,64 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: ai-supply-chain-control-tower
+  main:
+    allow-bean-definition-overriding: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+  ai:
+    openai:
+      api-key: ${GEMINI_API_KEY:unconfigured}
+      base-url: ${OPENAI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai/}
+      chat:
+        options:
+          model: ${SPRING_AI_MODEL:gemini-2.5-flash}
+          temperature: 0.2
+      embedding:
+        options:
+          model: text-embedding-004
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
+        initialize-schema: true
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+jwt:
+  secret: ${JWT_SECRET:change_me_in_production_jwt_secret_key_32_bytes_minimum_length_required}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
+
+logging:
+  level:
+    root: INFO
+    com.supplychain.controltower: DEBUG
+    org.springframework.ai: INFO
