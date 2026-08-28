@@ -17,6 +17,7 @@ class AiControllerTest {
     private RecommendationRepository recommendationRepository;
     private com.supplychain.controltower.service.RagRetrievalService ragRetrievalService;
     private com.supplychain.controltower.service.RagKnowledgeIngestionService ragKnowledgeIngestionService;
+    private com.supplychain.controltower.service.RagEvaluationService ragEvaluationService;
     private AiController aiController;
 
     @BeforeEach
@@ -25,12 +26,14 @@ class AiControllerTest {
         recommendationRepository = mock(RecommendationRepository.class);
         ragRetrievalService = mock(com.supplychain.controltower.service.RagRetrievalService.class);
         ragKnowledgeIngestionService = mock(com.supplychain.controltower.service.RagKnowledgeIngestionService.class);
+        ragEvaluationService = mock(com.supplychain.controltower.service.RagEvaluationService.class);
 
         aiController = new AiController(
                 agentRouter,
                 recommendationRepository,
                 ragRetrievalService,
-                ragKnowledgeIngestionService
+                ragKnowledgeIngestionService,
+                ragEvaluationService
         );
     }
 

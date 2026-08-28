@@ -3,6 +3,7 @@ package com.supplychain.controltower.controller;
 import com.supplychain.controltower.ai.agents.AgentRouter;
 import com.supplychain.controltower.entity.Recommendation;
 import com.supplychain.controltower.repository.RecommendationRepository;
+import com.supplychain.controltower.service.RagEvaluationService;
 import com.supplychain.controltower.service.RagKnowledgeIngestionService;
 import com.supplychain.controltower.service.RagRetrievalService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class AiController {
     private final RecommendationRepository recommendationRepository;
     private final RagRetrievalService ragRetrievalService;
     private final RagKnowledgeIngestionService ragKnowledgeIngestionService;
+    private final RagEvaluationService ragEvaluationService;
 
     @PostMapping("/query")
     public ResponseEntity<Map<String, Object>> processAiQuery(
@@ -51,6 +53,13 @@ public class AiController {
         String question = request.getOrDefault("question", request.get("query"));
         log.info("[AI RAG CONTROLLER] Received RAG knowledge query: '{}'", question);
         return ResponseEntity.ok(ragRetrievalService.queryKnowledgeBase(question));
+    }
+
+    @GetMapping("/rag/evaluate")
+    public ResponseEntity<RagEvaluationService.RagEvaluationReport> evaluateRagRetrieval(
+            @RequestParam(defaultValue = "4") int topK) {
+        log.info("[AI RAG CONTROLLER] Executing RAG retrieval benchmark evaluation (topK={})", topK);
+        return ResponseEntity.ok(ragEvaluationService.evaluateRagRetrieval(topK));
     }
 
     @GetMapping("/rag/sources")
