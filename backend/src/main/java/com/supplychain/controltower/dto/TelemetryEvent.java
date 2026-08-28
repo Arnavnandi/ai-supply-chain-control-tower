@@ -35,6 +35,7 @@ public class TelemetryEvent {
 
     @Builder.Default
     private String eventId = UUID.randomUUID().toString();
+    private String correlationId;
     private EventType eventType;
     private Severity severity;
     private String sourceDomain;

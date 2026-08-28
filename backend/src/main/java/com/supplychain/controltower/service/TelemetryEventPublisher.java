@@ -7,6 +7,7 @@ import com.supplychain.controltower.repository.TelemetryEventRepository;
 import com.supplychain.controltower.websocket.TelemetryWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,8 +24,15 @@ public class TelemetryEventPublisher {
     public void publish(TelemetryEvent event) {
         if (event == null) return;
 
-        log.info("[TELEMETRY EVENT PUBLISHED] Type: {} | Severity: {} | Source: {} | Message: {}",
-                event.getEventType(), event.getSeverity(), event.getSourceDomain(), event.getMessage());
+        if (event.getCorrelationId() == null || event.getCorrelationId().isBlank()) {
+            String mdcCorrelationId = MDC.get("correlationId");
+            if (mdcCorrelationId != null && !mdcCorrelationId.isBlank()) {
+                event.setCorrelationId(mdcCorrelationId);
+            }
+        }
+
+        log.info("[TELEMETRY EVENT PUBLISHED] CorrelationId: {} | Type: {} | Severity: {} | Source: {} | Message: {}",
+                event.getCorrelationId(), event.getEventType(), event.getSeverity(), event.getSourceDomain(), event.getMessage());
 
         String json = null;
         try {
@@ -41,6 +49,7 @@ public class TelemetryEventPublisher {
         try {
             TelemetryEventEntity entity = TelemetryEventEntity.builder()
                     .eventId(event.getEventId())
+                    .correlationId(event.getCorrelationId())
                     .eventType(event.getEventType() != null ? event.getEventType().name() : "UNKNOWN")
                     .severity(event.getSeverity() != null ? event.getSeverity().name() : "INFO")
                     .sourceDomain(event.getSourceDomain())

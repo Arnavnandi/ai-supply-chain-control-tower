@@ -62,6 +62,15 @@ jwt:
   secret: ${JWT_SECRET:change_me_in_production_jwt_secret_key_32_bytes_minimum_length_required}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   level:
     root: INFO

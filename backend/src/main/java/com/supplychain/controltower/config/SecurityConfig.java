@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/documents/**").permitAll()
                 .requestMatchers("/api/telemetry/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             );

@@ -23,6 +23,9 @@ public class TelemetryEventEntity {
     @Column(name = "event_id", nullable = false, unique = true, length = 100)
     private String eventId;
 
+    @Column(name = "correlation_id", length = 100)
+    private String correlationId;
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 
