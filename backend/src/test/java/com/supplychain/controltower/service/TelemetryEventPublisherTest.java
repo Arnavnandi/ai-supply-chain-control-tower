@@ -23,6 +23,9 @@ class TelemetryEventPublisherTest {
     @Mock
     private TelemetryWebSocketHandler webSocketHandler;
 
+    @Mock
+    private com.supplychain.controltower.repository.TelemetryEventRepository telemetryEventRepository;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -47,6 +50,7 @@ class TelemetryEventPublisherTest {
     void publish_ShouldSerializeAndBroadcastMessage_WhenEventProvided() {
         telemetryEventPublisher.publish(testEvent);
         verify(webSocketHandler, times(1)).broadcastMessage(anyString());
+        verify(telemetryEventRepository, times(1)).save(any());
     }
 
     @Test
