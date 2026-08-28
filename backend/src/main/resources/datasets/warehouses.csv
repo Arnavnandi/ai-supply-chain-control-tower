@@ -1,0 +1,5 @@
+id,code,name,location,total_capacity_units,current_utilization_units,utilization_percentage,manager_name,contact_email
+1,WH-NORTH,North Hub Distribution Center,"Chicago, IL",12000,9600,80.0,John Doe,wh-north@supplychain.com
+2,WH-SOUTH,South Regional Logistics Center,"Dallas, TX",15000,6400,42.67,Sarah Smith,wh-south@supplychain.com
+3,WH-WEST,Pacific Coast Distribution Facility,"Oakland, CA",9000,8370,93.0,Robert Chen,wh-west@supplychain.com
+4,WH-EAST,Atlantic Seaboard Logistics Hub,"Newark, NJ",11000,7150,65.0,Emily Davis,wh-east@supplychain.com

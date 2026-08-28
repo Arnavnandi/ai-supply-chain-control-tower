@@ -1,0 +1,11 @@
+id,code,name,contact_person,email,phone,country,reliability_score,delivery_performance_pct,average_lead_time_days,lead_time_variance_days
+1,SUP-TECH,TechComponents Global Ltd.,Alice Johnson,sales@techcomponents.com,+1-555-0192,Taiwan,94.5,92.0,8.5,1.2
+2,SUP-HEAVY,Apex Heavy Dynamics,Marcus Vance,orders@apexdynamics.com,+1-555-0144,Germany,78.0,75.5,16.0,4.5
+3,SUP-PACIFIC,Pacific Rim Microelectronics,Kenji Sato,supply@pacificmicro.jp,+81-3-5555-0188,Japan,96.8,95.0,7.0,0.8
+4,SUP-GLOBAL,Global Metals & Extrusions,David Miller,sales@globalmetals.com,+1-555-0177,USA,88.5,86.0,9.5,2.0
+5,SUP-PACK,ProPack International,Elena Rostova,contact@propack.de,+49-30-555-0122,Germany,91.2,93.5,5.5,1.0
+6,SUP-KOREA,Hanwha Precision Systems,Min-Soo Park,b2b@hanwhaprecision.kr,+82-2-555-0199,South Korea,93.0,91.0,10.0,1.5
+7,SUP-CHEM,Apex Chemical Solutions,Sarah Jenkins,orders@apexchem.com,+1-555-0133,USA,85.0,82.0,8.0,2.2
+8,SUP-EUR,EuroHydraulics GmbH,Hans Weber,info@eurohydraulics.de,+49-89-555-0155,Germany,82.5,79.0,15.0,3.8
+9,SUP-TAIWAN,Formosa Silicon Foundry,Wei-Chen Lin,sales@formosasilicon.tw,+886-2-555-0166,Taiwan,97.5,96.5,6.5,0.5
+10,SUP-USMAT,Allied Raw Materials Inc.,Robert Taylor,b2b@alliedmaterials.com,+1-555-0111,USA,90.0,89.0,7.5,1.1

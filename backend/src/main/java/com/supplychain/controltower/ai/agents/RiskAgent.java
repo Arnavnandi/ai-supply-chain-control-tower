@@ -18,6 +18,8 @@ public class RiskAgent {
     private final AnalyticsTools analyticsTools;
     private final InventoryTools inventoryTools;
     private final LogisticsTools logisticsTools;
+    private final com.supplychain.controltower.ai.tools.RiskTools riskTools;
+    private final com.supplychain.controltower.ai.tools.ForecastTools forecastTools;
     private final ChatClient chatClient;
 
     public String processQuery(String prompt) {
@@ -27,10 +29,11 @@ public class RiskAgent {
                     .system("""
                             You are the Specialized Operational Risk Analysis Agent.
                             Your responsibility is synthesizing risk alerts across stockouts, shipment delays, supplier disruptions, and capacity overruns.
-                            Always ground your analysis in PostgreSQL database data via getSupplyChainRisks, getLowStockProducts, and getDelayedShipments.
+                            Always ground your analysis in PostgreSQL database data via getActiveSupplyChainRisks, getDemandForecasts, getLowStockProducts, and getDelayedShipments.
+                            Provide clear explainability: problem detected, raw metrics cause, and recommended action.
                             """)
                     .user(prompt)
-                    .functions("getSupplyChainRisks", "getLowStockProducts", "getDelayedShipments")
+                    .functions("getActiveSupplyChainRisks", "getDemandForecasts", "getLowStockProducts", "getDelayedShipments")
                     .call()
                     .content();
         } catch (Exception ex) {

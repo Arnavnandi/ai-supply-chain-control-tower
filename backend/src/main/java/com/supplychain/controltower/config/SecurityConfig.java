@@ -44,6 +44,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/data/**").permitAll()
+                .requestMatchers("/api/intelligence/**").permitAll()
+                .requestMatchers("/api/actions/**").permitAll()
+                .requestMatchers("/api/analytics/**").permitAll()
+                .requestMatchers("/api/ai/**").permitAll()
+                .requestMatchers("/api/documents/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             );

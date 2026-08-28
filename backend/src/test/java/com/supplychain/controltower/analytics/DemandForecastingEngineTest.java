@@ -47,5 +47,12 @@ class DemandForecastingEngineTest {
         assertEquals(3, result.getForecastData().size());
         assertTrue(result.getProjected30DayDemand() > 0);
         assertTrue(result.getProjected7DayDemand() > 0);
+
+        // Verify 95% confidence corridor bounds
+        DemandForecastingEngine.MonthlyPoint firstForecast = result.getForecastData().get(0);
+        assertNotNull(firstForecast.getConfidenceLower());
+        assertNotNull(firstForecast.getConfidenceUpper());
+        assertTrue(firstForecast.getConfidenceLower() <= firstForecast.getQuantity());
+        assertTrue(firstForecast.getConfidenceUpper() >= firstForecast.getQuantity());
     }
 }

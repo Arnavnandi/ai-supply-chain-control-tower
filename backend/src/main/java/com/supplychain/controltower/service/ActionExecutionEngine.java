@@ -1,0 +1,107 @@
+package com.supplychain.controltower.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.supplychain.controltower.analytics.PurchaseOrderGeneratorEngine;
+import com.supplychain.controltower.entity.CustomerOrder;
+import com.supplychain.controltower.entity.Inventory;
+import com.supplychain.controltower.entity.OrderItem;
+import com.supplychain.controltower.entity.Product;
+import com.supplychain.controltower.repository.CustomerOrderRepository;
+import com.supplychain.controltower.repository.InventoryRepository;
+import com.supplychain.controltower.repository.OrderItemRepository;
+import com.supplychain.controltower.repository.ProductRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class ActionExecutionEngine {
+
+    private final InventoryRepository inventoryRepository;
+    private final ProductRepository productRepository;
+    private final CustomerOrderRepository customerOrderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Transactional
+    public String executeApprovedAction(String actionType, String actionPayloadJson, String executedBy) {
+        log.info("[ACTION EXECUTION ENGINE] Executing approved action: type={} payload={} executedBy={}",
+                actionType, actionPayloadJson, executedBy);
+
+        try {
+            PurchaseOrderGeneratorEngine.PurchaseOrderPayload payload =
+                    objectMapper.readValue(actionPayloadJson, PurchaseOrderGeneratorEngine.PurchaseOrderPayload.class);
+
+            if (payload.getProductId() != null) {
+                Long productId = payload.getProductId();
+                Long warehouseId = payload.getWarehouseId();
+                int addQty = payload.getOrderQuantity() != null ? payload.getOrderQuantity() : 100;
+
+                // 1. Update target warehouse inventory
+                List<Inventory> inventories = inventoryRepository.findByProductId(productId);
+                Inventory targetInventory = null;
+
+                if (warehouseId != null) {
+                    targetInventory = inventories.stream()
+                            .filter(inv -> inv.getWarehouse() != null && warehouseId.equals(inv.getWarehouse().getId()))
+                            .findFirst()
+                            .orElse(null);
+                }
+
+                if (targetInventory == null && !inventories.isEmpty()) {
+                    targetInventory = inventories.get(0);
+                }
+
+                if (targetInventory != null) {
+                    int previousQty = targetInventory.getQuantityAvailable() != null ? targetInventory.getQuantityAvailable() : 0;
+                    int updatedQty = previousQty + addQty;
+                    targetInventory.setQuantityAvailable(updatedQty);
+                    inventoryRepository.save(targetInventory);
+
+                    log.info("[ACTION EXECUTION SUCCESS] Updated Inventory ID={} for Product ID={}. Previous Stock: {}, New Stock: {}",
+                            targetInventory.getId(), productId, previousQty, updatedQty);
+                }
+
+                // 2. Create Fulfillment Purchase Record
+                Product product = productRepository.findById(productId).orElse(null);
+                if (product != null) {
+                    String poNumber = "PO-REPLENISH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                    CustomerOrder poOrder = CustomerOrder.builder()
+                            .orderNumber(poNumber)
+                            .customerName("Internal Control Tower Fulfillment (" + (payload.getSupplierName() != null ? payload.getSupplierName() : "Supplier") + ")")
+                            .orderDate(LocalDate.now())
+                            .expectedDeliveryDate(LocalDate.now().plusDays(product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 7))
+                            .status(CustomerOrder.OrderStatus.PROCESSING)
+                            .totalAmount(payload.getTotalCost())
+                            .build();
+
+                    CustomerOrder savedOrder = customerOrderRepository.save(poOrder);
+
+                    OrderItem orderItem = OrderItem.builder()
+                            .order(savedOrder)
+                            .product(product)
+                            .quantity(addQty)
+                            .unitPrice(payload.getContractUnitPrice())
+                            .build();
+
+                    orderItemRepository.save(orderItem);
+                }
+
+                return String.format("Action executed successfully. Replenished %d units of SKU '%s' into %s. Generated PO #PO-REPLENISH.",
+                        addQty, payload.getProductSku(), payload.getWarehouseName() != null ? payload.getWarehouseName() : "Warehouse");
+            }
+        } catch (Exception ex) {
+            log.error("[ACTION EXECUTION ERROR] Failed to execute action payload: {}", ex.getMessage(), ex);
+            throw new RuntimeException("Failed to execute approved action: " + ex.getMessage(), ex);
+        }
+
+        return "Action payload executed successfully.";
+    }
+}

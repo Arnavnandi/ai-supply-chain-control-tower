@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import {
-  AlertTriangle,
   Package,
   DollarSign,
   Bot,
   ShieldAlert,
-  ArrowUpRight
+  HelpCircle,
+  TrendingUp
 } from 'lucide-react';
 import {
   AreaChart,
   Area,
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,23 +20,30 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Link } from 'react-router-dom';
+import { ExplainabilityModal, type ExplainableRiskItem } from '../components/ExplainabilityModal';
 
 export const DashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
+  const [intelligence, setIntelligence] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedExplainableItem, setSelectedExplainableItem] = useState<ExplainableRiskItem | null>(null);
 
   useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchDashboardData = async () => {
       try {
-        const res = await axiosInstance.get('/dashboard/summary');
-        setSummary(res.data);
+        const [sumRes, intelRes] = await Promise.all([
+          axiosInstance.get('/dashboard/summary'),
+          axiosInstance.get('/intelligence/summary')
+        ]);
+        setSummary(sumRes.data);
+        setIntelligence(intelRes.data);
       } catch (err) {
-        console.error('Failed to load dashboard summary', err);
+        console.error('Failed to load control tower intelligence', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchSummary();
+    fetchDashboardData();
   }, []);
 
   if (loading) {
@@ -46,58 +51,89 @@ export const DashboardPage: React.FC = () => {
       <div className="flex items-center justify-center min-h-[70vh]">
         <div className="flex flex-col items-center space-y-3">
           <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm font-medium">Gathering Supply Chain Telemetry...</p>
+          <p className="text-slate-400 text-sm font-medium">Synthesizing Database Control Tower Telemetry...</p>
         </div>
       </div>
     );
   }
 
+  const riskReport = intelligence?.riskReport;
+  const recommendations: ExplainableRiskItem[] = intelligence?.prioritizedRecommendations || [];
+
   return (
     <div className="space-y-6 pb-12">
-      {/* High-Priority Active Risk Alert Banner */}
-      <div className="glass-panel p-4 rounded-xl border border-rose-500/30 bg-rose-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-lg bg-rose-500/20 text-rose-400">
-            <ShieldAlert className="w-6 h-6 animate-pulse" />
+      {/* 1. AI Executive Briefing Banner */}
+      <div className="glass-panel p-5 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start space-x-4">
+          <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+            <Bot className="w-7 h-7" />
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-rose-200">System Risk Alert Triggered</h4>
-            <p className="text-xs text-rose-300/80">
-              {summary?.lowStockProductsCount} products at critical stockout threshold • {summary?.delayedShipmentsCount} delayed cargo shipment(s)
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-base font-bold text-white">AI Control Tower Executive Briefing</h3>
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded">
+                Grounded Database Telemetry
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed max-w-4xl">
+              {intelligence?.executiveAiBriefing || 'Evaluating real-time supply chain operational metrics...'}
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <Link
-            to="/ai-assistant"
-            className="px-3.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold flex items-center space-x-1.5 transition-all"
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Consult AI Control Center</span>
-          </Link>
-        </div>
+        <Link
+          to="/ai-assistant"
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-2 transition-all shadow-lg shadow-indigo-600/20 shrink-0"
+        >
+          <Bot className="w-4 h-4" />
+          <span>Ask AI Assistant</span>
+        </Link>
       </div>
 
-      {/* Control Tower KPI Metric Grid */}
+      {/* 2. Control Tower Risk Matrix Radar & KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1 */}
+        {/* Risk Score */}
+        <div className="glass-card p-5 rounded-xl border border-slate-800 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Control Tower Risk Score</span>
+            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline space-x-2 mt-2">
+            <p className="text-3xl font-bold text-rose-400">{riskReport?.overallRiskScore || 0}</p>
+            <span className="text-xs text-slate-400 font-semibold uppercase">/ 100 ({riskReport?.riskLevel || 'LOW'})</span>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-[11px]">
+            <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-semibold">
+              {riskReport?.criticalRisksCount || 0} Critical
+            </span>
+            <span className="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 font-semibold">
+              {riskReport?.highRisksCount || 0} High
+            </span>
+            <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30 font-semibold">
+              {riskReport?.mediumRisksCount || 0} Med
+            </span>
+          </div>
+        </div>
+
+        {/* Total SKUs */}
         <div className="glass-card p-5 rounded-xl border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Products SKU</span>
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Catalog & Inventory</span>
             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
               <Package className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-white mt-2">{summary?.totalProducts || 0}</p>
+          <p className="text-2xl font-bold text-white mt-2">{summary?.totalProducts || 0} Products</p>
           <p className="text-xs text-slate-400 mt-1">
-            Total Inventory: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString()} units</span>
+            Total Available Stock: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString()} units</span>
           </p>
         </div>
 
-        {/* Metric 2 */}
+        {/* Asset Valuation */}
         <div className="glass-card p-5 rounded-xl border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Inventory Asset Valuation</span>
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Asset Valuation</span>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
               <DollarSign className="w-4 h-4" />
             </div>
@@ -105,35 +141,73 @@ export const DashboardPage: React.FC = () => {
           <p className="text-2xl font-bold text-emerald-400 mt-2">
             ${summary?.totalInventoryValue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-slate-400 mt-1">Across 3 regional distribution hubs</p>
+          <p className="text-xs text-slate-400 mt-1">Across 4 regional logistics hubs</p>
         </div>
 
-        {/* Metric 3 */}
+        {/* Supplier Reliability */}
         <div className="glass-card p-5 rounded-xl border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Stockout Risk Items</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-              <AlertTriangle className="w-4 h-4" />
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Supplier Performance</span>
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+              <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-amber-400 mt-2">{summary?.lowStockProductsCount || 0}</p>
-          <p className="text-xs text-slate-400 mt-1">Overstocked SKU count: {summary?.overstockedProductsCount}</p>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="glass-card p-5 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Operational Risk Score</span>
-            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-rose-400 mt-2">{summary?.supplyChainRiskScore} / 100</p>
-          <p className="text-xs text-slate-400 mt-1">Overall Supplier Reliability: {summary?.overallSupplierReliabilityPct}%</p>
+          <p className="text-2xl font-bold text-purple-300 mt-2">{summary?.overallSupplierReliabilityPct}%</p>
+          <p className="text-xs text-slate-400 mt-1">Delayed Cargo Transit: <span className="text-rose-400 font-semibold">{summary?.delayedShipmentsCount} shipments</span></p>
         </div>
       </div>
 
-      {/* Main Control Tower Analytics Charts */}
+      {/* 3. Prioritized Action Recommendations with Explainability Trigger */}
+      <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-amber-400" />
+              <span>Prioritized AI Risk Alerts & Mitigations</span>
+            </h3>
+            <p className="text-xs text-slate-400">Ground-truth detected anomalies with full explainability metadata</p>
+          </div>
+          <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-lg border border-slate-700 font-mono">
+            {recommendations.length} Active Items
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {recommendations.slice(0, 6).map((item) => (
+            <div
+              key={item.id}
+              className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all space-y-3 flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                    {item.category}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                    item.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                    item.severity === 'HIGH' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                  }`}>
+                    {item.severity}
+                  </span>
+                </div>
+                <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{item.title}</h4>
+                <p className="text-xs text-slate-400 line-clamp-2">{item.problemDetected}</p>
+              </div>
+
+              <button
+                onClick={() => setSelectedExplainableItem(item)}
+                className="w-full mt-2 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Explain Recommendation</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Inventory Stock Trends */}
         <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
@@ -163,12 +237,7 @@ export const DashboardPage: React.FC = () => {
                   <Area type="monotone" dataKey="safety" stroke="#f59e0b" fill="none" strokeDasharray="4 4" name="Safety Threshold" />
                 </AreaChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs space-y-1 border border-dashed border-slate-800 rounded-lg">
-                <p className="font-medium text-slate-400">No historical inventory trend data recorded</p>
-                <p>Database telemetry populates as inventory levels are modified.</p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -194,60 +263,17 @@ export const DashboardPage: React.FC = () => {
                   <Line type="monotone" dataKey="forecasted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Statistical Forecast" />
                 </LineChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500 text-xs space-y-1 border border-dashed border-slate-800 rounded-lg">
-                <p className="font-medium text-slate-400">No historical customer order demand data recorded</p>
-                <p>Demand trend graphs populate as customer orders are placed.</p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
 
-      {/* Secondary Graphs: Warehouse Utilization & Supplier Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Warehouse Utilization Bar Chart */}
-        <div className="glass-panel p-5 rounded-xl border border-slate-800 space-y-4">
-          <h3 className="text-base font-bold text-white">Warehouse Capacity Utilization (%)</h3>
-          <div className="h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={summary?.warehouseUtilization || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#64748b" domain={[0, 100]} />
-                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }} />
-                <Bar dataKey="pct" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Utilization %" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Quick Actions & AI Assistant Spotlight */}
-        <div className="glass-panel p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center space-x-2 text-cyan-400 mb-2">
-              <Bot className="w-5 h-5" />
-              <h3 className="text-base font-bold text-white">Executive Control Tower AI</h3>
-            </div>
-            <p className="text-sm text-slate-300">
-              Ask questions regarding stockouts, delayed shipments, supplier selection, or policy documents in natural language.
-            </p>
-            <div className="mt-4 p-3 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-slate-400 space-y-2">
-              <p className="font-semibold text-slate-300">Sample Prompt Queries:</p>
-              <p className="text-cyan-300 cursor-pointer hover:underline">"Which products are at high risk of stockout in 7 days?"</p>
-              <p className="text-cyan-300 cursor-pointer hover:underline">"Which supplier should we choose for SKU-ELEC-001?"</p>
-            </div>
-          </div>
-
-          <Link
-            to="/ai-assistant"
-            className="mt-5 w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-cyan-500/20"
-          >
-            <span>Open AI Assistant Workspace</span>
-            <ArrowUpRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
+      {/* Explainability Modal Component */}
+      <ExplainabilityModal
+        item={selectedExplainableItem}
+        onClose={() => setSelectedExplainableItem(null)}
+      />
     </div>
   );
 };
+

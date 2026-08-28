@@ -35,6 +35,8 @@ public class DemandForecastingEngine {
         private String monthLabel;
         private LocalDate date;
         private Integer quantity;
+        private Integer confidenceLower;
+        private Integer confidenceUpper;
     }
 
     public ForecastResult calculateDemandForecast(Product product, int currentAvailableQty, List<Integer> historicalMonthlySales) {
@@ -77,25 +79,41 @@ public class DemandForecastingEngine {
         int daysUntilStockout = dailyBurnRate > 0 ? (int) Math.floor(currentAvailableQty / dailyBurnRate) : 999;
         boolean stockoutWarning = daysUntilStockout <= (product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 7);
 
+        // Calculate Standard Deviation of historical sales for confidence corridors
+        double sum = 0;
+        for (int s : historicalMonthlySales) sum += s;
+        double mean = sum / n;
+        double sqDiffSum = 0;
+        for (int s : historicalMonthlySales) sqDiffSum += Math.pow(s - mean, 2);
+        double stdDev = Math.sqrt(sqDiffSum / Math.max(1, n - 1));
+
         // Historical monthly points
         List<MonthlyPoint> historyPoints = new ArrayList<>();
         LocalDate now = LocalDate.now();
         for (int i = 0; i < n; i++) {
+            int qty = historicalMonthlySales.get(i);
             historyPoints.add(MonthlyPoint.builder()
                     .monthLabel(now.minusMonths(n - i).getMonth().name().substring(0, 3))
                     .date(now.minusMonths(n - i))
-                    .quantity(historicalMonthlySales.get(i))
+                    .quantity(qty)
+                    .confidenceLower(qty)
+                    .confidenceUpper(qty)
                     .build());
         }
 
-        // Forecast monthly points for next 3 months
+        // Forecast monthly points for next 3 months with 95% confidence bounds (± 1.96 * stdDev)
         List<MonthlyPoint> forecastPoints = new ArrayList<>();
         for (int i = 1; i <= 3; i++) {
             int futureQty = (int) Math.round(finalMonthlyForecast * (1 + (i * 0.03))); // 3% trend factor
+            int lower = Math.max(0, (int) Math.round(futureQty - (1.96 * stdDev)));
+            int upper = (int) Math.round(futureQty + (1.96 * stdDev));
+
             forecastPoints.add(MonthlyPoint.builder()
                     .monthLabel(now.plusMonths(i).getMonth().name().substring(0, 3))
                     .date(now.plusMonths(i))
                     .quantity(futureQty)
+                    .confidenceLower(lower)
+                    .confidenceUpper(upper)
                     .build());
         }
 

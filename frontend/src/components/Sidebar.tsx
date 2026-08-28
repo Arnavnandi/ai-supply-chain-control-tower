@@ -12,7 +12,9 @@ import {
   FileText,
   AlertTriangle,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Database,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,8 +29,11 @@ export const Sidebar: React.FC = () => {
     { name: 'Suppliers', path: '/suppliers', icon: Users },
     { name: 'Active Shipments', path: '/shipments', icon: Truck },
     { name: 'Risk Monitor', path: '/risks', icon: AlertTriangle },
+    { name: 'Analytics & Stress Tests', path: '/analytics', icon: BarChart3, highlight: true },
+    { name: 'Dataset Import', path: '/import', icon: Database },
     { name: 'AI Control Center', path: '/ai-assistant', icon: Bot, highlight: true },
     { name: 'Action Approvals', path: '/recommendations', icon: CheckSquare },
+    { name: 'Action Center (HITL)', path: '/action-center', icon: ShieldCheck, highlight: true },
     { name: 'Policy Knowledge RAG', path: '/documents', icon: FileText },
   ];
 

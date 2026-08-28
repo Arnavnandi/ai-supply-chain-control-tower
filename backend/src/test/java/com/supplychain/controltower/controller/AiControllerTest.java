@@ -15,16 +15,22 @@ class AiControllerTest {
 
     private AgentRouter agentRouter;
     private RecommendationRepository recommendationRepository;
+    private com.supplychain.controltower.service.RagRetrievalService ragRetrievalService;
+    private com.supplychain.controltower.service.RagKnowledgeIngestionService ragKnowledgeIngestionService;
     private AiController aiController;
 
     @BeforeEach
     void setUp() {
         agentRouter = mock(AgentRouter.class);
         recommendationRepository = mock(RecommendationRepository.class);
+        ragRetrievalService = mock(com.supplychain.controltower.service.RagRetrievalService.class);
+        ragKnowledgeIngestionService = mock(com.supplychain.controltower.service.RagKnowledgeIngestionService.class);
 
         aiController = new AiController(
                 agentRouter,
-                recommendationRepository
+                recommendationRepository,
+                ragRetrievalService,
+                ragKnowledgeIngestionService
         );
     }
 

@@ -1,0 +1,249 @@
+id,tracking_code,supplier_id,destination_warehouse_id,order_id,origin,destination,shipped_date,estimated_delivery_date,actual_delivery_date,status,delay_days,carrier_name
+1,TRK-41369-US,4,4,1,"Tokyo, Japan","Newark, NJ",2025-09-03,2025-09-08,2025-09-08,DELIVERED,0,Pacific Maritime Shippers
+2,TRK-77215-US,5,3,2,"Seoul, South Korea","Oakland, CA",2025-09-27,2025-10-06,2025-10-06,DELIVERED,0,FastTrack Parcel Services
+3,TRK-58589-US,6,2,3,"Seoul, South Korea","Dallas, TX",2025-09-21,2025-09-28,2025-09-28,DELIVERED,0,Pacific Maritime Shippers
+4,TRK-48691-US,9,4,4,"Taipei, Taiwan","Newark, NJ",2025-09-15,2025-09-24,2025-09-28,DELAYED,4,Apex Logistics Freight
+5,TRK-43728-US,8,3,5,"Dallas, TX","Oakland, CA",2025-09-05,2025-09-13,2025-09-13,DELIVERED,0,FastTrack Parcel Services
+6,TRK-28344-US,6,2,6,"Taipei, Taiwan","Dallas, TX",2025-09-20,2025-09-27,2025-09-27,DELIVERED,0,FastTrack Parcel Services
+7,TRK-10836-US,2,1,8,"Taipei, Taiwan","Chicago, IL",2025-09-11,2025-09-15,2025-09-15,DELIVERED,0,FastTrack Parcel Services
+8,TRK-17923-US,8,3,10,"Dallas, TX","Oakland, CA",2025-09-24,2025-09-29,2025-10-05,DELAYED,6,FastTrack Parcel Services
+9,TRK-79391-US,1,1,11,"Chicago, IL","Chicago, IL",2025-09-16,2025-09-24,2025-09-24,DELIVERED,0,Pacific Maritime Shippers
+10,TRK-22624-US,3,1,13,"Taipei, Taiwan","Chicago, IL",2025-09-14,2025-09-23,2025-09-23,DELIVERED,0,Apex Logistics Freight
+11,TRK-20357-US,5,4,14,"Seoul, South Korea","Newark, NJ",2025-09-21,2025-09-27,2025-09-27,DELIVERED,0,Pacific Maritime Shippers
+12,TRK-22255-US,2,1,15,"Seoul, South Korea","Chicago, IL",2025-09-26,2025-10-05,2025-10-05,DELIVERED,0,FastTrack Parcel Services
+13,TRK-75517-US,3,1,16,"Dallas, TX","Chicago, IL",2025-09-16,2025-09-20,2025-09-20,DELIVERED,0,FastTrack Parcel Services
+14,TRK-40115-US,9,1,17,"Dallas, TX","Chicago, IL",2025-09-07,2025-09-17,2025-09-17,DELIVERED,0,Apex Logistics Freight
+15,TRK-33508-US,5,1,19,"Stuttgart, Germany","Chicago, IL",2025-09-28,2025-10-02,2025-10-02,DELIVERED,0,Pacific Maritime Shippers
+16,TRK-31292-US,2,3,21,"Chicago, IL","Oakland, CA",2025-09-30,2025-10-10,2025-10-10,DELIVERED,0,Apex Logistics Freight
+17,TRK-75639-US,3,1,23,"Stuttgart, Germany","Chicago, IL",2025-09-09,2025-09-15,2025-09-15,DELIVERED,0,Pacific Maritime Shippers
+18,TRK-52778-US,10,4,24,"Dallas, TX","Newark, NJ",2025-10-23,2025-11-02,2025-11-08,DELAYED,6,Global Cargo Express
+19,TRK-66603-US,9,4,25,"Dallas, TX","Newark, NJ",2025-10-21,2025-10-28,2025-10-28,DELIVERED,0,Apex Logistics Freight
+20,TRK-19634-US,5,2,26,"Tokyo, Japan","Dallas, TX",2025-10-04,2025-10-08,2025-10-08,DELIVERED,0,Global Cargo Express
+21,TRK-57277-US,7,3,27,"Stuttgart, Germany","Oakland, CA",2025-10-20,2025-10-30,2025-10-30,DELIVERED,0,Global Cargo Express
+22,TRK-27367-US,5,1,28,"Taipei, Taiwan","Chicago, IL",2025-10-28,2025-11-04,2025-11-04,DELIVERED,0,Global Cargo Express
+23,TRK-21746-US,2,1,29,"Chicago, IL","Chicago, IL",2025-10-17,2025-10-25,2025-10-25,DELIVERED,0,Pacific Maritime Shippers
+24,TRK-48253-US,7,1,30,"Seoul, South Korea","Chicago, IL",2025-10-24,2025-11-03,2025-11-03,DELIVERED,0,FastTrack Parcel Services
+25,TRK-99825-US,4,2,31,"Taipei, Taiwan","Dallas, TX",2025-10-08,2025-10-16,2025-10-16,DELIVERED,0,FastTrack Parcel Services
+26,TRK-66973-US,2,2,32,"Seoul, South Korea","Dallas, TX",2025-10-04,2025-10-10,2025-10-10,DELIVERED,0,Pacific Maritime Shippers
+27,TRK-87831-US,4,4,33,"Seoul, South Korea","Newark, NJ",2025-10-08,2025-10-14,2025-10-14,DELIVERED,0,Apex Logistics Freight
+28,TRK-53193-US,6,4,34,"Tokyo, Japan","Newark, NJ",2025-10-28,2025-11-01,2025-11-01,DELIVERED,0,FastTrack Parcel Services
+29,TRK-72784-US,10,2,35,"Taipei, Taiwan","Dallas, TX",2025-10-13,2025-10-21,2025-10-25,DELAYED,4,Pacific Maritime Shippers
+30,TRK-52714-US,10,2,38,"Tokyo, Japan","Dallas, TX",2025-10-22,2025-10-31,2025-10-31,DELIVERED,0,FastTrack Parcel Services
+31,TRK-99353-US,9,2,40,"Dallas, TX","Dallas, TX",2025-10-10,2025-10-18,2025-10-18,DELIVERED,0,Global Cargo Express
+32,TRK-63627-US,5,1,41,"Taipei, Taiwan","Chicago, IL",2025-10-23,2025-10-28,2025-10-28,DELIVERED,0,FastTrack Parcel Services
+33,TRK-19694-US,7,4,42,"Chicago, IL","Newark, NJ",2025-10-04,2025-10-10,2025-10-10,DELIVERED,0,FastTrack Parcel Services
+34,TRK-57124-US,7,1,43,"Stuttgart, Germany","Chicago, IL",2025-10-28,2025-11-05,2025-11-05,DELIVERED,0,Global Cargo Express
+35,TRK-83822-US,10,1,44,"Tokyo, Japan","Chicago, IL",2025-10-27,2025-11-05,2025-11-05,DELIVERED,0,FastTrack Parcel Services
+36,TRK-68429-US,9,2,46,"Seoul, South Korea","Dallas, TX",2025-10-12,2025-10-16,2025-10-16,DELIVERED,0,Pacific Maritime Shippers
+37,TRK-13219-US,3,3,47,"Stuttgart, Germany","Oakland, CA",2025-10-21,2025-10-29,2025-10-29,DELIVERED,0,FastTrack Parcel Services
+38,TRK-50880-US,3,3,48,"Seoul, South Korea","Oakland, CA",2025-10-19,2025-10-23,2025-10-23,DELIVERED,0,Pacific Maritime Shippers
+39,TRK-69303-US,2,4,49,"Stuttgart, Germany","Newark, NJ",2025-10-15,2025-10-22,2025-10-22,DELIVERED,0,Pacific Maritime Shippers
+40,TRK-41970-US,2,2,50,"Chicago, IL","Dallas, TX",2025-10-15,2025-10-19,2025-10-23,DELAYED,4,Apex Logistics Freight
+41,TRK-92543-US,4,4,51,"Taipei, Taiwan","Newark, NJ",2025-10-04,2025-10-11,2025-10-11,DELIVERED,0,Apex Logistics Freight
+42,TRK-87621-US,4,4,52,"Seoul, South Korea","Newark, NJ",2025-11-15,2025-11-22,2025-11-28,DELAYED,6,FastTrack Parcel Services
+43,TRK-80371-US,2,1,53,"Tokyo, Japan","Chicago, IL",2025-11-28,2025-12-03,2025-12-03,DELIVERED,0,Apex Logistics Freight
+44,TRK-88246-US,8,3,54,"Chicago, IL","Oakland, CA",2025-11-15,2025-11-19,2025-11-19,DELIVERED,0,FastTrack Parcel Services
+45,TRK-98288-US,8,2,55,"Chicago, IL","Dallas, TX",2025-11-13,2025-11-19,2025-11-19,DELIVERED,0,Pacific Maritime Shippers
+46,TRK-25328-US,4,3,56,"Tokyo, Japan","Oakland, CA",2025-11-05,2025-11-10,2025-11-10,DELIVERED,0,Apex Logistics Freight
+47,TRK-65448-US,3,4,57,"Seoul, South Korea","Newark, NJ",2025-11-22,2025-11-29,2025-11-29,DELIVERED,0,Apex Logistics Freight
+48,TRK-74178-US,3,2,58,"Taipei, Taiwan","Dallas, TX",2025-11-04,2025-11-13,2025-11-13,DELIVERED,0,Pacific Maritime Shippers
+49,TRK-27895-US,1,4,59,"Seoul, South Korea","Newark, NJ",2025-11-12,2025-11-20,2025-11-24,DELAYED,4,Apex Logistics Freight
+50,TRK-74054-US,7,4,61,"Stuttgart, Germany","Newark, NJ",2025-11-20,2025-11-27,2025-11-27,DELIVERED,0,Apex Logistics Freight
+51,TRK-32047-US,9,3,62,"Chicago, IL","Oakland, CA",2025-11-16,2025-11-22,2025-11-25,DELAYED,3,FastTrack Parcel Services
+52,TRK-45112-US,10,1,63,"Chicago, IL","Chicago, IL",2025-11-26,2025-12-04,2025-12-04,DELIVERED,0,Pacific Maritime Shippers
+53,TRK-95678-US,7,1,65,"Tokyo, Japan","Chicago, IL",2025-11-08,2025-11-15,2025-11-15,DELIVERED,0,Apex Logistics Freight
+54,TRK-25386-US,2,4,67,"Taipei, Taiwan","Newark, NJ",2025-11-10,2025-11-16,2025-11-16,DELIVERED,0,Apex Logistics Freight
+55,TRK-90760-US,7,2,69,"Taipei, Taiwan","Dallas, TX",2025-11-20,2025-11-30,2025-11-30,DELIVERED,0,Apex Logistics Freight
+56,TRK-48356-US,3,3,72,"Chicago, IL","Oakland, CA",2025-11-13,2025-11-19,2025-11-19,DELIVERED,0,Pacific Maritime Shippers
+57,TRK-17770-US,3,4,73,"Dallas, TX","Newark, NJ",2025-11-16,2025-11-25,2025-11-25,DELIVERED,0,Pacific Maritime Shippers
+58,TRK-74154-US,4,4,74,"Chicago, IL","Newark, NJ",2025-11-19,2025-11-24,2025-11-28,DELAYED,4,Apex Logistics Freight
+59,TRK-62802-US,2,1,75,"Dallas, TX","Chicago, IL",2025-11-16,2025-11-23,2025-11-23,DELIVERED,0,Pacific Maritime Shippers
+60,TRK-93209-US,2,4,77,"Stuttgart, Germany","Newark, NJ",2025-11-15,2025-11-21,2025-11-21,DELIVERED,0,Pacific Maritime Shippers
+61,TRK-45197-US,4,4,78,"Tokyo, Japan","Newark, NJ",2025-11-21,2025-11-26,2025-11-26,DELIVERED,0,Pacific Maritime Shippers
+62,TRK-99463-US,8,3,79,"Stuttgart, Germany","Oakland, CA",2025-11-18,2025-11-23,2025-11-23,DELIVERED,0,Global Cargo Express
+63,TRK-10088-US,8,4,80,"Taipei, Taiwan","Newark, NJ",2025-11-04,2025-11-08,2025-11-11,DELAYED,3,FastTrack Parcel Services
+64,TRK-58738-US,5,1,84,"Stuttgart, Germany","Chicago, IL",2025-12-27,2025-12-31,2025-12-31,DELIVERED,0,Apex Logistics Freight
+65,TRK-95915-US,4,4,85,"Dallas, TX","Newark, NJ",2025-12-12,2025-12-21,2025-12-21,DELIVERED,0,Global Cargo Express
+66,TRK-11217-US,4,4,86,"Dallas, TX","Newark, NJ",2025-12-09,2025-12-16,2025-12-22,DELAYED,6,Global Cargo Express
+67,TRK-19283-US,3,4,87,"Seoul, South Korea","Newark, NJ",2025-12-03,2025-12-13,2025-12-13,DELIVERED,0,Apex Logistics Freight
+68,TRK-60164-US,5,2,88,"Dallas, TX","Dallas, TX",2025-12-28,2026-01-01,2026-01-01,DELIVERED,0,Apex Logistics Freight
+69,TRK-56030-US,3,4,90,"Dallas, TX","Newark, NJ",2025-12-12,2025-12-20,2025-12-27,DELAYED,7,Apex Logistics Freight
+70,TRK-23168-US,4,1,91,"Stuttgart, Germany","Chicago, IL",2025-12-08,2025-12-16,2025-12-16,DELIVERED,0,Apex Logistics Freight
+71,TRK-42477-US,6,2,92,"Dallas, TX","Dallas, TX",2025-12-03,2025-12-09,2025-12-09,DELIVERED,0,Pacific Maritime Shippers
+72,TRK-13515-US,10,3,93,"Taipei, Taiwan","Oakland, CA",2025-12-28,2026-01-05,2026-01-05,DELIVERED,0,Pacific Maritime Shippers
+73,TRK-41370-US,5,1,94,"Seoul, South Korea","Chicago, IL",2025-12-11,2025-12-16,2025-12-16,DELIVERED,0,FastTrack Parcel Services
+74,TRK-57329-US,9,1,95,"Taipei, Taiwan","Chicago, IL",2025-12-18,2025-12-27,2025-12-27,DELIVERED,0,Pacific Maritime Shippers
+75,TRK-19567-US,3,4,96,"Chicago, IL","Newark, NJ",2025-12-11,2025-12-18,2025-12-18,DELIVERED,0,Global Cargo Express
+76,TRK-92388-US,7,3,97,"Seoul, South Korea","Oakland, CA",2025-12-27,2026-01-01,2026-01-03,DELAYED,2,FastTrack Parcel Services
+77,TRK-46368-US,10,2,98,"Tokyo, Japan","Dallas, TX",2025-12-20,2025-12-29,2025-12-29,DELIVERED,0,Global Cargo Express
+78,TRK-86865-US,6,4,99,"Tokyo, Japan","Newark, NJ",2025-12-11,2025-12-21,2025-12-21,DELIVERED,0,Global Cargo Express
+79,TRK-66948-US,4,1,100,"Seoul, South Korea","Chicago, IL",2025-12-13,2025-12-23,2025-12-23,DELIVERED,0,Global Cargo Express
+80,TRK-11660-US,3,1,101,"Dallas, TX","Chicago, IL",2025-12-07,2025-12-13,2025-12-13,DELIVERED,0,Apex Logistics Freight
+81,TRK-58741-US,5,2,102,"Dallas, TX","Dallas, TX",2025-12-04,2025-12-10,2025-12-10,DELIVERED,0,Apex Logistics Freight
+82,TRK-66272-US,1,3,103,"Chicago, IL","Oakland, CA",2025-12-22,2025-12-31,2025-12-31,DELIVERED,0,Pacific Maritime Shippers
+83,TRK-76949-US,8,4,104,"Stuttgart, Germany","Newark, NJ",2025-12-23,2025-12-31,2025-12-31,DELIVERED,0,Pacific Maritime Shippers
+84,TRK-85223-US,5,1,105,"Taipei, Taiwan","Chicago, IL",2025-12-11,2025-12-16,2025-12-16,DELIVERED,0,Global Cargo Express
+85,TRK-16026-US,1,2,106,"Tokyo, Japan","Dallas, TX",2025-12-15,2025-12-19,2025-12-19,DELIVERED,0,FastTrack Parcel Services
+86,TRK-39427-US,1,4,107,"Taipei, Taiwan","Newark, NJ",2025-12-23,2025-12-28,2025-12-28,DELIVERED,0,Pacific Maritime Shippers
+87,TRK-25650-US,2,3,108,"Taipei, Taiwan","Oakland, CA",2025-12-24,2025-12-30,2025-12-30,DELIVERED,0,Global Cargo Express
+88,TRK-47002-US,2,4,109,"Tokyo, Japan","Newark, NJ",2026-01-23,2026-01-27,2026-01-27,DELIVERED,0,Pacific Maritime Shippers
+89,TRK-91620-US,5,3,110,"Seoul, South Korea","Oakland, CA",2026-01-12,2026-01-16,2026-01-16,DELIVERED,0,Apex Logistics Freight
+90,TRK-29735-US,9,2,111,"Seoul, South Korea","Dallas, TX",2026-01-11,2026-01-21,2026-01-21,DELIVERED,0,Global Cargo Express
+91,TRK-10191-US,1,3,112,"Dallas, TX","Oakland, CA",2026-01-28,2026-02-03,2026-02-03,DELIVERED,0,FastTrack Parcel Services
+92,TRK-74491-US,4,4,113,"Taipei, Taiwan","Newark, NJ",2026-01-07,2026-01-12,2026-01-12,DELIVERED,0,Global Cargo Express
+93,TRK-58823-US,9,4,114,"Dallas, TX","Newark, NJ",2026-01-13,2026-01-17,2026-01-17,DELIVERED,0,FastTrack Parcel Services
+94,TRK-67014-US,2,1,115,"Taipei, Taiwan","Chicago, IL",2026-01-17,2026-01-25,2026-01-30,DELAYED,5,Apex Logistics Freight
+95,TRK-69343-US,6,3,116,"Taipei, Taiwan","Oakland, CA",2026-01-06,2026-01-16,2026-01-16,DELIVERED,0,Pacific Maritime Shippers
+96,TRK-30369-US,10,1,117,"Taipei, Taiwan","Chicago, IL",2026-01-16,2026-01-21,2026-01-21,DELIVERED,0,Global Cargo Express
+97,TRK-50410-US,4,4,118,"Tokyo, Japan","Newark, NJ",2026-01-18,2026-01-25,2026-01-29,DELAYED,4,FastTrack Parcel Services
+98,TRK-38183-US,10,1,120,"Taipei, Taiwan","Chicago, IL",2026-01-29,2026-02-04,2026-02-04,DELIVERED,0,Pacific Maritime Shippers
+99,TRK-44100-US,1,3,121,"Stuttgart, Germany","Oakland, CA",2026-01-15,2026-01-21,2026-01-21,DELIVERED,0,Apex Logistics Freight
+100,TRK-11567-US,3,1,124,"Taipei, Taiwan","Chicago, IL",2026-01-27,2026-02-01,2026-02-03,DELAYED,2,Global Cargo Express
+101,TRK-19828-US,2,3,125,"Stuttgart, Germany","Oakland, CA",2026-01-29,2026-02-04,2026-02-04,DELIVERED,0,Global Cargo Express
+102,TRK-26059-US,2,3,126,"Seoul, South Korea","Oakland, CA",2026-01-19,2026-01-26,2026-01-26,DELIVERED,0,Global Cargo Express
+103,TRK-13864-US,7,4,127,"Dallas, TX","Newark, NJ",2026-01-31,2026-02-07,2026-02-07,DELIVERED,0,FastTrack Parcel Services
+104,TRK-68459-US,5,3,128,"Stuttgart, Germany","Oakland, CA",2026-01-28,2026-02-02,2026-02-02,DELIVERED,0,Apex Logistics Freight
+105,TRK-82179-US,8,4,129,"Stuttgart, Germany","Newark, NJ",2026-01-22,2026-01-27,2026-01-27,DELIVERED,0,FastTrack Parcel Services
+106,TRK-92674-US,9,2,130,"Seoul, South Korea","Dallas, TX",2026-01-07,2026-01-12,2026-01-12,DELIVERED,0,Global Cargo Express
+107,TRK-84141-US,8,3,131,"Seoul, South Korea","Oakland, CA",2026-01-30,2026-02-06,2026-02-06,DELIVERED,0,Pacific Maritime Shippers
+108,TRK-17679-US,1,3,132,"Chicago, IL","Oakland, CA",2026-01-09,2026-01-15,2026-01-15,DELIVERED,0,FastTrack Parcel Services
+109,TRK-96096-US,2,2,133,"Tokyo, Japan","Dallas, TX",2026-01-26,2026-01-31,2026-01-31,DELIVERED,0,Apex Logistics Freight
+110,TRK-56504-US,4,4,134,"Taipei, Taiwan","Newark, NJ",2026-01-14,2026-01-18,2026-01-18,DELIVERED,0,Apex Logistics Freight
+111,TRK-56095-US,6,1,135,"Chicago, IL","Chicago, IL",2026-01-21,2026-01-31,2026-01-31,DELIVERED,0,Apex Logistics Freight
+112,TRK-12612-US,4,2,140,"Stuttgart, Germany","Dallas, TX",2026-01-24,2026-01-31,2026-02-02,DELAYED,2,FastTrack Parcel Services
+113,TRK-52413-US,6,2,141,"Stuttgart, Germany","Dallas, TX",2026-01-27,2026-02-01,2026-02-01,DELIVERED,0,Global Cargo Express
+114,TRK-19506-US,9,3,142,"Dallas, TX","Oakland, CA",2026-01-10,2026-01-15,2026-01-15,DELIVERED,0,Pacific Maritime Shippers
+115,TRK-67261-US,3,2,144,"Dallas, TX","Dallas, TX",2026-01-25,2026-01-31,2026-01-31,DELIVERED,0,FastTrack Parcel Services
+116,TRK-39260-US,10,3,145,"Seoul, South Korea","Oakland, CA",2026-01-29,2026-02-06,2026-02-06,DELIVERED,0,Apex Logistics Freight
+117,TRK-84381-US,1,4,146,"Taipei, Taiwan","Newark, NJ",2026-01-29,2026-02-04,2026-02-11,DELAYED,7,Global Cargo Express
+118,TRK-28434-US,2,4,147,"Dallas, TX","Newark, NJ",2026-01-11,2026-01-16,2026-01-16,DELIVERED,0,Pacific Maritime Shippers
+119,TRK-68540-US,2,3,148,"Tokyo, Japan","Oakland, CA",2026-01-17,2026-01-23,2026-01-23,DELIVERED,0,Global Cargo Express
+120,TRK-16310-US,2,1,149,"Seoul, South Korea","Chicago, IL",2026-01-11,2026-01-15,2026-01-15,DELIVERED,0,FastTrack Parcel Services
+121,TRK-81568-US,7,3,150,"Stuttgart, Germany","Oakland, CA",2026-01-24,2026-01-31,2026-01-31,DELIVERED,0,FastTrack Parcel Services
+122,TRK-69151-US,4,2,152,"Stuttgart, Germany","Dallas, TX",2026-01-27,2026-02-05,2026-02-05,DELIVERED,0,Global Cargo Express
+123,TRK-32296-US,2,3,153,"Taipei, Taiwan","Oakland, CA",2026-03-11,2026-03-17,2026-03-17,DELIVERED,0,FastTrack Parcel Services
+124,TRK-14062-US,10,4,154,"Dallas, TX","Newark, NJ",2026-03-15,2026-03-19,2026-03-19,DELIVERED,0,FastTrack Parcel Services
+125,TRK-63645-US,4,2,155,"Dallas, TX","Dallas, TX",2026-03-23,2026-03-28,2026-04-01,DELAYED,4,Pacific Maritime Shippers
+126,TRK-30131-US,9,4,156,"Tokyo, Japan","Newark, NJ",2026-03-19,2026-03-23,2026-03-29,DELAYED,6,Global Cargo Express
+127,TRK-36171-US,10,4,157,"Stuttgart, Germany","Newark, NJ",2026-03-27,2026-04-02,2026-04-02,DELIVERED,0,Global Cargo Express
+128,TRK-50416-US,8,1,158,"Seoul, South Korea","Chicago, IL",2026-03-07,2026-03-13,2026-03-13,DELIVERED,0,FastTrack Parcel Services
+129,TRK-58630-US,7,2,159,"Tokyo, Japan","Dallas, TX",2026-03-29,2026-04-04,2026-04-10,DELAYED,6,FastTrack Parcel Services
+130,TRK-45200-US,5,2,160,"Taipei, Taiwan","Dallas, TX",2026-03-15,2026-03-21,2026-03-21,DELIVERED,0,Global Cargo Express
+131,TRK-87296-US,9,4,161,"Chicago, IL","Newark, NJ",2026-03-28,2026-04-01,2026-04-05,DELAYED,4,Apex Logistics Freight
+132,TRK-85066-US,9,4,162,"Seoul, South Korea","Newark, NJ",2026-03-10,2026-03-20,2026-03-20,DELIVERED,0,Apex Logistics Freight
+133,TRK-25765-US,9,2,163,"Taipei, Taiwan","Dallas, TX",2026-03-16,2026-03-26,2026-03-26,DELIVERED,0,FastTrack Parcel Services
+134,TRK-20271-US,1,4,165,"Taipei, Taiwan","Newark, NJ",2026-03-24,2026-04-03,2026-04-03,DELIVERED,0,FastTrack Parcel Services
+135,TRK-60868-US,2,1,167,"Chicago, IL","Chicago, IL",2026-03-08,2026-03-14,2026-03-14,DELIVERED,0,FastTrack Parcel Services
+136,TRK-24748-US,1,4,168,"Taipei, Taiwan","Newark, NJ",2026-03-16,2026-03-24,2026-03-24,DELIVERED,0,FastTrack Parcel Services
+137,TRK-83752-US,2,1,169,"Tokyo, Japan","Chicago, IL",2026-03-14,2026-03-22,2026-03-22,DELIVERED,0,Global Cargo Express
+138,TRK-32570-US,8,1,173,"Seoul, South Korea","Chicago, IL",2026-03-30,2026-04-06,2026-04-06,DELIVERED,0,Pacific Maritime Shippers
+139,TRK-53449-US,1,4,174,"Stuttgart, Germany","Newark, NJ",2026-03-14,2026-03-23,2026-03-23,DELIVERED,0,Apex Logistics Freight
+140,TRK-74437-US,5,3,175,"Taipei, Taiwan","Oakland, CA",2026-03-05,2026-03-11,2026-03-15,DELAYED,4,Global Cargo Express
+141,TRK-64627-US,6,3,176,"Taipei, Taiwan","Oakland, CA",2026-03-20,2026-03-27,2026-03-27,DELIVERED,0,Global Cargo Express
+142,TRK-17367-US,9,3,177,"Stuttgart, Germany","Oakland, CA",2026-03-21,2026-03-30,2026-03-30,DELIVERED,0,Apex Logistics Freight
+143,TRK-32772-US,10,1,178,"Taipei, Taiwan","Chicago, IL",2026-03-25,2026-04-01,2026-04-07,DELAYED,6,Apex Logistics Freight
+144,TRK-58280-US,4,3,180,"Chicago, IL","Oakland, CA",2026-03-04,2026-03-08,2026-03-08,DELIVERED,0,FastTrack Parcel Services
+145,TRK-33276-US,8,4,181,"Chicago, IL","Newark, NJ",2026-04-08,2026-04-17,2026-04-21,DELAYED,4,FastTrack Parcel Services
+146,TRK-47364-US,5,1,182,"Seoul, South Korea","Chicago, IL",2026-04-08,2026-04-13,2026-04-13,DELIVERED,0,Global Cargo Express
+147,TRK-98826-US,4,2,183,"Tokyo, Japan","Dallas, TX",2026-04-06,2026-04-16,2026-04-16,DELIVERED,0,Apex Logistics Freight
+148,TRK-27342-US,1,4,184,"Chicago, IL","Newark, NJ",2026-04-18,2026-04-22,2026-04-22,DELIVERED,0,Apex Logistics Freight
+149,TRK-59345-US,5,4,186,"Seoul, South Korea","Newark, NJ",2026-04-16,2026-04-26,2026-04-26,DELIVERED,0,Pacific Maritime Shippers
+150,TRK-86609-US,10,4,187,"Stuttgart, Germany","Newark, NJ",2026-04-05,2026-04-11,2026-04-11,DELIVERED,0,Global Cargo Express
+151,TRK-49121-US,9,3,188,"Seoul, South Korea","Oakland, CA",2026-04-30,2026-05-10,2026-05-10,DELIVERED,0,Global Cargo Express
+152,TRK-95998-US,5,3,189,"Taipei, Taiwan","Oakland, CA",2026-04-09,2026-04-18,2026-04-18,DELIVERED,0,Pacific Maritime Shippers
+153,TRK-96577-US,10,4,190,"Dallas, TX","Newark, NJ",2026-04-26,2026-04-30,2026-04-30,DELIVERED,0,Pacific Maritime Shippers
+154,TRK-64862-US,5,3,191,"Seoul, South Korea","Oakland, CA",2026-04-16,2026-04-25,2026-04-25,DELIVERED,0,FastTrack Parcel Services
+155,TRK-39145-US,4,3,192,"Dallas, TX","Oakland, CA",2026-04-13,2026-04-22,2026-04-22,DELIVERED,0,FastTrack Parcel Services
+156,TRK-48506-US,9,2,193,"Seoul, South Korea","Dallas, TX",2026-04-29,2026-05-09,2026-05-09,DELIVERED,0,Global Cargo Express
+157,TRK-95778-US,3,3,194,"Taipei, Taiwan","Oakland, CA",2026-04-19,2026-04-28,2026-04-28,DELIVERED,0,Global Cargo Express
+158,TRK-44152-US,6,3,195,"Seoul, South Korea","Oakland, CA",2026-04-24,2026-05-04,2026-05-04,DELIVERED,0,Pacific Maritime Shippers
+159,TRK-71894-US,10,1,197,"Chicago, IL","Chicago, IL",2026-04-20,2026-04-28,2026-04-28,DELIVERED,0,Apex Logistics Freight
+160,TRK-29762-US,7,1,198,"Taipei, Taiwan","Chicago, IL",2026-04-23,2026-04-30,2026-04-30,DELIVERED,0,Apex Logistics Freight
+161,TRK-73908-US,3,1,199,"Dallas, TX","Chicago, IL",2026-04-13,2026-04-20,2026-04-27,DELAYED,7,Pacific Maritime Shippers
+162,TRK-85534-US,4,2,201,"Seoul, South Korea","Dallas, TX",2026-04-27,2026-05-01,2026-05-01,DELIVERED,0,Apex Logistics Freight
+163,TRK-66233-US,7,4,202,"Seoul, South Korea","Newark, NJ",2026-04-15,2026-04-20,2026-04-20,DELIVERED,0,FastTrack Parcel Services
+164,TRK-79603-US,1,3,203,"Stuttgart, Germany","Oakland, CA",2026-04-10,2026-04-15,2026-04-15,DELIVERED,0,Apex Logistics Freight
+165,TRK-26899-US,6,3,204,"Seoul, South Korea","Oakland, CA",2026-04-20,2026-04-29,2026-04-29,DELIVERED,0,Global Cargo Express
+166,TRK-69759-US,5,3,205,"Seoul, South Korea","Oakland, CA",2026-04-08,2026-04-13,2026-04-15,DELAYED,2,Pacific Maritime Shippers
+167,TRK-12506-US,3,4,208,"Taipei, Taiwan","Newark, NJ",2026-05-27,2026-06-02,2026-06-02,DELIVERED,0,Apex Logistics Freight
+168,TRK-26143-US,10,2,209,"Dallas, TX","Dallas, TX",2026-05-29,2026-06-03,2026-06-03,DELIVERED,0,Pacific Maritime Shippers
+169,TRK-87846-US,5,1,210,"Dallas, TX","Chicago, IL",2026-05-29,2026-06-05,2026-06-05,DELIVERED,0,Global Cargo Express
+170,TRK-59840-US,7,4,211,"Chicago, IL","Newark, NJ",2026-05-10,2026-05-14,2026-05-14,DELIVERED,0,Global Cargo Express
+171,TRK-65164-US,1,3,212,"Dallas, TX","Oakland, CA",2026-05-15,2026-05-20,2026-05-20,DELIVERED,0,Global Cargo Express
+172,TRK-77054-US,7,1,213,"Tokyo, Japan","Chicago, IL",2026-05-15,2026-05-23,2026-05-23,DELIVERED,0,Global Cargo Express
+173,TRK-78569-US,4,3,214,"Tokyo, Japan","Oakland, CA",2026-05-02,2026-05-09,2026-05-09,DELIVERED,0,Apex Logistics Freight
+174,TRK-53332-US,4,4,215,"Stuttgart, Germany","Newark, NJ",2026-05-27,2026-06-01,2026-06-06,DELAYED,5,Apex Logistics Freight
+175,TRK-21807-US,8,2,216,"Dallas, TX","Dallas, TX",2026-05-10,2026-05-14,2026-05-14,DELIVERED,0,Global Cargo Express
+176,TRK-70853-US,5,3,217,"Stuttgart, Germany","Oakland, CA",2026-05-16,2026-05-25,2026-05-25,DELIVERED,0,Global Cargo Express
+177,TRK-16014-US,2,1,221,"Taipei, Taiwan","Chicago, IL",2026-05-29,2026-06-04,2026-06-04,DELIVERED,0,Global Cargo Express
+178,TRK-22183-US,8,3,222,"Tokyo, Japan","Oakland, CA",2026-05-26,2026-06-01,2026-06-01,DELIVERED,0,Pacific Maritime Shippers
+179,TRK-72684-US,5,4,223,"Dallas, TX","Newark, NJ",2026-05-13,2026-05-20,2026-05-20,DELIVERED,0,FastTrack Parcel Services
+180,TRK-64529-US,3,1,225,"Chicago, IL","Chicago, IL",2026-05-11,2026-05-20,2026-05-20,DELIVERED,0,FastTrack Parcel Services
+181,TRK-99714-US,6,1,226,"Seoul, South Korea","Chicago, IL",2026-05-03,2026-05-11,2026-05-11,DELIVERED,0,Apex Logistics Freight
+182,TRK-98857-US,6,1,228,"Dallas, TX","Chicago, IL",2026-05-11,2026-05-18,2026-05-22,DELAYED,4,Apex Logistics Freight
+183,TRK-73167-US,7,2,230,"Dallas, TX","Dallas, TX",2026-05-26,2026-06-04,2026-06-04,DELIVERED,0,Pacific Maritime Shippers
+184,TRK-11526-US,9,1,231,"Chicago, IL","Chicago, IL",2026-05-04,2026-05-09,2026-05-09,DELIVERED,0,Apex Logistics Freight
+185,TRK-76444-US,5,1,235,"Chicago, IL","Chicago, IL",2026-06-14,2026-06-20,2026-06-20,DELIVERED,0,Apex Logistics Freight
+186,TRK-85108-US,8,4,236,"Stuttgart, Germany","Newark, NJ",2026-06-19,2026-06-29,2026-06-29,DELIVERED,0,FastTrack Parcel Services
+187,TRK-62879-US,1,1,238,"Stuttgart, Germany","Chicago, IL",2026-06-16,2026-06-23,2026-06-23,DELIVERED,0,FastTrack Parcel Services
+188,TRK-76628-US,10,3,239,"Dallas, TX","Oakland, CA",2026-06-11,2026-06-21,2026-06-27,DELAYED,6,Apex Logistics Freight
+189,TRK-53512-US,4,4,240,"Dallas, TX","Newark, NJ",2026-06-09,2026-06-15,2026-06-15,DELIVERED,0,FastTrack Parcel Services
+190,TRK-54742-US,4,1,241,"Dallas, TX","Chicago, IL",2026-06-23,2026-06-30,2026-07-07,DELAYED,7,Pacific Maritime Shippers
+191,TRK-74542-US,1,2,243,"Dallas, TX","Dallas, TX",2026-06-24,2026-06-30,2026-06-30,DELIVERED,0,Apex Logistics Freight
+192,TRK-25826-US,4,2,244,"Taipei, Taiwan","Dallas, TX",2026-06-08,2026-06-12,2026-06-12,DELIVERED,0,FastTrack Parcel Services
+193,TRK-93000-US,7,1,245,"Seoul, South Korea","Chicago, IL",2026-06-06,2026-06-15,2026-06-15,DELIVERED,0,Global Cargo Express
+194,TRK-82512-US,1,1,246,"Chicago, IL","Chicago, IL",2026-06-20,2026-06-28,2026-07-03,DELAYED,5,FastTrack Parcel Services
+195,TRK-26827-US,3,2,247,"Seoul, South Korea","Dallas, TX",2026-06-13,2026-06-23,2026-06-23,DELIVERED,0,Global Cargo Express
+196,TRK-89822-US,7,4,248,"Tokyo, Japan","Newark, NJ",2026-06-23,2026-06-29,2026-06-29,DELIVERED,0,Apex Logistics Freight
+197,TRK-64099-US,3,2,249,"Dallas, TX","Dallas, TX",2026-06-04,2026-06-10,2026-06-10,DELIVERED,0,Pacific Maritime Shippers
+198,TRK-36330-US,9,2,250,"Chicago, IL","Dallas, TX",2026-06-23,2026-07-02,2026-07-02,DELIVERED,0,Apex Logistics Freight
+199,TRK-76046-US,3,2,251,"Dallas, TX","Dallas, TX",2026-06-13,2026-06-19,2026-06-19,DELIVERED,0,Pacific Maritime Shippers
+200,TRK-98374-US,10,4,252,"Seoul, South Korea","Newark, NJ",2026-06-16,2026-06-24,2026-06-24,DELIVERED,0,Pacific Maritime Shippers
+201,TRK-44993-US,1,2,254,"Tokyo, Japan","Dallas, TX",2026-06-05,2026-06-12,2026-06-19,DELAYED,7,Apex Logistics Freight
+202,TRK-57013-US,4,1,255,"Stuttgart, Germany","Chicago, IL",2026-06-14,2026-06-24,2026-06-28,DELAYED,4,FastTrack Parcel Services
+203,TRK-41142-US,4,4,256,"Dallas, TX","Newark, NJ",2026-06-10,2026-06-19,2026-06-19,DELIVERED,0,Pacific Maritime Shippers
+204,TRK-11699-US,6,1,257,"Taipei, Taiwan","Chicago, IL",2026-06-09,2026-06-16,2026-06-16,DELIVERED,0,Pacific Maritime Shippers
+205,TRK-35362-US,6,2,258,"Seoul, South Korea","Dallas, TX",2026-06-22,2026-07-02,2026-07-02,DELIVERED,0,Pacific Maritime Shippers
+206,TRK-59440-US,3,1,259,"Seoul, South Korea","Chicago, IL",2026-06-08,2026-06-12,2026-06-12,DELIVERED,0,Global Cargo Express
+207,TRK-53327-US,5,1,260,"Dallas, TX","Chicago, IL",2026-07-14,2026-07-19,2026-07-19,DELIVERED,0,FastTrack Parcel Services
+208,TRK-74297-US,10,3,262,"Stuttgart, Germany","Oakland, CA",2026-07-19,2026-07-27,2026-08-03,DELAYED,7,Pacific Maritime Shippers
+209,TRK-76209-US,3,1,263,"Seoul, South Korea","Chicago, IL",2026-07-25,2026-08-02,,IN_TRANSIT,0,Apex Logistics Freight
+210,TRK-53393-US,4,3,264,"Tokyo, Japan","Oakland, CA",2026-07-22,2026-07-26,2026-07-26,DELIVERED,0,Pacific Maritime Shippers
+211,TRK-25036-US,9,1,265,"Seoul, South Korea","Chicago, IL",2026-07-07,2026-07-15,2026-07-15,DELIVERED,0,Pacific Maritime Shippers
+212,TRK-99463-US,4,1,266,"Seoul, South Korea","Chicago, IL",2026-07-12,2026-07-20,2026-07-20,DELIVERED,0,Pacific Maritime Shippers
+213,TRK-77411-US,9,3,269,"Seoul, South Korea","Oakland, CA",2026-07-27,2026-08-05,2026-08-05,DELIVERED,0,FastTrack Parcel Services
+214,TRK-31940-US,2,1,270,"Dallas, TX","Chicago, IL",2026-07-20,2026-07-25,2026-07-25,DELIVERED,0,Global Cargo Express
+215,TRK-36945-US,7,1,271,"Dallas, TX","Chicago, IL",2026-07-29,2026-08-07,2026-08-07,DELIVERED,0,FastTrack Parcel Services
+216,TRK-21471-US,6,1,273,"Stuttgart, Germany","Chicago, IL",2026-07-15,2026-07-20,2026-07-27,DELAYED,7,Global Cargo Express
+217,TRK-60860-US,5,4,274,"Dallas, TX","Newark, NJ",2026-07-05,2026-07-13,,DELAYED,3,FastTrack Parcel Services
+218,TRK-94072-US,2,1,275,"Dallas, TX","Chicago, IL",2026-07-20,2026-07-24,2026-07-24,DELIVERED,0,Global Cargo Express
+219,TRK-99899-US,2,3,276,"Chicago, IL","Oakland, CA",2026-07-11,2026-07-21,2026-07-27,DELAYED,6,Pacific Maritime Shippers
+220,TRK-30489-US,1,4,277,"Taipei, Taiwan","Newark, NJ",2026-07-20,2026-07-27,,IN_TRANSIT,0,Apex Logistics Freight
+221,TRK-98773-US,3,3,278,"Stuttgart, Germany","Oakland, CA",2026-07-05,2026-07-11,,IN_TRANSIT,0,Pacific Maritime Shippers
+222,TRK-80405-US,10,4,279,"Tokyo, Japan","Newark, NJ",2026-07-09,2026-07-14,2026-07-16,DELAYED,2,Global Cargo Express
+223,TRK-31096-US,7,2,280,"Taipei, Taiwan","Dallas, TX",2026-07-23,2026-08-01,2026-08-01,DELIVERED,0,Apex Logistics Freight
+224,TRK-81939-US,10,1,281,"Dallas, TX","Chicago, IL",2026-07-09,2026-07-14,2026-07-21,DELAYED,7,FastTrack Parcel Services
+225,TRK-53365-US,4,4,282,"Taipei, Taiwan","Newark, NJ",2026-07-12,2026-07-21,,DELAYED,2,Pacific Maritime Shippers
+226,TRK-51652-US,2,2,283,"Seoul, South Korea","Dallas, TX",2026-07-06,2026-07-10,2026-07-10,DELIVERED,0,FastTrack Parcel Services
+227,TRK-51462-US,3,3,284,"Taipei, Taiwan","Oakland, CA",2026-07-11,2026-07-17,2026-07-17,DELIVERED,0,FastTrack Parcel Services
+228,TRK-57118-US,7,3,285,"Dallas, TX","Oakland, CA",2026-08-03,2026-08-13,2026-08-13,DELIVERED,0,Apex Logistics Freight
+229,TRK-82308-US,5,4,286,"Taipei, Taiwan","Newark, NJ",2026-08-27,2026-09-03,2026-09-03,DELIVERED,0,Global Cargo Express
+230,TRK-44502-US,3,2,287,"Dallas, TX","Dallas, TX",2026-08-06,2026-08-16,,IN_TRANSIT,0,Global Cargo Express
+231,TRK-87337-US,1,4,288,"Stuttgart, Germany","Newark, NJ",2026-08-27,2026-09-06,,IN_TRANSIT,0,Apex Logistics Freight
+232,TRK-61445-US,3,3,289,"Chicago, IL","Oakland, CA",2026-08-20,2026-08-28,,IN_TRANSIT,0,Apex Logistics Freight
+233,TRK-62007-US,9,1,290,"Chicago, IL","Chicago, IL",2026-08-19,2026-08-24,,IN_TRANSIT,0,Pacific Maritime Shippers
+234,TRK-77388-US,10,2,291,"Seoul, South Korea","Dallas, TX",2026-08-05,2026-08-15,,IN_TRANSIT,0,Apex Logistics Freight
+235,TRK-57028-US,3,4,292,"Taipei, Taiwan","Newark, NJ",2026-08-18,2026-08-26,2026-08-26,DELIVERED,0,Global Cargo Express
+236,TRK-97632-US,4,1,293,"Chicago, IL","Chicago, IL",2026-08-08,2026-08-12,2026-08-12,DELIVERED,0,Apex Logistics Freight
+237,TRK-23529-US,1,3,295,"Dallas, TX","Oakland, CA",2026-08-16,2026-08-23,2026-08-23,DELIVERED,0,Pacific Maritime Shippers
+238,TRK-87028-US,7,3,296,"Chicago, IL","Oakland, CA",2026-08-09,2026-08-17,2026-08-17,DELIVERED,0,Global Cargo Express
+239,TRK-73191-US,6,4,297,"Chicago, IL","Newark, NJ",2026-08-16,2026-08-24,2026-08-24,DELIVERED,0,Global Cargo Express
+240,TRK-29692-US,5,2,299,"Taipei, Taiwan","Dallas, TX",2026-08-15,2026-08-19,2026-08-19,DELIVERED,0,Apex Logistics Freight
+241,TRK-24855-US,7,3,300,"Dallas, TX","Oakland, CA",2026-08-05,2026-08-15,,DELAYED,3,FastTrack Parcel Services
+242,TRK-41938-US,7,1,301,"Taipei, Taiwan","Chicago, IL",2026-08-03,2026-08-11,2026-08-11,DELIVERED,0,Global Cargo Express
+243,TRK-17328-US,1,2,302,"Tokyo, Japan","Dallas, TX",2026-08-11,2026-08-16,,IN_TRANSIT,0,Apex Logistics Freight
+244,TRK-21239-US,1,3,304,"Seoul, South Korea","Oakland, CA",2026-08-20,2026-08-28,,IN_TRANSIT,0,Apex Logistics Freight
+245,TRK-88753-US,4,4,305,"Chicago, IL","Newark, NJ",2026-08-19,2026-08-29,2026-08-29,DELIVERED,0,Apex Logistics Freight
+246,TRK-88188-US,6,4,307,"Taipei, Taiwan","Newark, NJ",2026-08-17,2026-08-25,2026-08-25,DELIVERED,0,Global Cargo Express
+247,TRK-29603-US,9,4,308,"Taipei, Taiwan","Newark, NJ",2026-08-04,2026-08-08,2026-08-14,DELAYED,6,Global Cargo Express
+248,TRK-22214-US,9,1,309,"Dallas, TX","Chicago, IL",2026-08-25,2026-09-02,2026-09-08,DELAYED,6,FastTrack Parcel Services

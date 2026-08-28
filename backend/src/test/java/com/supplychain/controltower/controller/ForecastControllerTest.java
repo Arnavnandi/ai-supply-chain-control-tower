@@ -8,6 +8,7 @@ import com.supplychain.controltower.entity.Product;
 import com.supplychain.controltower.repository.InventoryRepository;
 import com.supplychain.controltower.repository.OrderItemRepository;
 import com.supplychain.controltower.repository.ProductRepository;
+import com.supplychain.controltower.service.ForecastService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -34,12 +35,13 @@ class ForecastControllerTest {
         inventoryRepository = mock(InventoryRepository.class);
         orderItemRepository = mock(OrderItemRepository.class);
 
-        forecastController = new ForecastController(
+        ForecastService forecastService = new ForecastService(
                 forecastingEngine,
                 productRepository,
                 inventoryRepository,
                 orderItemRepository
         );
+        forecastController = new ForecastController(forecastService);
     }
 
     @Test
