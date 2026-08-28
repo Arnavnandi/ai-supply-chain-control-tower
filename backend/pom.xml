@@ -93,6 +93,12 @@
             <artifactId>spring-ai-pgvector-store-spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- Spring AI Local ONNX Transformers Embedding Model Starter -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-transformers-spring-boot-starter</artifactId>
+        </dependency>
+
         <!-- Apache Tika for Document Text Extraction in RAG -->
         <dependency>
             <groupId>org.apache.tika</groupId>

@@ -45,8 +45,13 @@ spring:
       pgvector:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
-        dimensions: 768
+        dimensions: 384
         initialize-schema: true
+    onnx:
+      model:
+        location: classpath:/onnx/all-MiniLM-L6-v2/model.onnx
+        tokenizer:
+          location: classpath:/onnx/all-MiniLM-L6-v2/tokenizer.json
 
   servlet:
     multipart:
