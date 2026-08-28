@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/analytics/**").permitAll()
                 .requestMatchers("/api/ai/**").permitAll()
                 .requestMatchers("/api/documents/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             );

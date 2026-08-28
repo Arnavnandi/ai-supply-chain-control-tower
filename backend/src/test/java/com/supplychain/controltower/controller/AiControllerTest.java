@@ -19,6 +19,7 @@ class AiControllerTest {
     private com.supplychain.controltower.service.RagRetrievalService ragRetrievalService;
     private com.supplychain.controltower.service.RagKnowledgeIngestionService ragKnowledgeIngestionService;
     private com.supplychain.controltower.service.RagEvaluationService ragEvaluationService;
+    private com.supplychain.controltower.service.TelemetryEventPublisher telemetryEventPublisher;
     private AiController aiController;
 
     @BeforeEach
@@ -29,6 +30,7 @@ class AiControllerTest {
         ragRetrievalService = mock(com.supplychain.controltower.service.RagRetrievalService.class);
         ragKnowledgeIngestionService = mock(com.supplychain.controltower.service.RagKnowledgeIngestionService.class);
         ragEvaluationService = mock(com.supplychain.controltower.service.RagEvaluationService.class);
+        telemetryEventPublisher = mock(com.supplychain.controltower.service.TelemetryEventPublisher.class);
 
         aiController = new AiController(
                 agentRouter,
@@ -36,7 +38,8 @@ class AiControllerTest {
                 recommendationRepository,
                 ragRetrievalService,
                 ragKnowledgeIngestionService,
-                ragEvaluationService
+                ragEvaluationService,
+                telemetryEventPublisher
         );
     }
 
