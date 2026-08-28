@@ -44,7 +44,7 @@ public class RagRetrievalService {
     public RagQueryResult queryKnowledgeBase(String question) {
         log.info("[RAG RETRIEVAL SERVICE] Querying project knowledge base for: '{}'", question);
 
-        List<RetrievedChunk> retrieved = performSemanticSearch(question, 4);
+        List<RetrievedChunk> retrieved = hybridSimilaritySearch(question, 4);
 
         boolean hasContext = !retrieved.isEmpty();
         StringBuilder contextText = new StringBuilder();
@@ -92,35 +92,111 @@ public class RagRetrievalService {
     }
 
     public List<RetrievedChunk> performSemanticSearch(String query, int topK) {
-        List<RetrievedChunk> results = new ArrayList<>();
+        return hybridSimilaritySearch(query, topK);
+    }
 
-        // 1. Spring AI PgVectorStore dense vector similarity search
+    /**
+     * Executes Hybrid Semantic Vector + Lexical Keyword Retrieval fused using Reciprocal Rank Fusion (RRF).
+     * RRF_score(d) = sum(1 / (k + rank(d))) with k = 60.
+     */
+    public List<RetrievedChunk> hybridSimilaritySearch(String query, int topK) {
+        if (query == null || query.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int kFactor = 60;
+        List<RetrievedChunk> semanticCandidates = getSemanticCandidates(query);
+        List<RetrievedChunk> lexicalCandidates = getLexicalCandidates(query);
+
+        Map<String, RetrievedChunk> chunkMap = new HashMap<>();
+        Map<String, Double> rrfScores = new HashMap<>();
+
+        // 1. Process Semantic Candidates (1-based rank)
+        for (int i = 0; i < semanticCandidates.size(); i++) {
+            RetrievedChunk chunk = semanticCandidates.get(i);
+            int rank = i + 1; // 1-based rank
+            double score = 1.0 / (kFactor + rank);
+            chunkMap.putIfAbsent(chunk.getChunkId(), chunk);
+            rrfScores.merge(chunk.getChunkId(), score, Double::sum);
+        }
+
+        // 2. Process Lexical Candidates (1-based rank)
+        for (int i = 0; i < lexicalCandidates.size(); i++) {
+            RetrievedChunk chunk = lexicalCandidates.get(i);
+            int rank = i + 1; // 1-based rank
+            double score = 1.0 / (kFactor + rank);
+            chunkMap.putIfAbsent(chunk.getChunkId(), chunk);
+            rrfScores.merge(chunk.getChunkId(), score, Double::sum);
+        }
+
+        if (chunkMap.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 3. Build fused retrieved chunks with RRF relevance scores
+        List<RetrievedChunk> fusedList = new ArrayList<>();
+        for (Map.Entry<String, RetrievedChunk> entry : chunkMap.entrySet()) {
+            String chunkId = entry.getKey();
+            RetrievedChunk original = entry.getValue();
+            double rrfScore = rrfScores.getOrDefault(chunkId, 0.0);
+            double roundedRrf = Math.round(rrfScore * 100000.0) / 100000.0;
+
+            fusedList.add(RetrievedChunk.builder()
+                    .chunkId(original.getChunkId())
+                    .sourceName(original.getSourceName())
+                    .sourceType(original.getSourceType())
+                    .title(original.getTitle())
+                    .content(original.getContent())
+                    .relevanceScore(roundedRrf)
+                    .build());
+        }
+
+        // 4. Sort by RRF score descending, tie-breaking deterministically by chunkId
+        fusedList.sort(Comparator.comparing(RetrievedChunk::getRelevanceScore).reversed()
+                .thenComparing(RetrievedChunk::getChunkId));
+
+        log.info("[RAG HYBRID RRF RETRIEVAL] Query: '{}' | Semantic candidates: {} | Lexical candidates: {} | Fused unique: {}",
+                query, semanticCandidates.size(), lexicalCandidates.size(), fusedList.size());
+
+        return fusedList.stream().limit(topK).collect(Collectors.toList());
+    }
+
+    private List<RetrievedChunk> getSemanticCandidates(String query) {
+        List<RetrievedChunk> candidates = new ArrayList<>();
         try {
             List<Document> docs = vectorStore.similaritySearch(query);
-            if (docs != null && !docs.isEmpty()) {
+            if (docs != null) {
                 for (Document doc : docs) {
                     Map<String, Object> meta = doc.getMetadata();
-                    results.add(RetrievedChunk.builder()
-                            .chunkId(String.valueOf(meta.getOrDefault("chunkId", UUID.randomUUID().toString())))
-                            .sourceName(String.valueOf(meta.getOrDefault("sourceName", "technical_documentation_report.md")))
-                            .sourceType(String.valueOf(meta.getOrDefault("sourceType", "TECHNICAL_DOCS")))
-                            .title(String.valueOf(meta.getOrDefault("title", "Project Knowledge")))
+                    String chunkId = meta != null && meta.containsKey("chunkId") ? String.valueOf(meta.get("chunkId")) : UUID.randomUUID().toString();
+                    String sourceName = meta != null && meta.containsKey("sourceName") ? String.valueOf(meta.get("sourceName")) : "technical_documentation_report.md";
+                    String sourceType = meta != null && meta.containsKey("sourceType") ? String.valueOf(meta.get("sourceType")) : "TECHNICAL_DOCS";
+                    String title = meta != null && meta.containsKey("title") ? String.valueOf(meta.get("title")) : "Project Knowledge";
+
+                    candidates.add(RetrievedChunk.builder()
+                            .chunkId(chunkId)
+                            .sourceName(sourceName)
+                            .sourceType(sourceType)
+                            .title(title)
                             .content(doc.getContent())
                             .relevanceScore(0.95)
                             .build());
                 }
-                log.info("[RAG PGVECTORSTORE SEARCH] Retrieved {} chunks via PostgreSQL vector similarity search.", results.size());
-                return results.stream().limit(topK).collect(Collectors.toList());
             }
         } catch (Exception ex) {
-            log.info("[RAG IN-MEMORY SEARCH] Using fast term-frequency keyword similarity search engine fallback: {}", ex.getMessage());
+            log.warn("[RAG SEMANTIC SEARCH FAIL] Falling back safely to lexical search: {}", ex.getMessage());
         }
+        return candidates;
+    }
 
-        // 2. In-Memory Term-Frequency Keyword Similarity Search Fallback
+    private List<RetrievedChunk> getLexicalCandidates(String query) {
         List<RagKnowledgeIngestionService.KnowledgeChunk> chunks = ingestionService.getInMemoryChunks();
-        if (chunks.isEmpty()) {
+        if (chunks == null || chunks.isEmpty()) {
             ingestionService.ingestProjectKnowledge();
             chunks = ingestionService.getInMemoryChunks();
+        }
+        if (chunks == null || chunks.isEmpty()) {
+            return Collections.emptyList();
         }
 
         String[] queryTerms = query.toLowerCase().replaceAll("[^a-zA-Z0-9\\s]", "").split("\\s+");
@@ -151,8 +227,8 @@ public class RagRetrievalService {
             }
         }
 
-        scored.sort(Comparator.comparing(RetrievedChunk::getRelevanceScore).reversed());
-        List<RetrievedChunk> topResults = scored.stream().filter(c -> c.getRelevanceScore() >= 5.5).limit(topK).collect(Collectors.toList());
-        return topResults;
+        scored.sort(Comparator.comparing(RetrievedChunk::getRelevanceScore).reversed()
+                .thenComparing(RetrievedChunk::getChunkId));
+        return scored;
     }
 }
