@@ -80,13 +80,14 @@ public class RagKnowledgeIngestionService implements CommandLineRunner {
                         aiDocs.add(new Document(kc.getContent(), kc.getMetadata()));
                     }
                     try {
-                        java.util.concurrent.CompletableFuture.runAsync(() -> vectorStore.add(aiDocs));
+                        vectorStore.add(aiDocs);
+                        log.info("[RAG VECTORSTORE] Indexed {} chunks with dense vector embeddings into PgVectorStore.", aiDocs.size());
                     } catch (Exception ex) {
-                        log.info("[RAG VECTORSTORE] Spring AI VectorStore background indexing task initiated.");
+                        log.warn("[RAG VECTORSTORE EXCEPTION] VectorStore add warning: {}", ex.getMessage());
+                        persistChunksToPostgresVectorStore(chunks);
                     }
                 }
             }
-            persistChunksToPostgresVectorStore(inMemoryChunks);
             if (totalChunks > 0) {
                 log.info("[RAG INGESTION COMPLETED] Loaded {} knowledge chunks from Classpath docs resources.", totalChunks);
                 return totalChunks;

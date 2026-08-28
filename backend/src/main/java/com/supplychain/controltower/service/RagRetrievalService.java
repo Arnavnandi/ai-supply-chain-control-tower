@@ -94,10 +94,9 @@ public class RagRetrievalService {
     public List<RetrievedChunk> performSemanticSearch(String query, int topK) {
         List<RetrievedChunk> results = new ArrayList<>();
 
-        // 1. Optional Spring AI VectorStore search with fast timeout
+        // 1. Spring AI PgVectorStore dense vector similarity search
         try {
-            java.util.concurrent.CompletableFuture<List<Document>> future = java.util.concurrent.CompletableFuture.supplyAsync(() -> vectorStore.similaritySearch(query));
-            List<Document> docs = future.get(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+            List<Document> docs = vectorStore.similaritySearch(query);
             if (docs != null && !docs.isEmpty()) {
                 for (Document doc : docs) {
                     Map<String, Object> meta = doc.getMetadata();
@@ -107,14 +106,14 @@ public class RagRetrievalService {
                             .sourceType(String.valueOf(meta.getOrDefault("sourceType", "TECHNICAL_DOCS")))
                             .title(String.valueOf(meta.getOrDefault("title", "Project Knowledge")))
                             .content(doc.getContent())
-                            .relevanceScore(0.92)
+                            .relevanceScore(0.95)
                             .build());
                 }
-                log.info("[RAG SEARCH] Retrieved {} chunks via Spring AI VectorStore.", results.size());
+                log.info("[RAG PGVECTORSTORE SEARCH] Retrieved {} chunks via PostgreSQL vector similarity search.", results.size());
                 return results.stream().limit(topK).collect(Collectors.toList());
             }
         } catch (Exception ex) {
-            log.info("[RAG IN-MEMORY SEARCH] Using fast term-frequency keyword similarity search engine.");
+            log.info("[RAG IN-MEMORY SEARCH] Using fast term-frequency keyword similarity search engine fallback: {}", ex.getMessage());
         }
 
         // 2. In-Memory Term-Frequency Keyword Similarity Search Fallback
