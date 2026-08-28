@@ -1,6 +1,7 @@
 package com.supplychain.controltower.ai.agents;
 
 import com.supplychain.controltower.ai.tools.SupplierTools;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -18,6 +19,7 @@ public class SupplierAgent {
     private final SupplierTools supplierTools;
     private final ChatClient chatClient;
 
+    @CircuitBreaker(name = "llmService", fallbackMethod = "generateFallbackAnalysis")
     public String processQuery(String prompt) {
         log.info("[SUPPLIER AGENT] Processing query: '{}'", prompt);
         String apiKey = System.getenv("GEMINI_API_KEY");

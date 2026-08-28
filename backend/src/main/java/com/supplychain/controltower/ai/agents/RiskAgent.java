@@ -3,6 +3,7 @@ package com.supplychain.controltower.ai.agents;
 import com.supplychain.controltower.ai.tools.AnalyticsTools;
 import com.supplychain.controltower.ai.tools.InventoryTools;
 import com.supplychain.controltower.ai.tools.LogisticsTools;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -24,6 +25,7 @@ public class RiskAgent {
     private final com.supplychain.controltower.ai.tools.ForecastTools forecastTools;
     private final ChatClient chatClient;
 
+    @CircuitBreaker(name = "llmService", fallbackMethod = "generateFallbackAnalysis")
     public String processQuery(String prompt) {
         log.info("[RISK AGENT] Processing query: '{}'", prompt);
         String apiKey = System.getenv("GEMINI_API_KEY");
