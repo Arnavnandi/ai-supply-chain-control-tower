@@ -1,6 +1,7 @@
 package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.ai.agents.AgentRouter;
+import com.supplychain.controltower.ai.agents.SupervisorAgent;
 import com.supplychain.controltower.entity.Recommendation;
 import com.supplychain.controltower.repository.RecommendationRepository;
 import com.supplychain.controltower.service.RagEvaluationService;
@@ -22,6 +23,7 @@ import java.util.*;
 public class AiController {
 
     private final AgentRouter agentRouter;
+    private final SupervisorAgent supervisorAgent;
     private final RecommendationRepository recommendationRepository;
     private final RagRetrievalService ragRetrievalService;
     private final RagKnowledgeIngestionService ragKnowledgeIngestionService;
@@ -45,6 +47,14 @@ public class AiController {
                 "agentUsed", response.agentUsed(),
                 "timestamp", response.timestamp()
         ));
+    }
+
+    @PostMapping("/supervisor/query")
+    public ResponseEntity<SupervisorAgent.SupervisorConsensusResponse> processSupervisorQuery(
+            @RequestBody Map<String, String> request) {
+        String prompt = request.getOrDefault("prompt", request.get("query"));
+        log.info("[SUPERVISOR CONTROLLER] Processing multi-agent consensus query: '{}'", prompt);
+        return ResponseEntity.ok(supervisorAgent.processMultiAgentQuery(prompt));
     }
 
     @PostMapping("/rag/query")

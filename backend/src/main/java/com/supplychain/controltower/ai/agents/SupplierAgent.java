@@ -7,6 +7,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -18,8 +20,13 @@ public class SupplierAgent {
 
     public String processQuery(String prompt) {
         log.info("[SUPPLIER AGENT] Processing query: '{}'", prompt);
+        String apiKey = System.getenv("GEMINI_API_KEY");
+        boolean validKey = apiKey != null && !apiKey.isBlank() && !"unconfigured".equalsIgnoreCase(apiKey) && !apiKey.contains("your-api-key");
+        if (!validKey) {
+            return generateFallbackAnalysis(prompt);
+        }
         try {
-            return chatClient.prompt()
+            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
                     .system("""
                             You are the Specialized Supplier Intelligence Agent.
                             Your responsibility is evaluating vendor reliability ratings, lead times, delivery performance %, and contract pricing.
@@ -28,7 +35,9 @@ public class SupplierAgent {
                     .user(prompt)
                     .functions("getSupplierPerformance", "getSuppliersForProduct")
                     .call()
-                    .content();
+                    .content())
+                    .orTimeout(2, TimeUnit.SECONDS)
+                    .join();
         } catch (Exception ex) {
             log.warn("[SUPPLIER AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
             return generateFallbackAnalysis(prompt);

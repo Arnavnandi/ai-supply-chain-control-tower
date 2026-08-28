@@ -46,6 +46,8 @@ class AgentRouterTest {
         RiskTools riskTools = Mockito.mock(RiskTools.class);
         ForecastTools forecastTools = Mockito.mock(ForecastTools.class);
         RiskAgent riskAgent = new RiskAgent(analyticsTools, inventoryTools, logisticsTools, riskTools, forecastTools, chatClient);
+        com.supplychain.controltower.service.RagRetrievalService ragRetrievalService = Mockito.mock(com.supplychain.controltower.service.RagRetrievalService.class);
+        SupervisorAgent supervisorAgent = new SupervisorAgent(inventoryAgent, supplierAgent, logisticsAgent, warehouseAgent, riskAgent, ragRetrievalService, chatClient);
 
         agentRouter = new AgentRouter(
                 inventoryAgent,
@@ -53,6 +55,7 @@ class AgentRouterTest {
                 logisticsAgent,
                 warehouseAgent,
                 riskAgent,
+                supervisorAgent,
                 chatClient
         );
     }

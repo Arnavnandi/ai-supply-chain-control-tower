@@ -17,6 +17,7 @@ public class AgentRouter {
     private final LogisticsAgent logisticsAgent;
     private final WarehouseAgent warehouseAgent;
     private final RiskAgent riskAgent;
+    private final SupervisorAgent supervisorAgent;
     private final ChatClient chatClient;
 
     public record AgentResponse(
@@ -27,7 +28,7 @@ public class AgentRouter {
 
     public AgentResponse routeQuery(String prompt, String requestedAgentType) {
         String agentType = determineAgentType(prompt, requestedAgentType);
-        log.info("[AGENT ROUTER] Routing query to Specialized Agent: '{}'", agentType);
+        log.info("[AGENT ROUTER] Routing query to Agent Architecture: '{}'", agentType);
 
         String result;
         switch (agentType) {
@@ -46,9 +47,11 @@ public class AgentRouter {
             case "RISK":
                 result = riskAgent.processQuery(prompt);
                 break;
+            case "SUPERVISOR":
             case "EXECUTIVE":
             default:
-                result = processExecutiveQuery(prompt);
+                var consensus = supervisorAgent.processMultiAgentQuery(prompt);
+                result = consensus.getSupervisorSynthesis();
                 break;
         }
 

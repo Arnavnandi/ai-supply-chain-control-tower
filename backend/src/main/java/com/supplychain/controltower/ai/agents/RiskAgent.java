@@ -9,6 +9,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -24,8 +26,13 @@ public class RiskAgent {
 
     public String processQuery(String prompt) {
         log.info("[RISK AGENT] Processing query: '{}'", prompt);
+        String apiKey = System.getenv("GEMINI_API_KEY");
+        boolean validKey = apiKey != null && !apiKey.isBlank() && !"unconfigured".equalsIgnoreCase(apiKey) && !apiKey.contains("your-api-key");
+        if (!validKey) {
+            return generateFallbackAnalysis(prompt);
+        }
         try {
-            return chatClient.prompt()
+            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
                     .system("""
                             You are the Specialized Operational Risk Analysis Agent.
                             Your responsibility is synthesizing risk alerts across stockouts, shipment delays, supplier disruptions, and capacity overruns.
@@ -35,7 +42,9 @@ public class RiskAgent {
                     .user(prompt)
                     .functions("getActiveSupplyChainRisks", "getDemandForecasts", "getLowStockProducts", "getDelayedShipments")
                     .call()
-                    .content();
+                    .content())
+                    .orTimeout(2, TimeUnit.SECONDS)
+                    .join();
         } catch (Exception ex) {
             log.warn("[RISK AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
             return generateFallbackAnalysis(prompt);

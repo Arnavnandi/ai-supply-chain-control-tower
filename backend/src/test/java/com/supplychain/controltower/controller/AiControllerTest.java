@@ -14,6 +14,7 @@ import static org.mockito.Mockito.*;
 class AiControllerTest {
 
     private AgentRouter agentRouter;
+    private com.supplychain.controltower.ai.agents.SupervisorAgent supervisorAgent;
     private RecommendationRepository recommendationRepository;
     private com.supplychain.controltower.service.RagRetrievalService ragRetrievalService;
     private com.supplychain.controltower.service.RagKnowledgeIngestionService ragKnowledgeIngestionService;
@@ -23,6 +24,7 @@ class AiControllerTest {
     @BeforeEach
     void setUp() {
         agentRouter = mock(AgentRouter.class);
+        supervisorAgent = mock(com.supplychain.controltower.ai.agents.SupervisorAgent.class);
         recommendationRepository = mock(RecommendationRepository.class);
         ragRetrievalService = mock(com.supplychain.controltower.service.RagRetrievalService.class);
         ragKnowledgeIngestionService = mock(com.supplychain.controltower.service.RagKnowledgeIngestionService.class);
@@ -30,6 +32,7 @@ class AiControllerTest {
 
         aiController = new AiController(
                 agentRouter,
+                supervisorAgent,
                 recommendationRepository,
                 ragRetrievalService,
                 ragKnowledgeIngestionService,
