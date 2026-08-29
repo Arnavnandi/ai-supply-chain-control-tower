@@ -89,8 +89,51 @@ interface CascadeResult {
   timestamp: string;
 }
 
+interface CostSlaOption {
+  optionId: string;
+  strategyName: string;
+  estimatedCostUsd: number;
+  expectedLeadTimeDays: number;
+  expectedRiskReduction: number;
+  residualRiskScore: number;
+  residualRiskBand: string;
+  slaCustomerProtectionPct: number;
+  roiScore: number;
+  tradeoffReasoning: string;
+  recommendedChoice: boolean;
+}
+
+interface CostSlaReport {
+  analysisId: string;
+  targetDisruptionType: string;
+  targetEntity: string;
+  initialRiskScore: number;
+  initialRiskBand: string;
+  tradeoffs: CostSlaOption[];
+  optimalStrategyId: string;
+  executiveRecommendationSummary: string;
+}
+
+interface CategoryEfficacyMetric {
+  disruptionCategory: string;
+  totalExecutedCount: number;
+  historicalSuccessRatePct: number;
+  averageRiskReductionDelta: number;
+  topRankedActionType: string;
+  efficacyRating: string;
+}
+
+interface HistoricalEfficacyReport {
+  reportId: string;
+  totalHistoricalExecutions: number;
+  overallSuccessRatePct: number;
+  overallAverageRiskReductionDelta: number;
+  categoryBreakdowns: CategoryEfficacyMetric[];
+  historicalInsightsSummary: string;
+}
+
 export const AnalyticsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'simulation' | 'cascade' | 'accuracy' | 'optimization'>('cascade');
+  const [activeTab, setActiveTab] = useState<'cascade' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('cascade');
 
   // Accuracy State
   const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
@@ -110,6 +153,10 @@ export const AnalyticsPage: React.FC = () => {
   const [cascadeResult, setCascadeResult] = useState<CascadeResult | null>(null);
   const [cascadeLoading, setCascadeLoading] = useState<boolean>(false);
 
+  // Phase 23 State
+  const [costSlaReport, setCostSlaReport] = useState<CostSlaReport | null>(null);
+  const [historicalEfficacyReport, setHistoricalEfficacyReport] = useState<HistoricalEfficacyReport | null>(null);
+
   // Executive Report Modal State
   const [executiveReport, setExecutiveReport] = useState<any | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -119,6 +166,8 @@ export const AnalyticsPage: React.FC = () => {
     fetchOptimization();
     runSimulation(demandSurge, leadTimeDelay);
     runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity);
+    fetchCostSlaTradeoff();
+    fetchHistoricalEfficacy();
   }, []);
 
   const fetchAccuracy = async (productId: number) => {
@@ -167,6 +216,24 @@ export const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const fetchCostSlaTradeoff = async () => {
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/cost-sla-tradeoff');
+      setCostSlaReport(res.data);
+    } catch (err) {
+      console.error('Failed to load cost-SLA tradeoff report:', err);
+    }
+  };
+
+  const fetchHistoricalEfficacy = async () => {
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/historical-efficacy');
+      setHistoricalEfficacyReport(res.data);
+    } catch (err) {
+      console.error('Failed to load historical efficacy report:', err);
+    }
+  };
+
   const fetchExecutiveReport = async () => {
     try {
       const res = await axiosInstance.get('/analytics/executive-report');
@@ -186,10 +253,10 @@ export const AnalyticsPage: React.FC = () => {
             <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
               <BarChart3 className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Advanced Analytics & Stress-Testing Simulator</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Advanced Analytics & Decision Intelligence</h1>
           </div>
           <p className="text-slate-400 text-sm pl-12">
-            Academic Research Suite: Cascading Multi-Disruption Correlation Matrix, Forecast Backtesting, and Dynamic Safety Stock Optimization.
+            Academic Research Suite: Cost-SLA Tradeoff Matrix, Historical Efficacy Analytics, Cascading Disruption Topology, and Dynamic Safety Stock Optimization.
           </p>
         </div>
 
@@ -213,7 +280,31 @@ export const AnalyticsPage: React.FC = () => {
           }`}
         >
           <Zap className="h-4 w-4 text-amber-400" />
-          Cascading Multi-Disruption Correlation Matrix
+          Cascading Disruption Correlation
+        </button>
+
+        <button
+          onClick={() => setActiveTab('costSla')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'costSla'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4 text-emerald-400" />
+          Cost-SLA Optimization Tradeoff Matrix
+        </button>
+
+        <button
+          onClick={() => setActiveTab('historicalEfficacy')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'historicalEfficacy'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          }`}
+        >
+          <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+          Historical Mitigation Efficacy
         </button>
 
         <button
@@ -364,6 +455,145 @@ export const AnalyticsPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: Cost-SLA Optimization Tradeoff Matrix */}
+      {activeTab === 'costSla' && costSlaReport && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-emerald-400" />
+                  <span>Cost vs. SLA Recovery Speed Tradeoff Matrix</span>
+                </h3>
+                <p className="text-xs text-slate-400">Target Disruption: {costSlaReport.targetDisruptionType} | Entity: {costSlaReport.targetEntity}</p>
+              </div>
+
+              <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold rounded-lg font-mono">
+                {costSlaReport.analysisId}
+              </span>
+            </div>
+
+            {/* Executive Recommendation Banner */}
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <p className="leading-relaxed font-medium">{costSlaReport.executiveRecommendationSummary}</p>
+            </div>
+
+            {/* Comparative Tradeoff Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+              {costSlaReport.tradeoffs.map((opt) => (
+                <div
+                  key={opt.optionId}
+                  className={`p-5 rounded-2xl border transition-all space-y-4 flex flex-col justify-between ${
+                    opt.recommendedChoice
+                      ? 'bg-slate-900 border-emerald-500/50 shadow-xl ring-1 ring-emerald-500/30'
+                      : 'bg-slate-950/80 border-slate-800'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg font-mono">
+                        {opt.optionId}
+                      </span>
+                      {opt.recommendedChoice && (
+                        <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase rounded">
+                          Optimal Strategy
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-sm font-bold text-white">{opt.strategyName}</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">{opt.tradeoffReasoning}</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800/80 space-y-3 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Estimated Cost:</span>
+                      <span className="font-bold text-white font-mono">${opt.estimatedCostUsd.toLocaleString()}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Expected Lead Time:</span>
+                      <span className="font-bold text-amber-400">{opt.expectedLeadTimeDays} Days</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Customer SLA Protection:</span>
+                      <span className="font-bold text-emerald-400">{opt.slaCustomerProtectionPct}%</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Residual Risk Score:</span>
+                      <span className="font-bold text-cyan-400">{opt.residualRiskScore} ({opt.residualRiskBand})</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Historical Mitigation Efficacy */}
+      {activeTab === 'historicalEfficacy' && historicalEfficacyReport && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-cyan-400" />
+                  <span>Historical Mitigation Effectiveness Analytics</span>
+                </h3>
+                <p className="text-xs text-slate-400">PostgreSQL Audit & Execution Data Analytics ({historicalEfficacyReport.totalHistoricalExecutions} Executed Disruption Recoveries)</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-400">Overall Success Rate:</span>
+                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold rounded-lg">
+                  {historicalEfficacyReport.overallSuccessRatePct.toFixed(1)}% Efficacy
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 leading-relaxed">
+              {historicalEfficacyReport.historicalInsightsSummary}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {historicalEfficacyReport.categoryBreakdowns.map((cat) => (
+                <div key={cat.disruptionCategory} className="bg-slate-950/80 border border-slate-800 p-5 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
+                      {cat.disruptionCategory}
+                    </span>
+                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded">
+                      {cat.efficacyRating}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-2xl font-black text-white">{cat.historicalSuccessRatePct}%</span>
+                    <span className="text-xs text-slate-400 block">Success Rate ({cat.totalExecutedCount} Events)</span>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-800/80 text-xs space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Avg Risk Delta:</span>
+                      <span className="font-bold text-emerald-400">{cat.averageRiskReductionDelta}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Top Strategy:</span>
+                      <span className="font-bold text-cyan-300 font-mono">{cat.topRankedActionType}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

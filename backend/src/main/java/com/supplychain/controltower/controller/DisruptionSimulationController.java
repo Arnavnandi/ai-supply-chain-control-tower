@@ -1,6 +1,8 @@
 package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngine;
+import com.supplychain.controltower.analytics.CostSlaOptimizationEngine;
+import com.supplychain.controltower.analytics.HistoricalMitigationEfficacyEngine;
 import com.supplychain.controltower.analytics.PredictiveDisruptionEarlyWarningEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
 import lombok.Data;
@@ -18,6 +20,8 @@ public class DisruptionSimulationController {
     private final DisruptionSimulationService simulationService;
     private final CascadingDisruptionCorrelationEngine cascadeEngine;
     private final PredictiveDisruptionEarlyWarningEngine earlyWarningEngine;
+    private final CostSlaOptimizationEngine costSlaEngine;
+    private final HistoricalMitigationEfficacyEngine efficacyEngine;
 
     @Data
     public static class SimulationRequest {
@@ -89,6 +93,27 @@ public class DisruptionSimulationController {
         log.info("[SIMULATION CONTROLLER] Executing predictive early-warning radar scan: convertToProposal={}", convertToProposal);
         PredictiveDisruptionEarlyWarningEngine.EarlyWarningRadarReport report =
                 earlyWarningEngine.scanAndPredictEarlyWarnings(convertToProposal);
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/cost-sla-tradeoff")
+    public ResponseEntity<CostSlaOptimizationEngine.CostSlaTradeoffReport> getCostSlaTradeoff(
+            @RequestParam(name = "type", required = false, defaultValue = "INVENTORY_SHORTAGE") String type,
+            @RequestParam(name = "targetEntity", required = false, defaultValue = "SKU-ELEC-001") String targetEntity) {
+
+        log.info("[SIMULATION CONTROLLER] Evaluating cost-SLA tradeoff: type={} target={}", type, targetEntity);
+        CostSlaOptimizationEngine.CostSlaTradeoffReport report =
+                costSlaEngine.evaluateCostSlaTradeoff(type, targetEntity);
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/historical-efficacy")
+    public ResponseEntity<HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport> getHistoricalEfficacy() {
+        log.info("[SIMULATION CONTROLLER] Retrieving historical mitigation efficacy analytics report...");
+        HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport report =
+                efficacyEngine.calculateHistoricalEfficacy();
 
         return ResponseEntity.ok(report);
     }
