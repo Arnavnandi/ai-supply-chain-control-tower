@@ -17,6 +17,7 @@ import { DocumentRagPage } from './pages/DocumentRagPage';
 import { DataImportPage } from './pages/DataImportPage';
 import { ActionCenterPage } from './pages/ActionCenterPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { SystemHealthDashboardPage } from './pages/SystemHealthDashboardPage';
 
 const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
   const { token, isLoading } = useAuth();
@@ -58,6 +59,7 @@ export function App() {
           <Route path="/shipments" element={<ProtectedLayout title="Logistics & Shipment Delays"><ShipmentsPage /></ProtectedLayout>} />
           <Route path="/risks" element={<ProtectedLayout title="Operational Risk Monitor"><RisksPage /></ProtectedLayout>} />
           <Route path="/analytics" element={<ProtectedLayout title="Advanced Analytics & Stress-Testing Simulator"><AnalyticsPage /></ProtectedLayout>} />
+          <Route path="/system-health" element={<ProtectedLayout title="System Health & Live Telemetry"><SystemHealthDashboardPage /></ProtectedLayout>} />
           <Route path="/import" element={<ProtectedLayout title="Dataset Ingestion & Pipeline"><DataImportPage /></ProtectedLayout>} />
           <Route path="/ai-assistant" element={<ProtectedLayout title="AI Control Center Workspace"><AiAssistantPage /></ProtectedLayout>} />
           <Route path="/recommendations" element={<ProtectedLayout title="Human-in-the-Loop Action Approvals"><RecommendationsPage /></ProtectedLayout>} />

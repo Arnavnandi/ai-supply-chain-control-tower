@@ -14,7 +14,8 @@ import {
   LogOut,
   ShieldCheck,
   Database,
-  BarChart3
+  BarChart3,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +31,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Active Shipments', path: '/shipments', icon: Truck },
     { name: 'Risk Monitor', path: '/risks', icon: AlertTriangle },
     { name: 'Analytics & Stress Tests', path: '/analytics', icon: BarChart3, highlight: true },
+    { name: 'System Health & Telemetry', path: '/system-health', icon: Activity, highlight: true },
     { name: 'Dataset Import', path: '/import', icon: Database },
     { name: 'AI Control Center', path: '/ai-assistant', icon: Bot, highlight: true },
     { name: 'Action Approvals', path: '/recommendations', icon: CheckSquare },
