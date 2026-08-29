@@ -48,24 +48,42 @@ interface EarlyWarningRadarReport {
   timestamp: string;
 }
 
+interface ExecutiveScorecardReport {
+  reportId: string;
+  overallResiliencyIndex: number;
+  resiliencyStatusBand: string;
+  supplierOtifComponentScore: number;
+  inventoryBufferComponentScore: number;
+  warehouseCapacityComponentScore: number;
+  historicalEfficacyComponentScore: number;
+  overallPortfolioStatus: string;
+  majorRiskHighlights: string[];
+  recommendedExecutiveAttentionAreas: string[];
+  executiveBriefingSummary: string;
+  timestamp: string;
+}
+
 export const DashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [intelligence, setIntelligence] = useState<any>(null);
   const [radarReport, setRadarReport] = useState<EarlyWarningRadarReport | null>(null);
+  const [executiveScorecard, setExecutiveScorecard] = useState<ExecutiveScorecardReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedExplainableItem, setSelectedExplainableItem] = useState<ExplainableRiskItem | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [sumRes, intelRes, radarRes] = await Promise.all([
+        const [sumRes, intelRes, radarRes, execRes] = await Promise.all([
           axiosInstance.get('/dashboard/summary'),
           axiosInstance.get('/intelligence/summary'),
-          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=true')
+          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=true'),
+          axiosInstance.get('/public/simulation/executive/command-center')
         ]);
         setSummary(sumRes.data);
         setIntelligence(intelRes.data);
         setRadarReport(radarRes.data);
+        setExecutiveScorecard(execRes.data);
       } catch (err) {
         console.error('Failed to load control tower intelligence', err);
       } finally {
@@ -91,6 +109,55 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* 0. Executive Command Center Resiliency Scorecard Banner */}
+      {executiveScorecard && (
+        <div className="bg-slate-900/90 border border-purple-500/30 p-6 rounded-2xl shadow-2xl space-y-4 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl font-black text-white">
+                  {executiveScorecard.overallResiliencyIndex.toFixed(1)}
+                </span>
+                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">/ 100</span>
+                <span className={`px-3 py-1 text-xs font-extrabold uppercase rounded-lg border ${
+                  executiveScorecard.resiliencyStatusBand === 'OPTIMAL'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : executiveScorecard.resiliencyStatusBand === 'HEALTHY'
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                }`}>
+                  {executiveScorecard.resiliencyStatusBand} Resiliency
+                </span>
+              </div>
+              <h2 className="text-base font-bold text-white">Executive Command Center Resiliency Index</h2>
+              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">{executiveScorecard.executiveBriefingSummary}</p>
+            </div>
+
+            {/* 4 Component Micro-Progress Bars */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto shrink-0">
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Supplier OTIF (30%)</span>
+                <span className="text-base font-black text-purple-300">{executiveScorecard.supplierOtifComponentScore.toFixed(0)}%</span>
+              </div>
+
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Inventory Safety (25%)</span>
+                <span className="text-base font-black text-cyan-300">{executiveScorecard.inventoryBufferComponentScore.toFixed(0)}%</span>
+              </div>
+
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Warehouse Health (25%)</span>
+                <span className="text-base font-black text-amber-300">{executiveScorecard.warehouseCapacityComponentScore.toFixed(0)}%</span>
+              </div>
+
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Efficacy Rating (20%)</span>
+                <span className="text-base font-black text-emerald-300">{executiveScorecard.historicalEfficacyComponentScore.toFixed(0)}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 1. AI Executive Briefing Banner */}
       <div className="glass-panel p-5 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start space-x-4">

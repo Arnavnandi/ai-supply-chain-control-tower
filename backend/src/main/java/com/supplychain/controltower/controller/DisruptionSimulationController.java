@@ -2,6 +2,7 @@ package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngine;
 import com.supplychain.controltower.analytics.CostSlaOptimizationEngine;
+import com.supplychain.controltower.analytics.ExecutiveCommandCenterEngine;
 import com.supplychain.controltower.analytics.HistoricalMitigationEfficacyEngine;
 import com.supplychain.controltower.analytics.PredictiveDisruptionEarlyWarningEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
@@ -22,6 +23,7 @@ public class DisruptionSimulationController {
     private final PredictiveDisruptionEarlyWarningEngine earlyWarningEngine;
     private final CostSlaOptimizationEngine costSlaEngine;
     private final HistoricalMitigationEfficacyEngine efficacyEngine;
+    private final ExecutiveCommandCenterEngine commandCenterEngine;
 
     @Data
     public static class SimulationRequest {
@@ -114,6 +116,15 @@ public class DisruptionSimulationController {
         log.info("[SIMULATION CONTROLLER] Retrieving historical mitigation efficacy analytics report...");
         HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport report =
                 efficacyEngine.calculateHistoricalEfficacy();
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/executive/command-center")
+    public ResponseEntity<ExecutiveCommandCenterEngine.ExecutiveScorecardReport> getExecutiveCommandCenterReport() {
+        log.info("[SIMULATION CONTROLLER] Generating Executive Command Center Resiliency Scorecard report...");
+        ExecutiveCommandCenterEngine.ExecutiveScorecardReport report =
+                commandCenterEngine.generateExecutiveCommandCenterReport();
 
         return ResponseEntity.ok(report);
     }
