@@ -132,8 +132,34 @@ interface HistoricalEfficacyReport {
   historicalInsightsSummary: string;
 }
 
+interface FailoverAllocation {
+  pathType: string;
+  supplierCode: string;
+  supplierName: string;
+  allocationPercentage: number;
+  reliabilityScore: number;
+  logisticsRoute: string;
+  targetWarehouseCode: string;
+}
+
+interface ContainmentFailoverReport {
+  containmentPlanId: string;
+  failedSupplierCode: string;
+  failedSupplierName: string;
+  primaryWarehouseCode: string;
+  containmentStatus: string;
+  primaryAllocationPct: number;
+  fallbackAllocationPct: number;
+  allocations: FailoverAllocation[];
+  alternateWarehouseCode: string;
+  alternateWarehouseAvailableCapacityUnits: number;
+  recommendedSafetyBufferUnits: number;
+  strategyExplanation: string;
+  timestamp: string;
+}
+
 export const AnalyticsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'cascade' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('cascade');
+  const [activeTab, setActiveTab] = useState<'cascade' | 'failover' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('cascade');
 
   // Accuracy State
   const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
@@ -157,6 +183,9 @@ export const AnalyticsPage: React.FC = () => {
   const [costSlaReport, setCostSlaReport] = useState<CostSlaReport | null>(null);
   const [historicalEfficacyReport, setHistoricalEfficacyReport] = useState<HistoricalEfficacyReport | null>(null);
 
+  // Phase 25 State
+  const [failoverReport, setFailoverReport] = useState<ContainmentFailoverReport | null>(null);
+
   // Executive Report Modal State
   const [executiveReport, setExecutiveReport] = useState<any | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -168,6 +197,7 @@ export const AnalyticsPage: React.FC = () => {
     runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity);
     fetchCostSlaTradeoff();
     fetchHistoricalEfficacy();
+    fetchFailoverContainment();
   }, []);
 
   const fetchAccuracy = async (productId: number) => {
@@ -234,6 +264,15 @@ export const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const fetchFailoverContainment = async () => {
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/failover-containment');
+      setFailoverReport(res.data);
+    } catch (err) {
+      console.error('Failed to load failover containment report:', err);
+    }
+  };
+
   const fetchExecutiveReport = async () => {
     try {
       const res = await axiosInstance.get('/analytics/executive-report');
@@ -281,6 +320,18 @@ export const AnalyticsPage: React.FC = () => {
         >
           <Zap className="h-4 w-4 text-amber-400" />
           Cascading Disruption Correlation
+        </button>
+
+        <button
+          onClick={() => setActiveTab('failover')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'failover'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          }`}
+        >
+          <Sliders className="h-4 w-4 text-cyan-400" />
+          Multi-Supplier Failover Split Router
         </button>
 
         <button
@@ -455,6 +506,88 @@ export const AnalyticsPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: Multi-Supplier Failover Split Router */}
+      {activeTab === 'failover' && failoverReport && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-cyan-400" />
+                  <span>Automated Disruption Containment & Multi-Supplier Failover Split</span>
+                </h3>
+                <p className="text-xs text-slate-400">Primary Failed Supplier: {failoverReport.failedSupplierCode} ({failoverReport.failedSupplierName}) | Hub: {failoverReport.primaryWarehouseCode}</p>
+              </div>
+
+              <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
+                {failoverReport.containmentPlanId}
+              </span>
+            </div>
+
+            {/* Explanation Banner */}
+            <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start gap-3 text-xs text-cyan-300">
+              <Sliders className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+              <p className="leading-relaxed font-medium">{failoverReport.strategyExplanation}</p>
+            </div>
+
+            {/* 60 / 40 Split Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {failoverReport.allocations.map((alloc) => (
+                <div
+                  key={alloc.pathType}
+                  className={`p-6 rounded-2xl border space-y-4 ${
+                    alloc.pathType === 'PRIMARY_DEGRADED'
+                      ? 'bg-slate-900 border-amber-500/40'
+                      : 'bg-slate-900 border-cyan-500/40 shadow-xl'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`px-2.5 py-1 text-xs font-black uppercase rounded-lg border ${
+                      alloc.pathType === 'PRIMARY_DEGRADED'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                    }`}>
+                      {alloc.allocationPercentage}% Order Volume Allocation
+                    </span>
+                    <span className="text-xs font-mono font-bold text-slate-400">{alloc.supplierCode}</span>
+                  </div>
+
+                  <h4 className="text-base font-bold text-white">{alloc.supplierName}</h4>
+
+                  <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Reliability Score:</span>
+                      <span className="font-bold text-purple-300">{alloc.reliabilityScore}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Logistics Corridor:</span>
+                      <span className="font-bold text-slate-200">{alloc.logisticsRoute}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Target Hub:</span>
+                      <span className="font-bold text-cyan-400">{alloc.targetWarehouseCode}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Hub Capacity & Safety Stock Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-xs text-slate-400 font-semibold block">Alternate Warehouse Available Capacity</span>
+                <span className="text-xl font-bold text-emerald-400">{failoverReport.alternateWarehouseCode}: {failoverReport.alternateWarehouseAvailableCapacityUnits.toLocaleString()} units</span>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-xs text-slate-400 font-semibold block">Recommended Emergency Safety Stock Adjustment</span>
+                <span className="text-xl font-bold text-purple-400">+{failoverReport.recommendedSafetyBufferUnits} units buffer</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

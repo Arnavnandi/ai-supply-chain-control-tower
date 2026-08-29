@@ -1,5 +1,6 @@
 package com.supplychain.controltower.controller;
 
+import com.supplychain.controltower.analytics.AutoContainmentFailoverEngine;
 import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngine;
 import com.supplychain.controltower.analytics.CostSlaOptimizationEngine;
 import com.supplychain.controltower.analytics.ExecutiveCommandCenterEngine;
@@ -24,6 +25,7 @@ public class DisruptionSimulationController {
     private final CostSlaOptimizationEngine costSlaEngine;
     private final HistoricalMitigationEfficacyEngine efficacyEngine;
     private final ExecutiveCommandCenterEngine commandCenterEngine;
+    private final AutoContainmentFailoverEngine failoverEngine;
 
     @Data
     public static class SimulationRequest {
@@ -125,6 +127,19 @@ public class DisruptionSimulationController {
         log.info("[SIMULATION CONTROLLER] Generating Executive Command Center Resiliency Scorecard report...");
         ExecutiveCommandCenterEngine.ExecutiveScorecardReport report =
                 commandCenterEngine.generateExecutiveCommandCenterReport();
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/failover-containment")
+    public ResponseEntity<AutoContainmentFailoverEngine.ContainmentFailoverReport> getFailoverContainment(
+            @RequestParam(name = "failedSupplierCode", required = false, defaultValue = "SUP-TECH-001") String failedSupplierCode,
+            @RequestParam(name = "primaryWarehouseCode", required = false, defaultValue = "WH-NORTH") String primaryWarehouseCode) {
+
+        log.info("[SIMULATION CONTROLLER] Computing failover containment: failedSupplier={} primaryWarehouse={}",
+                failedSupplierCode, primaryWarehouseCode);
+        AutoContainmentFailoverEngine.ContainmentFailoverReport report =
+                failoverEngine.computeFailoverContainmentPlan(failedSupplierCode, primaryWarehouseCode);
 
         return ResponseEntity.ok(report);
     }
