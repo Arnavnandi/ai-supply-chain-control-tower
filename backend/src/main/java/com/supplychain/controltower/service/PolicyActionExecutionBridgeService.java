@@ -2,6 +2,7 @@ package com.supplychain.controltower.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.supplychain.controltower.analytics.PostRecoveryRiskEvaluationEngine;
 import com.supplychain.controltower.dto.TelemetryEvent;
 import com.supplychain.controltower.entity.*;
 import com.supplychain.controltower.repository.*;
@@ -28,6 +29,7 @@ public class PolicyActionExecutionBridgeService {
     private final CustomerOrderRepository customerOrderRepository;
     private final OrderItemRepository orderItemRepository;
     private final TelemetryEventPublisher telemetryEventPublisher;
+    private final PostRecoveryRiskEvaluationEngine postRecoveryEngine;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -48,6 +50,13 @@ public class PolicyActionExecutionBridgeService {
         String policyDecision = (String) payload.getOrDefault("policyDecision", "DEFAULT_POLICY_DECISION");
         String simulationId = (String) payload.getOrDefault("simulationId", "SIM-UNKNOWN");
         String riskBand = (String) payload.getOrDefault("riskBand", "HIGH");
+        double initialScore = 70.0;
+        if (payload.containsKey("overallRiskScore")) {
+            Object rawScore = payload.get("overallRiskScore");
+            if (rawScore instanceof Number n) {
+                initialScore = n.doubleValue();
+            }
+        }
 
         DisruptionSimulationService.DisruptionType disruptionType;
         try {
@@ -63,32 +72,43 @@ public class PolicyActionExecutionBridgeService {
             case WAREHOUSE_CAPACITY_OVERRUN -> executeWarehouseCapacityRecovery(targetEntity, actor);
         };
 
-        // Publish DISRUPTION_RECOVERY Telemetry Event
+        // Phase 20: Post-Recovery Residual Risk Evaluation
+        PostRecoveryRiskEvaluationEngine.PostRecoveryRiskResult evalResult =
+                postRecoveryEngine.evaluatePostExecutionRisk(disruptionType.name(), targetEntity, initialScore, riskBand);
+
+        String fullSummary = String.format("%s | Post-Recovery Risk: %.1f (%s) [-%.1f Risk Delta]",
+                executionSummary, evalResult.getPostRecoveryRiskScore(), evalResult.getResidualRiskBand(), evalResult.getRiskReductionDelta());
+
+        // Publish DISRUPTION_RECOVERY & RECOVERY_VERIFIED Telemetry Event
         try {
             telemetryEventPublisher.publish(TelemetryEvent.builder()
                     .eventType(TelemetryEvent.EventType.AGENT_EXECUTION)
                     .severity(TelemetryEvent.Severity.INFO)
                     .sourceDomain("RECOVERY_ENGINE:" + disruptionType.name())
                     .entityId(targetEntity)
-                    .message(String.format("[DISRUPTION RECOVERY SUCCESS] Executed policy decision '%s' for %s. Status: RESOLVED",
-                            policyDecision, targetEntity))
-                    .metadata(Map.of(
-                            "simulationId", simulationId,
-                            "disruptionType", disruptionType.name(),
-                            "targetEntity", targetEntity,
-                            "policyDecision", policyDecision,
-                            "riskBand", riskBand,
-                            "executedBy", actor,
-                            "status", "RECOVERY_COMPLETED"
+                    .message(String.format("[RECOVERY VERIFIED] Executed decision '%s' for %s. Residual Risk: %.1f (%s).",
+                            policyDecision, targetEntity, evalResult.getPostRecoveryRiskScore(), evalResult.getResidualRiskBand()))
+                    .metadata(Map.ofEntries(
+                            Map.entry("simulationId", simulationId),
+                            Map.entry("disruptionType", disruptionType.name()),
+                            Map.entry("targetEntity", targetEntity),
+                            Map.entry("policyDecision", policyDecision),
+                            Map.entry("initialRiskScore", evalResult.getInitialRiskScore()),
+                            Map.entry("postRecoveryRiskScore", evalResult.getPostRecoveryRiskScore()),
+                            Map.entry("riskReductionDelta", evalResult.getRiskReductionDelta()),
+                            Map.entry("initialRiskBand", evalResult.getInitialRiskBand()),
+                            Map.entry("residualRiskBand", evalResult.getResidualRiskBand()),
+                            Map.entry("executedBy", actor),
+                            Map.entry("status", "RECOVERY_VERIFIED")
                     ))
                     .build());
         } catch (Exception ex) {
             log.warn("[POLICY EXECUTION TELEMETRY FAIL] Could not publish recovery telemetry: {}", ex.getMessage());
         }
 
-        log.info("[POLICY EXECUTION BRIDGE SUCCESS] Completed execution for policy: {} | Result: {}", policyDecision, executionSummary);
+        log.info("[POLICY EXECUTION BRIDGE SUCCESS] Completed execution for policy: {} | Result: {}", policyDecision, fullSummary);
 
-        return executionSummary;
+        return fullSummary;
     }
 
     private String executeInventoryShortageRecovery(String targetEntity, String actor) {

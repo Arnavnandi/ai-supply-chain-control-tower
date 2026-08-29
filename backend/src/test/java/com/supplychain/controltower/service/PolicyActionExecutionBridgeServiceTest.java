@@ -1,6 +1,7 @@
 package com.supplychain.controltower.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.supplychain.controltower.analytics.PostRecoveryRiskEvaluationEngine;
 import com.supplychain.controltower.dto.TelemetryEvent;
 import com.supplychain.controltower.entity.Inventory;
 import com.supplychain.controltower.entity.Product;
@@ -43,11 +44,19 @@ class PolicyActionExecutionBridgeServiceTest {
     private TelemetryEventPublisher telemetryEventPublisher;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private PostRecoveryRiskEvaluationEngine postRecoveryEngine;
     private PolicyActionExecutionBridgeService policyBridgeService;
     private ActionExecutionEngine actionExecutionEngine;
 
     @BeforeEach
     void setUp() {
+        postRecoveryEngine = new PostRecoveryRiskEvaluationEngine(
+                productRepository,
+                inventoryRepository,
+                supplierRepository,
+                warehouseRepository
+        );
+
         policyBridgeService = new PolicyActionExecutionBridgeService(
                 productRepository,
                 inventoryRepository,
@@ -56,6 +65,7 @@ class PolicyActionExecutionBridgeServiceTest {
                 customerOrderRepository,
                 orderItemRepository,
                 telemetryEventPublisher,
+                postRecoveryEngine,
                 objectMapper
         );
 
@@ -149,6 +159,6 @@ class PolicyActionExecutionBridgeServiceTest {
         String result = actionExecutionEngine.executeApprovedAction("REORDER_STOCK", payloadJson, "testUser");
 
         assertNotNull(result);
-        verify(productRepository, times(1)).findBySku("SKU-ELEC-001");
+        verify(productRepository, atLeast(1)).findBySku("SKU-ELEC-001");
     }
 }
