@@ -1,0 +1,35 @@
+services:
+  # Backend Spring Boot Service
+  - type: web
+    name: ai-supply-chain-control-tower-backend
+    env: docker
+    dockercontext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    region: oregon
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # Frontend Static Site
+  - type: web
+    name: ai-supply-chain-control-tower-frontend
+    env: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: ai-supply-chain-control-tower-backend
+          property: host
