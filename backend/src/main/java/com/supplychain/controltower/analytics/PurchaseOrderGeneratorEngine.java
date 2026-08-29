@@ -27,6 +27,7 @@ public class PurchaseOrderGeneratorEngine {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     public static class PurchaseOrderPayload {
         private String actionType; // REORDER_STOCK
         private Long productId;

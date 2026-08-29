@@ -61,6 +61,11 @@ public class ActionApprovalService {
 
         Recommendation saved = recommendationRepository.save(rec);
 
+        String detailsStr = "Title: " + rec.getTitle() + " | Result: " + executionResult + " | Payload: " + rec.getActionPayloadJson();
+        if (detailsStr.length() > 1950) {
+            detailsStr = detailsStr.substring(0, 1950) + "...";
+        }
+
         // Save execution audit log
         auditLogRepository.save(AuditLog.builder()
                 .userId(1L)
@@ -68,7 +73,7 @@ public class ActionApprovalService {
                 .actionTaken("APPROVED_AND_EXECUTED_AI_RECOMMENDATION")
                 .entityAffected("Recommendation")
                 .entityId(rec.getId().toString())
-                .details("Title: " + rec.getTitle() + " | Result: " + executionResult + " | Payload: " + rec.getActionPayloadJson())
+                .details(detailsStr)
                 .timestamp(LocalDateTime.now())
                 .build());
 
