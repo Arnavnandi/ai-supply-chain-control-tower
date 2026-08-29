@@ -76,4 +76,18 @@ class ActionApprovalServiceTest {
         assertEquals(Recommendation.ApprovalStatus.REJECTED, result.getStatus());
         verify(auditLogRepository, times(1)).save(any(AuditLog.class));
     }
+
+    @Test
+    void testDuplicateExecutionRejection() {
+        Recommendation executedRec = Recommendation.builder()
+                .id(200L)
+                .status(Recommendation.ApprovalStatus.EXECUTED)
+                .build();
+
+        when(recommendationRepository.findById(200L)).thenReturn(Optional.of(executedRec));
+
+        assertThrows(RuntimeException.class, () ->
+                actionApprovalService.approveAndExecute(200L, "ManagerJohn")
+        );
+    }
 }
