@@ -6,7 +6,8 @@ import {
   Bot,
   ShieldAlert,
   HelpCircle,
-  TrendingUp
+  TrendingUp,
+  Radar
 } from 'lucide-react';
 import {
   AreaChart,
@@ -22,21 +23,49 @@ import {
 import { Link } from 'react-router-dom';
 import { ExplainabilityModal, type ExplainableRiskItem } from '../components/ExplainabilityModal';
 
+interface PredictiveWarning {
+  warningId: string;
+  domain: string;
+  predictedDisruptionType: string;
+  targetEntity: string;
+  anomalySeverityScore: number;
+  predictiveRiskBand: string;
+  failureProbability: number;
+  estimatedDaysToImpact: number;
+  anomalyExplanation: string;
+  proactiveMitigationStrategy: string;
+  recommendationId?: number;
+}
+
+interface EarlyWarningRadarReport {
+  scanId: string;
+  totalAnomaliesDetected: number;
+  criticalWarningsCount: number;
+  highestFailureProbability: number;
+  earlyWarnings: PredictiveWarning[];
+  proactiveProposalsGenerated: boolean;
+  generatedRecommendationIds: number[];
+  timestamp: string;
+}
+
 export const DashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<any>(null);
   const [intelligence, setIntelligence] = useState<any>(null);
+  const [radarReport, setRadarReport] = useState<EarlyWarningRadarReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedExplainableItem, setSelectedExplainableItem] = useState<ExplainableRiskItem | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [sumRes, intelRes] = await Promise.all([
+        const [sumRes, intelRes, radarRes] = await Promise.all([
           axiosInstance.get('/dashboard/summary'),
-          axiosInstance.get('/intelligence/summary')
+          axiosInstance.get('/intelligence/summary'),
+          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=true')
         ]);
         setSummary(sumRes.data);
         setIntelligence(intelRes.data);
+        setRadarReport(radarRes.data);
       } catch (err) {
         console.error('Failed to load control tower intelligence', err);
       } finally {
@@ -88,6 +117,62 @@ export const DashboardPage: React.FC = () => {
           <span>Ask AI Assistant</span>
         </Link>
       </div>
+
+      {/* 1.5. Predictive Early-Warning Radar Widget */}
+      {radarReport && radarReport.earlyWarnings && (
+        <div className="bg-slate-900/90 border border-amber-500/30 p-5 rounded-2xl shadow-xl space-y-4 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                <Radar className="w-5 h-5 animate-pulse text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Predictive Disruption Early-Warning Radar</span>
+                  <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+                    Autonomous Intelligence
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">Continuous anomaly detection scanning lead times, burn velocity & warehouse capacity</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-slate-400">Highest Failure Probability:</span>
+              <span className="px-2.5 py-1 bg-red-500/20 text-red-400 border border-red-500/30 font-bold rounded-lg">
+                {(radarReport.highestFailureProbability * 100).toFixed(0)}% Impending Disruption
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {radarReport.earlyWarnings.map((warn) => (
+              <div key={warn.warningId} className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
+                    {warn.domain} • {warn.targetEntity}
+                  </span>
+                  <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold rounded">
+                    Impact in {warn.estimatedDaysToImpact} Days
+                  </span>
+                </div>
+
+                <h4 className="text-xs font-bold text-white">{warn.predictedDisruptionType}</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">{warn.anomalyExplanation}</p>
+
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-400 font-semibold truncate max-w-[200px]">{warn.proactiveMitigationStrategy}</span>
+                  {warn.recommendationId && (
+                    <span className="text-purple-300 font-mono font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 whitespace-nowrap">
+                      Rec #{warn.recommendationId}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 2. Control Tower Risk Matrix Radar & KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

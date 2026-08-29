@@ -1,6 +1,7 @@
 package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngine;
+import com.supplychain.controltower.analytics.PredictiveDisruptionEarlyWarningEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ public class DisruptionSimulationController {
 
     private final DisruptionSimulationService simulationService;
     private final CascadingDisruptionCorrelationEngine cascadeEngine;
+    private final PredictiveDisruptionEarlyWarningEngine earlyWarningEngine;
 
     @Data
     public static class SimulationRequest {
@@ -78,5 +80,16 @@ public class DisruptionSimulationController {
                 cascadeEngine.analyzeCascadingDisruption(primaryType, targetEntity, convertToProposal);
 
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/predictive/early-warnings")
+    public ResponseEntity<PredictiveDisruptionEarlyWarningEngine.EarlyWarningRadarReport> getPredictiveEarlyWarnings(
+            @RequestParam(name = "convertToActionProposal", required = false, defaultValue = "false") boolean convertToProposal) {
+
+        log.info("[SIMULATION CONTROLLER] Executing predictive early-warning radar scan: convertToProposal={}", convertToProposal);
+        PredictiveDisruptionEarlyWarningEngine.EarlyWarningRadarReport report =
+                earlyWarningEngine.scanAndPredictEarlyWarnings(convertToProposal);
+
+        return ResponseEntity.ok(report);
     }
 }
