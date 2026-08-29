@@ -21,6 +21,7 @@ public class DisruptionMitigationPolicyEngine {
 
     private final DisruptionSimulationService disruptionSimulationService;
     private final TelemetryEventPublisher telemetryEventPublisher;
+    private final DisruptionMitigationActionBridgeService actionBridgeService;
 
     public enum RiskBand {
         LOW,
@@ -47,16 +48,23 @@ public class DisruptionMitigationPolicyEngine {
         private List<String> recommendedActions;
         private ExecutionMode executionMode;
         private boolean telemetryPublished;
+        private boolean proposalCreated;
+        private Long recommendationId;
         @Builder.Default
         private String timestamp = LocalDateTime.now().toString();
     }
 
     public MitigationPolicyResult evaluateAndMitigate(
             DisruptionSimulationService.DisruptionType disruptionType, String targetEntity) {
+        return evaluateAndMitigate(disruptionType, targetEntity, false);
+    }
+
+    public MitigationPolicyResult evaluateAndMitigate(
+            DisruptionSimulationService.DisruptionType disruptionType, String targetEntity, boolean convertToProposal) {
 
         String entityName = (targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "DEFAULT-TARGET";
-        log.info("[POLICY ENGINE] Evaluating mitigation policy for disruptionType: {} | Target: {}",
-                disruptionType, entityName);
+        log.info("[POLICY ENGINE] Evaluating mitigation policy for disruptionType: {} | Target: {} | convertToProposal: {}",
+                disruptionType, entityName, convertToProposal);
 
         // 1. Execute existing disruption simulation & multi-agent consensus pipeline
         DisruptionSimulationService.DisruptionSimulationResult simResult =
@@ -79,11 +87,27 @@ public class DisruptionMitigationPolicyEngine {
                 ? simResult.getSimulationId()
                 : "SIM-UNKNOWN";
 
-        // 4. Publish mitigation telemetry event via existing pipeline
+        // 4. Optionally convert evaluated policy decision to persistent PENDING_APPROVAL Recommendation proposal
+        boolean proposalCreated = false;
+        Long recommendationId = null;
+        if (convertToProposal) {
+            try {
+                var rec = actionBridgeService.convertPolicyToProposal(
+                        simulationId, disruptionType, entityName, overallRiskScore, riskBand, policyDecision, recommendedActions);
+                if (rec != null) {
+                    proposalCreated = true;
+                    recommendationId = rec.getId();
+                }
+            } catch (Exception ex) {
+                log.warn("[POLICY ENGINE BRIDGE FAIL] Could not convert policy to proposal: {}", ex.getMessage());
+            }
+        }
+
+        // 5. Publish mitigation telemetry event via existing pipeline
         publishMitigationTelemetry(disruptionType, entityName, simulationId, overallRiskScore, riskBand, policyDecision);
 
-        log.info("[POLICY ENGINE COMPLETE] simId: {} | Decision: {} | RiskBand: {}",
-                simulationId, policyDecision, riskBand);
+        log.info("[POLICY ENGINE COMPLETE] simId: {} | Decision: {} | RiskBand: {} | ProposalCreated: {} | RecId: {}",
+                simulationId, policyDecision, riskBand, proposalCreated, recommendationId);
 
         return MitigationPolicyResult.builder()
                 .simulationId(simulationId)
@@ -95,6 +119,8 @@ public class DisruptionMitigationPolicyEngine {
                 .recommendedActions(recommendedActions)
                 .executionMode(ExecutionMode.RECOMMENDATION_ONLY)
                 .telemetryPublished(true)
+                .proposalCreated(proposalCreated)
+                .recommendationId(recommendationId)
                 .build();
     }
 
