@@ -65,8 +65,32 @@ interface SimulationResult {
   executiveSummary: string;
 }
 
+interface CascadeNode {
+  hopLevel: number;
+  domain: string;
+  targetEntity: string;
+  nodeRiskScore: number;
+  riskBand: string;
+  propagationReasoning: string;
+  recommendedMitigation: string;
+  recommendationId?: number;
+}
+
+interface CascadeResult {
+  simulationId: string;
+  primaryDisruption: string;
+  primaryTarget: string;
+  cumulativeRiskScore: number;
+  cumulativeRiskBand: string;
+  impactedDomainsCount: number;
+  cascadeNodes: CascadeNode[];
+  chainedActionProposalsCreated: boolean;
+  generatedRecommendationIds: number[];
+  timestamp: string;
+}
+
 export const AnalyticsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'accuracy' | 'optimization' | 'simulation'>('simulation');
+  const [activeTab, setActiveTab] = useState<'simulation' | 'cascade' | 'accuracy' | 'optimization'>('cascade');
 
   // Accuracy State
   const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
@@ -80,6 +104,12 @@ export const AnalyticsPage: React.FC = () => {
   const [leadTimeDelay, setLeadTimeDelay] = useState<number>(5);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
 
+  // Cascade State
+  const [cascadePrimaryType, setCascadePrimaryType] = useState<string>('SUPPLIER_DISRUPTION');
+  const [cascadeTargetEntity, setCascadeTargetEntity] = useState<string>('SUP-TECH-001');
+  const [cascadeResult, setCascadeResult] = useState<CascadeResult | null>(null);
+  const [cascadeLoading, setCascadeLoading] = useState<boolean>(false);
+
   // Executive Report Modal State
   const [executiveReport, setExecutiveReport] = useState<any | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -88,6 +118,7 @@ export const AnalyticsPage: React.FC = () => {
     fetchAccuracy(selectedProductId);
     fetchOptimization();
     runSimulation(demandSurge, leadTimeDelay);
+    runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity);
   }, []);
 
   const fetchAccuracy = async (productId: number) => {
@@ -121,6 +152,21 @@ export const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const runCascadeSimulation = async (primaryType: string, targetEntity: string) => {
+    setCascadeLoading(true);
+    try {
+      const res = await axiosInstance.post('/public/simulation/disruption/cascade?convertToActionProposal=true', {
+        primaryDisruption: primaryType,
+        primaryTarget: targetEntity
+      });
+      setCascadeResult(res.data);
+    } catch (err) {
+      console.error('Failed to run cascade simulation:', err);
+    } finally {
+      setCascadeLoading(false);
+    }
+  };
+
   const fetchExecutiveReport = async () => {
     try {
       const res = await axiosInstance.get('/analytics/executive-report');
@@ -143,7 +189,7 @@ export const AnalyticsPage: React.FC = () => {
             <h1 className="text-2xl font-bold tracking-tight text-white">Advanced Analytics & Stress-Testing Simulator</h1>
           </div>
           <p className="text-slate-400 text-sm pl-12">
-            Academic Research Suite: Forecast Backtesting (MAPE/RMSE), Dynamic Safety Stock Optimization, and What-If Supply Chain Stress Testing.
+            Academic Research Suite: Cascading Multi-Disruption Correlation Matrix, Forecast Backtesting, and Dynamic Safety Stock Optimization.
           </p>
         </div>
 
@@ -157,7 +203,19 @@ export const AnalyticsPage: React.FC = () => {
       </div>
 
       {/* Workspace Tabs */}
-      <div className="flex items-center gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-wrap items-center gap-4 border-b border-slate-800 pb-4">
+        <button
+          onClick={() => setActiveTab('cascade')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'cascade'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          }`}
+        >
+          <Zap className="h-4 w-4 text-amber-400" />
+          Cascading Multi-Disruption Correlation Matrix
+        </button>
+
         <button
           onClick={() => setActiveTab('simulation')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
@@ -194,6 +252,120 @@ export const AnalyticsPage: React.FC = () => {
           Dynamic Safety Stock Optimization
         </button>
       </div>
+
+      {/* Tab 0: Cascading Multi-Disruption Correlation Matrix */}
+      {activeTab === 'cascade' && (
+        <div className="space-y-6">
+          {/* Controls Card */}
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-amber-400" />
+                  Cascading Disruption & Cross-Domain Impact Analysis
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Simulate multi-hop propagation chains across Suppliers, Inventories, Logistics, and Warehouses to calculate cumulative systemic risk.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={cascadePrimaryType}
+                  onChange={(e) => setCascadePrimaryType(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                >
+                  <option value="SUPPLIER_DISRUPTION">Supplier Failover (SUPPLIER_DISRUPTION)</option>
+                  <option value="INVENTORY_SHORTAGE">Stockout Crisis (INVENTORY_SHORTAGE)</option>
+                  <option value="LOGISTICS_DELAY">Carrier Transit Bottleneck (LOGISTICS_DELAY)</option>
+                  <option value="WAREHOUSE_CAPACITY_OVERRUN">Warehouse Overrun (WAREHOUSE_CAPACITY_OVERRUN)</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={cascadeTargetEntity}
+                  onChange={(e) => setCascadeTargetEntity(e.target.value)}
+                  placeholder="Target Entity (e.g. SUP-TECH-001)"
+                  className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                />
+
+                <button
+                  onClick={() => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity)}
+                  disabled={cascadeLoading}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                >
+                  {cascadeLoading ? 'Analyzing...' : 'Run Cascade Analysis'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cascade Results */}
+          {cascadeResult && (
+            <div className="space-y-6">
+              {/* Metric Overview Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <span className="text-xs text-slate-400 font-semibold block">Primary Originating Node</span>
+                  <span className="text-base font-bold text-white mt-1 block uppercase">{cascadeResult.primaryDisruption}</span>
+                  <span className="text-xs text-purple-400 font-medium">Target: {cascadeResult.primaryTarget}</span>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <span className="text-xs text-slate-400 font-semibold block">Impacted Domains Count</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">{cascadeResult.impactedDomainsCount} Domains</span>
+                  <span className="text-xs text-slate-400">Multi-Hop Failure Chain</span>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <span className="text-xs text-slate-400 font-semibold block">Cumulative Systemic Risk</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-2xl font-black text-red-400">{cascadeResult.cumulativeRiskScore.toFixed(1)}</span>
+                    <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold rounded-md">
+                      {cascadeResult.cumulativeRiskBand}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <span className="text-xs text-slate-400 font-semibold block">Chained Policy Proposals</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    {cascadeResult.generatedRecommendationIds.length} Created
+                  </span>
+                  <span className="text-xs text-slate-400">Status: PENDING_APPROVAL</span>
+                </div>
+              </div>
+
+              {/* Propagation Topology Flow */}
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Multi-Hop Risk Propagation Topology Flow</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {cascadeResult.cascadeNodes.map((node) => (
+                    <div key={node.hopLevel} className="bg-slate-950/80 border border-slate-800 p-5 rounded-xl space-y-3 relative">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg">
+                          Hop #{node.hopLevel} • {node.domain}
+                        </span>
+                        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold rounded">
+                          Risk: {node.nodeRiskScore.toFixed(1)}
+                        </span>
+                      </div>
+
+                      <h5 className="text-sm font-bold text-white">{node.targetEntity}</h5>
+                      <p className="text-xs text-slate-400 leading-relaxed">{node.propagationReasoning}</p>
+
+                      <div className="pt-2 border-t border-slate-800/80 text-xs">
+                        <span className="text-slate-500 block">Recommended Containment:</span>
+                        <span className="text-emerald-400 font-semibold">{node.recommendedMitigation}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab 1: What-If Stress Testing Simulator */}
       {activeTab === 'simulation' && (

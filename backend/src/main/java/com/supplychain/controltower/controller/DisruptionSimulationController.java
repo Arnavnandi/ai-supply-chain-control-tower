@@ -1,5 +1,6 @@
 package com.supplychain.controltower.controller;
 
+import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,22 @@ import org.springframework.web.bind.annotation.*;
 public class DisruptionSimulationController {
 
     private final DisruptionSimulationService simulationService;
+    private final CascadingDisruptionCorrelationEngine cascadeEngine;
 
     @Data
     public static class SimulationRequest {
         private String type;
         private String targetEntity;
+    }
+
+    @Data
+    public static class CascadeSimulationRequest {
+        private String primaryDisruption;
+        private String type;
+        private String primaryTarget;
+        private String targetEntity;
+        private Boolean convertToActionProposal;
+        private Boolean convertToProposal;
     }
 
     @PostMapping("/disruption")
@@ -38,6 +50,32 @@ public class DisruptionSimulationController {
         log.info("[SIMULATION CONTROLLER] Running disruption simulation type: {}", disruptionType);
         DisruptionSimulationService.DisruptionSimulationResult result =
                 simulationService.simulateDisruption(disruptionType, targetEntity);
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/disruption/cascade")
+    public ResponseEntity<CascadingDisruptionCorrelationEngine.CascadingDisruptionResult> runCascadeSimulation(
+            @RequestBody(required = false) CascadeSimulationRequest request,
+            @RequestParam(name = "convertToActionProposal", required = false, defaultValue = "false") boolean convertQueryParam) {
+
+        String primaryType = (request != null && request.getPrimaryDisruption() != null)
+                ? request.getPrimaryDisruption()
+                : (request != null && request.getType() != null) ? request.getType() : "INVENTORY_SHORTAGE";
+
+        String targetEntity = (request != null && request.getPrimaryTarget() != null)
+                ? request.getPrimaryTarget()
+                : (request != null && request.getTargetEntity() != null) ? request.getTargetEntity() : "SKU-ELEC-001";
+
+        boolean convertToProposal = convertQueryParam
+                || (request != null && Boolean.TRUE.equals(request.getConvertToActionProposal()))
+                || (request != null && Boolean.TRUE.equals(request.getConvertToProposal()));
+
+        log.info("[SIMULATION CONTROLLER] Running cascading disruption correlation analysis: type={} target={} convertToProposal={}",
+                primaryType, targetEntity, convertToProposal);
+
+        CascadingDisruptionCorrelationEngine.CascadingDisruptionResult result =
+                cascadeEngine.analyzeCascadingDisruption(primaryType, targetEntity, convertToProposal);
 
         return ResponseEntity.ok(result);
     }
