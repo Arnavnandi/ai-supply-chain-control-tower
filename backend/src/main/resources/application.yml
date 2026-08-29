@@ -48,6 +48,7 @@ spring:
         dimensions: 384
         initialize-schema: true
     onnx:
+      enabled: ${SPRING_AI_ONNX_ENABLED:false}
       model:
         location: classpath:/onnx/all-MiniLM-L6-v2/model.onnx
         tokenizer:
