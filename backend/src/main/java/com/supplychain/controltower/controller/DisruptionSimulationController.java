@@ -7,6 +7,7 @@ import com.supplychain.controltower.analytics.ExecutiveCommandCenterEngine;
 import com.supplychain.controltower.analytics.HistoricalMitigationEfficacyEngine;
 import com.supplychain.controltower.analytics.MultiEchelonInventoryRebalancingEngine;
 import com.supplychain.controltower.analytics.PredictiveDisruptionEarlyWarningEngine;
+import com.supplychain.controltower.analytics.UnifiedDisruptionOrchestratorEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class DisruptionSimulationController {
     private final ExecutiveCommandCenterEngine commandCenterEngine;
     private final AutoContainmentFailoverEngine failoverEngine;
     private final MultiEchelonInventoryRebalancingEngine rebalanceEngine;
+    private final UnifiedDisruptionOrchestratorEngine orchestratorEngine;
 
     @Data
     public static class SimulationRequest {
@@ -155,6 +157,19 @@ public class DisruptionSimulationController {
                 targetWarehouseCode, skuCode);
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 rebalanceEngine.computeMultiEchelonRebalancePlan(targetWarehouseCode, skuCode);
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/unified-orchestration")
+    public ResponseEntity<UnifiedDisruptionOrchestratorEngine.MasterOrchestrationReport> getUnifiedOrchestration(
+            @RequestParam(name = "targetEntity", required = false, defaultValue = "SUP-TECH-001") String targetEntity,
+            @RequestParam(name = "warehouseCode", required = false, defaultValue = "WH-NORTH") String warehouseCode) {
+
+        log.info("[SIMULATION CONTROLLER] Generating Master Disruption Containment & Recovery Blueprint: targetEntity={} warehouse={}",
+                targetEntity, warehouseCode);
+        UnifiedDisruptionOrchestratorEngine.MasterOrchestrationReport report =
+                orchestratorEngine.generateMasterOrchestrationPlan(targetEntity, warehouseCode);
 
         return ResponseEntity.ok(report);
     }
