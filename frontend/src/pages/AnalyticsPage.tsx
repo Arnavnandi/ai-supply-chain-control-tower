@@ -3,6 +3,7 @@ import axiosInstance from '../api/axiosInstance';
 import {
   BarChart3,
   Sliders,
+  TrendingUp,
   Zap,
   Target,
   Layers,
@@ -158,8 +159,35 @@ interface ContainmentFailoverReport {
   timestamp: string;
 }
 
+interface InterHubTransferOption {
+  sourceWarehouseCode: string;
+  sourceWarehouseName: string;
+  targetWarehouseCode: string;
+  targetWarehouseName: string;
+  skuCode: string;
+  transferQuantityUnits: number;
+  transferCostEstimate: number;
+  transitLeadTimeDays: number;
+  riskReductionDelta: number;
+  logisticsCorridor: string;
+}
+
+interface RebalancingReport {
+  rebalancePlanId: string;
+  targetWarehouseCode: string;
+  skuCode: string;
+  deficitUnits: number;
+  rebalancingStatus: string;
+  transferOptions: InterHubTransferOption[];
+  totalRebalancedUnits: number;
+  totalCostSavingsVsNewPurchase: number;
+  leadTimeReductionDays: number;
+  executiveSummary: string;
+  timestamp: string;
+}
+
 export const AnalyticsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'cascade' | 'failover' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('cascade');
+  const [activeTab, setActiveTab] = useState<'cascade' | 'rebalance' | 'failover' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('cascade');
 
   // Accuracy State
   const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
@@ -186,6 +214,9 @@ export const AnalyticsPage: React.FC = () => {
   // Phase 25 State
   const [failoverReport, setFailoverReport] = useState<ContainmentFailoverReport | null>(null);
 
+  // Phase 26 State
+  const [rebalanceReport, setRebalanceReport] = useState<RebalancingReport | null>(null);
+
   // Executive Report Modal State
   const [executiveReport, setExecutiveReport] = useState<any | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -198,6 +229,7 @@ export const AnalyticsPage: React.FC = () => {
     fetchCostSlaTradeoff();
     fetchHistoricalEfficacy();
     fetchFailoverContainment();
+    fetchMultiEchelonRebalance();
   }, []);
 
   const fetchAccuracy = async (productId: number) => {
@@ -273,6 +305,15 @@ export const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const fetchMultiEchelonRebalance = async () => {
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/multi-echelon-rebalance');
+      setRebalanceReport(res.data);
+    } catch (err) {
+      console.error('Failed to load multi-echelon rebalance report:', err);
+    }
+  };
+
   const fetchExecutiveReport = async () => {
     try {
       const res = await axiosInstance.get('/analytics/executive-report');
@@ -320,6 +361,18 @@ export const AnalyticsPage: React.FC = () => {
         >
           <Zap className="h-4 w-4 text-amber-400" />
           Cascading Disruption Correlation
+        </button>
+
+        <button
+          onClick={() => setActiveTab('rebalance')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'rebalance'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          }`}
+        >
+          <TrendingUp className="h-4 w-4 text-emerald-400" />
+          Multi-Echelon Inventory Rebalancing
         </button>
 
         <button
@@ -506,6 +559,90 @@ export const AnalyticsPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: Multi-Echelon Inventory Rebalancing */}
+      {activeTab === 'rebalance' && rebalanceReport && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  <span>Multi-Echelon Inventory Rebalancing & Cross-Dock Redistribution</span>
+                </h3>
+                <p className="text-xs text-slate-400">Target Deficit Hub: {rebalanceReport.targetWarehouseCode} | SKU: {rebalanceReport.skuCode} | Shortage: {rebalanceReport.deficitUnits} units</p>
+              </div>
+
+              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold rounded-lg font-mono">
+                {rebalanceReport.rebalancePlanId}
+              </span>
+            </div>
+
+            {/* Executive Summary Banner */}
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
+              <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <p className="leading-relaxed font-medium">{rebalanceReport.executiveSummary}</p>
+            </div>
+
+            {/* Metric Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-xs text-slate-400 font-semibold block">Total Rebalanced Stock</span>
+                <span className="text-2xl font-black text-emerald-400">{rebalanceReport.totalRebalancedUnits} / {rebalanceReport.deficitUnits} units</span>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-xs text-slate-400 font-semibold block">Procurement Cost Savings</span>
+                <span className="text-2xl font-black text-cyan-400">${rebalanceReport.totalCostSavingsVsNewPurchase.toLocaleString()}</span>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span className="text-xs text-slate-400 font-semibold block">Lead Time Reduction</span>
+                <span className="text-2xl font-black text-purple-400">-{rebalanceReport.leadTimeReductionDays} Days vs Vendor Order</span>
+              </div>
+            </div>
+
+            {/* Transfer Options Table */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Inter-Hub Transfer Routes</h4>
+              <div className="grid grid-cols-1 gap-3">
+                {rebalanceReport.transferOptions.map((opt, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold rounded">
+                          {opt.sourceWarehouseCode}
+                        </span>
+                        <span className="text-slate-400 text-xs font-bold">➔</span>
+                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold rounded">
+                          {opt.targetWarehouseCode}
+                        </span>
+                        <span className="text-xs text-slate-300 font-semibold pl-2">{opt.sourceWarehouseName}</span>
+                      </div>
+                      <p className="text-xs text-slate-400">{opt.logisticsCorridor}</p>
+                    </div>
+
+                    <div className="flex items-center gap-6 text-xs">
+                      <div>
+                        <span className="text-slate-400 block">Transfer Quantity</span>
+                        <span className="font-bold text-white text-sm">{opt.transferQuantityUnits} units</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Transit Time</span>
+                        <span className="font-bold text-emerald-400 text-sm">{opt.transitLeadTimeDays} day(s)</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Est. Cost</span>
+                        <span className="font-bold text-cyan-400 text-sm">${opt.transferCostEstimate.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

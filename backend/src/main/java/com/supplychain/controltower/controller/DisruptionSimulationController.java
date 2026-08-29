@@ -5,6 +5,7 @@ import com.supplychain.controltower.analytics.CascadingDisruptionCorrelationEngi
 import com.supplychain.controltower.analytics.CostSlaOptimizationEngine;
 import com.supplychain.controltower.analytics.ExecutiveCommandCenterEngine;
 import com.supplychain.controltower.analytics.HistoricalMitigationEfficacyEngine;
+import com.supplychain.controltower.analytics.MultiEchelonInventoryRebalancingEngine;
 import com.supplychain.controltower.analytics.PredictiveDisruptionEarlyWarningEngine;
 import com.supplychain.controltower.service.DisruptionSimulationService;
 import lombok.Data;
@@ -26,6 +27,7 @@ public class DisruptionSimulationController {
     private final HistoricalMitigationEfficacyEngine efficacyEngine;
     private final ExecutiveCommandCenterEngine commandCenterEngine;
     private final AutoContainmentFailoverEngine failoverEngine;
+    private final MultiEchelonInventoryRebalancingEngine rebalanceEngine;
 
     @Data
     public static class SimulationRequest {
@@ -140,6 +142,19 @@ public class DisruptionSimulationController {
                 failedSupplierCode, primaryWarehouseCode);
         AutoContainmentFailoverEngine.ContainmentFailoverReport report =
                 failoverEngine.computeFailoverContainmentPlan(failedSupplierCode, primaryWarehouseCode);
+
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/multi-echelon-rebalance")
+    public ResponseEntity<MultiEchelonInventoryRebalancingEngine.RebalancingReport> getMultiEchelonRebalance(
+            @RequestParam(name = "targetWarehouseCode", required = false, defaultValue = "WH-NORTH") String targetWarehouseCode,
+            @RequestParam(name = "skuCode", required = false, defaultValue = "SKU-ELEC-001") String skuCode) {
+
+        log.info("[SIMULATION CONTROLLER] Computing multi-echelon rebalancing: targetWarehouse={} sku={}",
+                targetWarehouseCode, skuCode);
+        MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
+                rebalanceEngine.computeMultiEchelonRebalancePlan(targetWarehouseCode, skuCode);
 
         return ResponseEntity.ok(report);
     }
