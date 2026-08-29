@@ -2,14 +2,14 @@ services:
   # Backend Spring Boot Service
   - type: web
     name: ai-supply-chain-control-tower-backend
-    env: docker
-    dockercontext: ./backend
+    runtime: docker
+    dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     region: oregon
     plan: starter
     envVars:
       - key: PORT
-        value: 8080
+        value: "8080"
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME
@@ -24,7 +24,7 @@ services:
   # Frontend Static Site
   - type: web
     name: ai-supply-chain-control-tower-frontend
-    env: static
+    runtime: static
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: ./frontend/dist
     envVars:
@@ -32,4 +32,4 @@ services:
         fromService:
           type: web
           name: ai-supply-chain-control-tower-backend
-          property: host
+          property: url
