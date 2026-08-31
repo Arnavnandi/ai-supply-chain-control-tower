@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ai-supply-chain-control-tower-test
+  main:
+    allow-bean-definition-overriding: true
+
+  datasource:
+    url: jdbc:h2:mem:controltower_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  ai:
+    openai:
+      api-key: mock-test-gemini-key
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai/
+      chat:
+        options:
+          model: gemini-2.5-flash
+    vectorstore:
+      pgvector:
+        initialize-schema: false
+    onnx:
+      enabled: true
+      model:
+        location: classpath:/onnx/all-MiniLM-L6-v2/model.onnx
+        tokenizer:
+          location: classpath:/onnx/all-MiniLM-L6-v2/tokenizer.json
+
+jwt:
+  secret: change_me_in_production_jwt_secret_key_32_bytes_minimum_length_required
+  expiration-ms: 86400000

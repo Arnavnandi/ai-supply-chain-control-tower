@@ -5,13 +5,17 @@ import org.springframework.ai.vectorstore.PgVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
 public class VectorStoreConfig {
 
     @Bean
-    public VectorStore vectorStore(JdbcTemplate jdbcTemplate, EmbeddingModel embeddingModel) {
+    @Primary
+    @Lazy
+    public VectorStore vectorStore(JdbcTemplate jdbcTemplate, @Lazy EmbeddingModel embeddingModel) {
         return new PgVectorStore(
                 jdbcTemplate,
                 embeddingModel,
