@@ -186,5 +186,5 @@ CREATE TABLE IF NOT EXISTS vector_store (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content TEXT,
     metadata JSON,
-    embedding VECTOR(768)
+    embedding VECTOR(384)
 );
