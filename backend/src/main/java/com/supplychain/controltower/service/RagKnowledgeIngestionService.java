@@ -58,6 +58,22 @@ public class RagKnowledgeIngestionService implements CommandLineRunner {
     }
 
     public synchronized int ingestProjectKnowledge() {
+        if (jdbcTemplate != null) {
+            try {
+                Integer existingCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM vector_store WHERE metadata->>'sourceName' IS NOT NULL", Integer.class);
+                if (existingCount != null && existingCount > 0) {
+                    log.info("[RAG INGESTION SERVICE] Existing knowledge-base vectors detected in PostgreSQL ({}) - skipping startup reindex.", existingCount);
+                    if (inMemoryChunks.isEmpty()) {
+                        loadInMemoryChunksWithoutEmbedding();
+                    }
+                    return existingCount;
+                }
+            } catch (Exception ex) {
+                log.warn("[RAG INGESTION SERVICE] Could not query vector_store count, proceeding with ingestion: {}", ex.getMessage());
+            }
+        }
+
         inMemoryChunks.clear();
         int totalChunks = 0;
 
@@ -173,7 +189,27 @@ public class RagKnowledgeIngestionService implements CommandLineRunner {
     }
 
     public List<KnowledgeChunk> getInMemoryChunks() {
+        if (inMemoryChunks.isEmpty()) {
+            loadInMemoryChunksWithoutEmbedding();
+        }
         return Collections.unmodifiableList(inMemoryChunks);
+    }
+
+    private void loadInMemoryChunksWithoutEmbedding() {
+        inMemoryChunks.clear();
+        try {
+            org.springframework.core.io.support.PathMatchingResourcePatternResolver resolver = new org.springframework.core.io.support.PathMatchingResourcePatternResolver();
+            org.springframework.core.io.Resource[] resources = resolver.getResources("classpath:docs/*.md");
+            for (org.springframework.core.io.Resource res : resources) {
+                if (res.exists()) {
+                    String fileName = res.getFilename();
+                    String text = new String(res.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                    inMemoryChunks.addAll(chunkMarkdownDocument(fileName, text));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[RAG INGESTION SERVICE] Failed to load in-memory chunks: {}", e.getMessage());
+        }
     }
 
     private List<KnowledgeChunk> chunkMarkdownDocument(String fileName, String text) {

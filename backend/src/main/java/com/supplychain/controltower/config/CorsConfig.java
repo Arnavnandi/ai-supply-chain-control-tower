@@ -13,7 +13,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,https://*.onrender.com,https://*.vercel.app,https://*.netlify.app}")
+    @Value("${cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,https://*.onrender.com,https://*.vercel.app,https://*.netlify.app,https://*.workers.dev,https://*.pages.dev}")
     private String allowedOrigins;
 
     @Bean

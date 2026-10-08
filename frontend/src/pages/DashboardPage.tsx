@@ -77,7 +77,7 @@ export const DashboardPage: React.FC = () => {
         const [sumRes, intelRes, radarRes, execRes] = await Promise.all([
           axiosInstance.get('/dashboard/summary'),
           axiosInstance.get('/intelligence/summary'),
-          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=true'),
+          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=false'),
           axiosInstance.get('/public/simulation/executive/command-center')
         ]);
         setSummary(sumRes.data);

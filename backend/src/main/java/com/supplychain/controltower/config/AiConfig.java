@@ -7,7 +7,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 @Configuration
+@ConditionalOnProperty(name = "embedding.provider", havingValue = "onnx", matchIfMissing = true)
 public class AiConfig {
 
     @Bean
