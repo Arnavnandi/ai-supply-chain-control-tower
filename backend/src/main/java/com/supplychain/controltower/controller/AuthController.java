@@ -69,7 +69,7 @@ public class AuthController {
                 .username(registerRequest.getUsername())
                 .email(registerRequest.getEmail())
                 .password(passwordEncoder.encode(registerRequest.getPassword()))
-                .role(registerRequest.getRole() != null ? registerRequest.getRole() : Role.ROLE_VIEWER)
+                .role(Role.ROLE_VIEWER)
                 .build();
 
         userRepository.save(user);
