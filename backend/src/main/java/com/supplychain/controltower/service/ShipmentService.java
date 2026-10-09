@@ -26,6 +26,7 @@ public class ShipmentService {
     }
 
     private ShipmentDto mapToDto(Shipment s) {
+        boolean isDemo = s.getTrackingCode() != null && (s.getTrackingCode().startsWith("TRK-") || s.getTrackingCode().startsWith("SHP-"));
         return ShipmentDto.builder()
                 .id(s.getId())
                 .trackingCode(s.getTrackingCode())
@@ -43,6 +44,7 @@ public class ShipmentService {
                 .status(s.getStatus().name())
                 .delayDays(s.getDelayDays())
                 .carrierName(s.getCarrierName())
+                .isDemo(isDemo)
                 .build();
     }
 }

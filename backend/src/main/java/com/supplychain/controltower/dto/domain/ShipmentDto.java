@@ -24,4 +24,7 @@ public class ShipmentDto {
     private String status;
     private Integer delayDays;
     private String carrierName;
+
+    @Builder.Default
+    private Boolean isDemo = false;
 }

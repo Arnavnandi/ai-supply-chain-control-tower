@@ -38,6 +38,17 @@ const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = 
     <div className="flex min-h-screen bg-[#090d16] text-slate-100">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Demo Environment Transparency Banner */}
+        <div className="bg-amber-950/90 border-b border-amber-500/30 px-6 py-2 flex flex-wrap items-center justify-between text-xs text-amber-200 shadow-inner">
+          <div className="flex items-center space-x-2">
+            <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-bold uppercase tracking-wider text-amber-400">Demo Environment</span>
+            <span className="text-amber-500/60">•</span>
+            <span className="text-amber-200/90">
+              Operating on synthetic supply chain dataset &amp; simulated telemetry. Upload real company data via <a href="/import" className="underline font-semibold hover:text-amber-100">Ingestion Pipeline</a>.
+            </span>
+          </div>
+        </div>
         <Header title={title} />
         <main className="p-6 flex-1 overflow-y-auto">{children}</main>
       </div>

@@ -74,6 +74,9 @@ public class InventoryService {
             status = "OVERSTOCK";
         }
 
+        boolean isDemo = inv.getProduct() != null && inv.getProduct().getSku() != null &&
+                (inv.getProduct().getSku().startsWith("SKU-ELEC-") || inv.getProduct().getSku().startsWith("SKU-IND-") || inv.getProduct().getSku().startsWith("SKU-PKG-") || inv.getProduct().getSku().startsWith("SKU-PROD-"));
+
         return InventoryDto.builder()
                 .id(inv.getId())
                 .productId(inv.getProduct().getId())
@@ -89,6 +92,7 @@ public class InventoryService {
                 .safetyStock(inv.getSafetyStock())
                 .lastRestockedAt(inv.getLastRestockedAt())
                 .status(status)
+                .isDemo(isDemo)
                 .build();
     }
 }

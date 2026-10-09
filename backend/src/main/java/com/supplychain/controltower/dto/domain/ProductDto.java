@@ -38,4 +38,7 @@ public class ProductDto {
     private Integer leadTimeDays;
 
     private String unitOfMeasure;
+
+    @Builder.Default
+    private Boolean isDemo = false;
 }

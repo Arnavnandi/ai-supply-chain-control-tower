@@ -71,13 +71,13 @@ export const DataImportPage: React.FC = () => {
                 <Database className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">1-Click Sample Dataset</h3>
-                <p className="text-xs text-cyan-400 font-medium">12-Month Supply Chain Telemetry</p>
+                <h3 className="text-base font-bold text-white">1-Click Synthetic Sample Dataset (Demo Dataset)</h3>
+                <p className="text-xs text-amber-400 font-medium">12-Month Synthetic Demonstration Data</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              Imports 9 interconnected synthetic CSV files containing 25 products, 10 global suppliers, 4 logistics hubs, inventory thresholds, 300+ historical customer orders, 800+ order line items, and 250+ shipment tracking records.
+              Ingests 9 synthetic CSV files containing 25 products, 10 global suppliers, 4 logistics hubs, inventory thresholds, 300+ historical customer orders, and 250+ shipment tracking records for demo testing.
             </p>
 
             <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1 font-mono">

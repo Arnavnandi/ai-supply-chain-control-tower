@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -24,18 +25,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUser = async () => {
       if (token) {
         try {
-          const res = await axiosInstance.get('/auth/me');
-          setUser(res.data);
-        } catch {
-          logout();
+          const res = await axiosInstance.get('/auth/me', { timeout: 8000 });
+          if (isMounted) {
+            setUser(res.data);
+          }
+        } catch (err: any) {
+          if (isMounted) {
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+              logout();
+            } else {
+              console.warn('Session restoration request timed out or experienced network error:', err.message);
+            }
+          }
         }
       }
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     };
+
     fetchUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [token]);
 
   const login = async (usernameOrEmail: string, password: string) => {
@@ -46,6 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser({ id, username, email, role });
   };
 
+  const register = async (username: string, email: string, password: string) => {
+    await axiosInstance.post('/auth/register', { username, email, password });
+    await login(username, password);
+  };
+
   const logout = () => {
     localStorage.removeItem('control_tower_token');
     setToken(null);
@@ -53,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

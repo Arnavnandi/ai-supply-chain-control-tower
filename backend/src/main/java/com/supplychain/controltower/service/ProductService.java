@@ -87,6 +87,7 @@ public class ProductService {
     }
 
     private ProductDto mapToDto(Product p) {
+        boolean isDemo = p.getSku() != null && (p.getSku().startsWith("SKU-ELEC-") || p.getSku().startsWith("SKU-IND-") || p.getSku().startsWith("SKU-PKG-") || p.getSku().startsWith("SKU-PROD-"));
         return ProductDto.builder()
                 .id(p.getId())
                 .sku(p.getSku())
@@ -99,6 +100,7 @@ public class ProductService {
                 .safetyStock(p.getSafetyStock())
                 .leadTimeDays(p.getLeadTimeDays())
                 .unitOfMeasure(p.getUnitOfMeasure())
+                .isDemo(isDemo)
                 .build();
     }
 }

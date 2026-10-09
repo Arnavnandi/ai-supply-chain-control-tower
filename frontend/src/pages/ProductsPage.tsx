@@ -63,7 +63,16 @@ export const ProductsPage: React.FC = () => {
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="px-6 py-4 font-mono text-cyan-400 font-semibold">{p.sku}</td>
-                  <td className="px-6 py-4 font-medium text-white">{p.name}</td>
+                  <td className="px-6 py-4 font-medium text-white">
+                    <div className="flex items-center space-x-2">
+                      <span>{p.name}</span>
+                      {p.isDemo && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
+                          Demo Data
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-slate-400">{p.categoryName}</td>
                   <td className="px-6 py-4 font-semibold text-emerald-400">${p.price?.toFixed(2)}</td>
                   <td className="px-6 py-4">{p.reorderLevel} units</td>

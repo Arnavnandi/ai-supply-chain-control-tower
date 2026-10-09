@@ -85,7 +85,14 @@ export const InventoryPage: React.FC = () => {
             {inventory.map((inv) => (
               <tr key={inv.id} className="hover:bg-slate-800/40 transition-colors">
                 <td className="px-6 py-4">
-                  <p className="font-semibold text-white">{inv.productName}</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="font-semibold text-white">{inv.productName}</p>
+                    {inv.isDemo && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
+                        Demo Data
+                      </span>
+                    )}
+                  </div>
                   <p className="font-mono text-xs text-cyan-400">{inv.productSku}</p>
                 </td>
                 <td className="px-6 py-4">{inv.warehouseName} ({inv.warehouseCode})</td>

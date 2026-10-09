@@ -23,4 +23,7 @@ public class InventoryDto {
     private Integer safetyStock;
     private LocalDateTime lastRestockedAt;
     private String status; // LOW_STOCK, OVERSTOCK, OPTIMAL, CRITICAL
+
+    @Builder.Default
+    private Boolean isDemo = false;
 }
