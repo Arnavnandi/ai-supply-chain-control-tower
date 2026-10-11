@@ -31,10 +31,18 @@ public class SeedDataService implements CommandLineRunner {
     private final RiskAlertRepository riskAlertRepository;
     private final RecommendationRepository recommendationRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.supplychain.controltower.repository.CompanyRepository companyRepository;
 
     @Override
     public void run(String... args) throws Exception {
         log.info("Checking system seed data...");
+
+        com.supplychain.controltower.entity.Company demoCompany = companyRepository.findByCode("DEMO")
+                .orElseGet(() -> companyRepository.save(com.supplychain.controltower.entity.Company.builder()
+                        .name("Demo Supply Chain Corp")
+                        .code("DEMO")
+                        .status("ACTIVE")
+                        .build()));
 
         // 1. Seed Users
         if (userRepository.count() == 0) {
@@ -44,6 +52,7 @@ public class SeedDataService implements CommandLineRunner {
                     .email("admin@supplychain.com")
                     .password(passwordEncoder.encode("admin123"))
                     .role(Role.ROLE_ADMIN)
+                    .company(demoCompany)
                     .build());
 
             userRepository.save(User.builder()
@@ -51,6 +60,7 @@ public class SeedDataService implements CommandLineRunner {
                     .email("manager@supplychain.com")
                     .password(passwordEncoder.encode("manager123"))
                     .role(Role.ROLE_SUPPLY_CHAIN_MANAGER)
+                    .company(demoCompany)
                     .build());
         }
 
@@ -264,6 +274,7 @@ public class SeedDataService implements CommandLineRunner {
 
             // 7. Seed Initial Risk Alerts & Recommendations
             riskAlertRepository.save(RiskAlert.builder()
+                    .company(demoCompany)
                     .riskCategory(RiskAlert.RiskCategory.STOCKOUT)
                     .severityLevel(RiskAlert.SeverityLevel.CRITICAL)
                     .entityType("Product")
@@ -275,6 +286,7 @@ public class SeedDataService implements CommandLineRunner {
                     .build());
 
             riskAlertRepository.save(RiskAlert.builder()
+                    .company(demoCompany)
                     .riskCategory(RiskAlert.RiskCategory.SHIPMENT_DELAY)
                     .severityLevel(RiskAlert.SeverityLevel.HIGH)
                     .entityType("Shipment")

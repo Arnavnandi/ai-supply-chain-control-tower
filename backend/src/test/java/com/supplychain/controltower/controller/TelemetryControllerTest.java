@@ -22,6 +22,7 @@ class TelemetryControllerTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         telemetryEventRepository = mock(TelemetryEventRepository.class);
         telemetryController = new TelemetryController(telemetryEventRepository);
     }
@@ -38,14 +39,14 @@ class TelemetryControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(telemetryEventRepository.findByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(List.of(event));
+        when(telemetryEventRepository.findByCompanyIdOrderByCreatedAtDesc(eq(1L), any(Pageable.class))).thenReturn(List.of(event));
 
         ResponseEntity<List<TelemetryEventEntity>> response = telemetryController.getRecentEvents(10);
 
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("test-event-1", response.getBody().get(0).getEventId());
-        verify(telemetryEventRepository, times(1)).findByOrderByCreatedAtDesc(any(Pageable.class));
+        verify(telemetryEventRepository, times(1)).findByCompanyIdOrderByCreatedAtDesc(eq(1L), any(Pageable.class));
     }
 
     @Test
@@ -60,13 +61,13 @@ class TelemetryControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(telemetryEventRepository.findActiveAlerts(any(Pageable.class))).thenReturn(List.of(alert));
+        when(telemetryEventRepository.findActiveAlerts(eq(1L), any(Pageable.class))).thenReturn(List.of(alert));
 
         ResponseEntity<List<TelemetryEventEntity>> response = telemetryController.getActiveAlerts(10);
 
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals("alert-event-2", response.getBody().get(0).getEventId());
-        verify(telemetryEventRepository, times(1)).findActiveAlerts(any(Pageable.class));
+        verify(telemetryEventRepository, times(1)).findActiveAlerts(eq(1L), any(Pageable.class));
     }
 }

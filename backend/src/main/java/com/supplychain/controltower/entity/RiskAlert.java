@@ -17,6 +17,11 @@ public class RiskAlert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Company company;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RiskCategory riskCategory; // STOCKOUT, OVERSTOCK, SUPPLIER_DELAY, SHIPMENT_DELAY, WAREHOUSE_CAPACITY

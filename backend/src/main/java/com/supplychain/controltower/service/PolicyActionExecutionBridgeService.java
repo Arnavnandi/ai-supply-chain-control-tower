@@ -3,6 +3,7 @@ package com.supplychain.controltower.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.supplychain.controltower.analytics.PostRecoveryRiskEvaluationEngine;
+import com.supplychain.controltower.security.TenantContext;
 import com.supplychain.controltower.dto.TelemetryEvent;
 import com.supplychain.controltower.entity.*;
 import com.supplychain.controltower.repository.*;
@@ -112,9 +113,10 @@ public class PolicyActionExecutionBridgeService {
     }
 
     private String executeInventoryShortageRecovery(String targetEntity, String actor) {
-        Product product = productRepository.findBySku(targetEntity)
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Product product = productRepository.findByCompanyIdAndSku(companyId, targetEntity)
                 .orElseGet(() -> {
-                    List<Product> products = productRepository.searchProducts(targetEntity);
+                    List<Product> products = productRepository.searchProducts(companyId, targetEntity);
                     return !products.isEmpty() ? products.get(0) : null;
                 });
 
@@ -160,7 +162,8 @@ public class PolicyActionExecutionBridgeService {
     }
 
     private String executeSupplierDisruptionRecovery(String targetEntity, String actor) {
-        Supplier supplier = supplierRepository.findByCode(targetEntity).orElse(null);
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Supplier supplier = supplierRepository.findByCompanyIdAndCode(companyId, targetEntity).orElse(null);
         if (supplier != null) {
             BigDecimal prevScore = supplier.getReliabilityScore() != null ? supplier.getReliabilityScore() : BigDecimal.valueOf(80.0);
             supplier.setReliabilityScore(prevScore.add(BigDecimal.valueOf(5.0)).min(BigDecimal.valueOf(100.0)));
@@ -177,7 +180,8 @@ public class PolicyActionExecutionBridgeService {
     }
 
     private String executeWarehouseCapacityRecovery(String targetEntity, String actor) {
-        Warehouse warehouse = warehouseRepository.findByCode(targetEntity).orElse(null);
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Warehouse warehouse = warehouseRepository.findByCompanyIdAndCode(companyId, targetEntity).orElse(null);
         if (warehouse != null) {
             BigDecimal prevUtil = warehouse.getUtilizationPercentage() != null ? warehouse.getUtilizationPercentage() : BigDecimal.valueOf(90.0);
             warehouse.setUtilizationPercentage(prevUtil.subtract(BigDecimal.valueOf(15.0)).max(BigDecimal.valueOf(50.0)));

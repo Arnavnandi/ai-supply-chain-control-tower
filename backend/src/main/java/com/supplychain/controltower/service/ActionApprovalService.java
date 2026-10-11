@@ -1,9 +1,14 @@
 package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.entity.AuditLog;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Recommendation;
+import com.supplychain.controltower.exception.ResourceNotFoundException;
+import com.supplychain.controltower.exception.TenantContextMissingException;
 import com.supplychain.controltower.repository.AuditLogRepository;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.RecommendationRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,30 +24,36 @@ public class ActionApprovalService {
 
     private final RecommendationRepository recommendationRepository;
     private final AuditLogRepository auditLogRepository;
+    private final CompanyRepository companyRepository;
     private final ActionExecutionEngine actionExecutionEngine;
 
     public List<Recommendation> getPendingRecommendations() {
-        return recommendationRepository.findByStatus(Recommendation.ApprovalStatus.PENDING_APPROVAL);
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return recommendationRepository.findByCompanyIdAndStatus(companyId, Recommendation.ApprovalStatus.PENDING_APPROVAL);
     }
 
     public List<Recommendation> getRecommendationHistory() {
-        return recommendationRepository.findAll().stream()
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return recommendationRepository.findByCompanyId(companyId).stream()
                 .filter(r -> r.getStatus() != Recommendation.ApprovalStatus.PENDING_APPROVAL)
                 .toList();
     }
 
     public List<AuditLog> getAuditLogs() {
-        return auditLogRepository.findAll().stream()
-                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))
-                .toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return auditLogRepository.findByCompanyIdOrderByTimestampDesc(companyId);
     }
 
     @Transactional
     public Recommendation approveAndExecute(Long recommendationId, String username) {
-        log.info("[ACTION APPROVAL] User '{}' approving recommendation ID={}", username, recommendationId);
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
 
-        Recommendation rec = recommendationRepository.findById(recommendationId)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found: " + recommendationId));
+        log.info("[ACTION APPROVAL] User '{}' approving recommendation ID={} for companyId={}", username, recommendationId, companyId);
+
+        Recommendation rec = recommendationRepository.findByCompanyIdAndId(companyId, recommendationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Recommendation not found: " + recommendationId));
 
         if (rec.getStatus() == Recommendation.ApprovalStatus.EXECUTED) {
             throw new RuntimeException("Recommendation has already been executed!");
@@ -68,6 +79,7 @@ public class ActionApprovalService {
 
         // Save execution audit log
         auditLogRepository.save(AuditLog.builder()
+                .company(company)
                 .userId(1L)
                 .username(username != null ? username : "Manager")
                 .actionTaken("APPROVED_AND_EXECUTED_AI_RECOMMENDATION")
@@ -82,10 +94,14 @@ public class ActionApprovalService {
 
     @Transactional
     public Recommendation rejectRecommendation(Long recommendationId, String username) {
-        log.info("[ACTION REJECTION] User '{}' rejecting recommendation ID={}", username, recommendationId);
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
 
-        Recommendation rec = recommendationRepository.findById(recommendationId)
-                .orElseThrow(() -> new RuntimeException("Recommendation not found: " + recommendationId));
+        log.info("[ACTION REJECTION] User '{}' rejecting recommendation ID={} for companyId={}", username, recommendationId, companyId);
+
+        Recommendation rec = recommendationRepository.findByCompanyIdAndId(companyId, recommendationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Recommendation not found: " + recommendationId));
 
         rec.setStatus(Recommendation.ApprovalStatus.REJECTED);
         rec.setExecutedAt(LocalDateTime.now());
@@ -94,6 +110,7 @@ public class ActionApprovalService {
         Recommendation saved = recommendationRepository.save(rec);
 
         auditLogRepository.save(AuditLog.builder()
+                .company(company)
                 .userId(1L)
                 .username(username != null ? username : "Manager")
                 .actionTaken("REJECTED_AI_RECOMMENDATION")
@@ -106,3 +123,4 @@ public class ActionApprovalService {
         return saved;
     }
 }
+

@@ -1,6 +1,9 @@
 server:
   port: 8080
 
+embedding:
+  provider: onnx
+
 spring:
   application:
     name: ai-supply-chain-control-tower-test
@@ -28,7 +31,7 @@ spring:
       base-url: https://generativelanguage.googleapis.com/v1beta/openai/
       chat:
         options:
-          model: gemini-2.5-flash
+          model: gemini-3.8-flash
     vectorstore:
       pgvector:
         initialize-schema: false

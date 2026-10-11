@@ -30,12 +30,13 @@ class ForecastAccuracyEngineTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         product = Product.builder().id(1L).sku("SKU-ACC-001").name("Temperature Sensor").build();
     }
 
     @Test
     void testCalculateForecastAccuracyReturnsMapeAndRmse() {
-        when(forecastService.calculateMonthlySalesFromDatabase(1L)).thenReturn(List.of(120, 150, 180, 200, 220, 250));
+        when(forecastService.calculateMonthlySalesFromDatabase(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(1L))).thenReturn(List.of(120, 150, 180, 200, 220, 250));
 
         ForecastAccuracyEngine.AccuracyMetrics metrics = accuracyEngine.calculateForecastAccuracy(product);
 

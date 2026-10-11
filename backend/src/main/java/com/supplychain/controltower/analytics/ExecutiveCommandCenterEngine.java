@@ -49,11 +49,12 @@ public class ExecutiveCommandCenterEngine {
     }
 
     public ExecutiveScorecardReport generateExecutiveCommandCenterReport() {
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         String reportId = "EXEC-CC-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        log.info("[EXECUTIVE COMMAND CENTER] Computing overall Supply Chain Resiliency Index across operational domains. ReportId: {}", reportId);
+        log.info("[EXECUTIVE COMMAND CENTER] Computing overall Supply Chain Resiliency Index across operational domains for companyId={}. ReportId: {}", companyId, reportId);
 
         // 1. Component 1: Supplier OTIF Health (30% weight)
-        List<Supplier> suppliers = supplierRepository.findAll();
+        List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
         double supplierOtif = 85.0;
         if (!suppliers.isEmpty()) {
             supplierOtif = suppliers.stream()
@@ -66,7 +67,7 @@ public class ExecutiveCommandCenterEngine {
         supplierOtif = Math.min(100.0, Math.max(0.0, supplierOtif));
 
         // 2. Component 2: Inventory Buffer Safety (25% weight)
-        List<Inventory> inventories = inventoryRepository.findAll();
+        List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
         double inventoryScore = 80.0;
         if (!inventories.isEmpty()) {
             long total = inventories.size();
@@ -78,7 +79,7 @@ public class ExecutiveCommandCenterEngine {
         inventoryScore = Math.min(100.0, Math.max(0.0, inventoryScore));
 
         // 3. Component 3: Warehouse Storage Capacity Health (25% weight)
-        List<Warehouse> warehouses = warehouseRepository.findAll();
+        List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
         double warehouseScore = 88.0;
         if (!warehouses.isEmpty()) {
             double avgUtilization = warehouses.stream()

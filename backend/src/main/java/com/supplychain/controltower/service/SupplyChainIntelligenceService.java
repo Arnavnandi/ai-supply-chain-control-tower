@@ -45,7 +45,8 @@ public class SupplyChainIntelligenceService {
         RiskAnalysisEngine.ControlTowerRiskReport riskReport = riskAnalysisEngine.evaluateSystemRisks();
 
         // 3. Generate Top Product Forecasts
-        List<Product> products = productRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Product> products = productRepository.findByCompanyId(companyId);
         List<DemandForecastingEngine.ForecastResult> topForecasts = new ArrayList<>();
         for (int i = 0; i < Math.min(5, products.size()); i++) {
             try {

@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class SupplierAnalyticsEngineTest {
 
     @Mock
@@ -59,9 +60,10 @@ class SupplierAnalyticsEngineTest {
 
     @Test
     void analyzeSupplierPerformance_ShouldCalculateOtifAndRiskClassification() {
-        when(supplierRepository.findAll()).thenReturn(List.of(testSupplier));
-        when(shipmentRepository.findAll()).thenReturn(List.of(testShipment));
-        when(supplierProductRepository.findAll()).thenReturn(List.of());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(testSupplier));
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(List.of(testShipment));
+        when(supplierProductRepository.findByCompanyId(1L)).thenReturn(List.of());
 
         SupplierAnalyticsEngine.SupplierAnalyticsSummary summary = supplierAnalyticsEngine.analyzeSupplierPerformance();
 

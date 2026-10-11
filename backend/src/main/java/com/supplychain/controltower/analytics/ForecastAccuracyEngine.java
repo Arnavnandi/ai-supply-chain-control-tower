@@ -44,7 +44,8 @@ public class ForecastAccuracyEngine {
     public AccuracyMetrics calculateForecastAccuracy(Product product) {
         log.info("[ACCURACY ENGINE] Executing true out-of-sample backtesting (MAPE & RMSE) for SKU={}", product.getSku());
 
-        List<Integer> fullSalesHistory = forecastService.calculateMonthlySalesFromDatabase(product.getId());
+        Long companyId = product.getCompany() != null ? product.getCompany().getId() : com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Integer> fullSalesHistory = forecastService.calculateMonthlySalesFromDatabase(companyId, product.getId());
 
         if (fullSalesHistory == null || fullSalesHistory.size() < 4) {
             return AccuracyMetrics.builder()

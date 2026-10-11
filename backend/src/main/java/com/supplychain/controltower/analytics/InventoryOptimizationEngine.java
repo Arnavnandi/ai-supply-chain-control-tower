@@ -51,7 +51,8 @@ public class InventoryOptimizationEngine {
     public SafetyStockOptimizationReport optimizeSafetyStockLevels() {
         log.info("[OPTIMIZATION ENGINE] Executing dynamic safety stock computation across inventory...");
 
-        List<Inventory> inventories = inventoryRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
         List<OptimizedInventoryItem> items = new ArrayList<>();
 
         int deficitCount = 0;
@@ -63,7 +64,7 @@ public class InventoryOptimizationEngine {
             Product product = inv.getProduct();
             if (product == null) continue;
 
-            List<Integer> salesHistory = forecastService.calculateMonthlySalesFromDatabase(product.getId());
+            List<Integer> salesHistory = forecastService.calculateMonthlySalesFromDatabase(companyId, product.getId());
 
             double stdDevDemand = 15.0;
             if (salesHistory != null && salesHistory.size() > 1) {

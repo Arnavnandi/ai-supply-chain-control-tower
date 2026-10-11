@@ -5,6 +5,7 @@ import com.supplychain.controltower.entity.CustomerOrder;
 import com.supplychain.controltower.entity.Inventory;
 import com.supplychain.controltower.entity.Shipment;
 import com.supplychain.controltower.repository.*;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,26 +28,27 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardSummaryDto getDashboardSummary() {
-        long totalProducts = productRepository.count();
-        List<Inventory> allInventory = inventoryRepository.findAll();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        long totalProducts = productRepository.findByCompanyId(companyId).size();
+        List<Inventory> allInventory = inventoryRepository.findByCompanyId(companyId);
         long totalUnits = allInventory.stream().mapToLong(Inventory::getQuantityAvailable).sum();
 
-        Double totalVal = inventoryRepository.calculateTotalInventoryValue();
+        Double totalVal = inventoryRepository.calculateTotalInventoryValue(companyId);
         BigDecimal totalInventoryValue = totalVal != null ? BigDecimal.valueOf(totalVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
-        long lowStockCount = inventoryRepository.findLowStockInventory().size();
-        long overstockCount = inventoryRepository.findOverstockedInventory().size();
-        long pendingOrdersCount = orderRepository.findByStatus(CustomerOrder.OrderStatus.PENDING).size() +
-                orderRepository.findByStatus(CustomerOrder.OrderStatus.PROCESSING).size();
-        long delayedShipmentsCount = shipmentRepository.findByStatus(Shipment.ShipmentStatus.DELAYED).size();
+        long lowStockCount = inventoryRepository.findLowStockInventory(companyId).size();
+        long overstockCount = inventoryRepository.findOverstockedInventory(companyId).size();
+        long pendingOrdersCount = orderRepository.findByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PENDING).size() +
+                orderRepository.findByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PROCESSING).size();
+        long delayedShipmentsCount = shipmentRepository.findByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED).size();
 
         // Calculate average supplier reliability
-        Double avgRel = supplierRepository.findAll().stream()
+        Double avgRel = supplierRepository.findByCompanyId(companyId).stream()
                 .map(s -> s.getReliabilityScore() != null ? s.getReliabilityScore().doubleValue() : 80.0)
                 .mapToDouble(Double::doubleValue).average().orElse(85.0);
 
         // Calculate average warehouse utilization
-        Double avgUtil = warehouseRepository.findAll().stream()
+        Double avgUtil = warehouseRepository.findByCompanyId(companyId).stream()
                 .map(w -> w.getUtilizationPercentage() != null ? w.getUtilizationPercentage().doubleValue() : 50.0)
                 .mapToDouble(Double::doubleValue).average().orElse(65.0);
 
@@ -54,7 +56,7 @@ public class DashboardService {
         double riskScore = Math.min(100.0, (lowStockCount * 15.0) + (delayedShipmentsCount * 20.0) + (avgUtil > 90 ? 25.0 : 5.0));
 
         // Calculate real demand trends from PostgreSQL Customer Orders & Order Items
-        List<CustomerOrder> allOrders = orderRepository.findByOrderByOrderDateDesc();
+        List<CustomerOrder> allOrders = orderRepository.findByCompanyIdOrderByOrderDateDesc(companyId);
         List<Map<String, Object>> demandTrends = new ArrayList<>();
         if (!allOrders.isEmpty()) {
             List<CustomerOrder> sortedOrders = allOrders.stream()
@@ -111,14 +113,14 @@ public class DashboardService {
             }
         }
 
-        List<Map<String, Object>> supplierPerformance = supplierRepository.findAll().stream().map(s ->
+        List<Map<String, Object>> supplierPerformance = supplierRepository.findByCompanyId(companyId).stream().map(s ->
                 Map.of("name", (Object) s.getName(),
                         "reliability", s.getReliabilityScore() != null ? s.getReliabilityScore() : 80,
                         "deliveryRate", s.getDeliveryPerformancePct() != null ? s.getDeliveryPerformancePct() : 85,
                         "leadTime", s.getAverageLeadTimeDays() != null ? s.getAverageLeadTimeDays() : 7.0)
         ).toList();
 
-        List<Map<String, Object>> warehouseUtilization = warehouseRepository.findAll().stream().map(w ->
+        List<Map<String, Object>> warehouseUtilization = warehouseRepository.findByCompanyId(companyId).stream().map(w ->
                 Map.of("name", (Object) w.getName(),
                         "capacity", w.getTotalCapacityUnits(),
                         "used", w.getCurrentUtilizationUnits(),
@@ -143,3 +145,4 @@ public class DashboardService {
                 .build();
     }
 }
+

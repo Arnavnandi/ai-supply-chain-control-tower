@@ -3,13 +3,17 @@ package com.supplychain.controltower.service;
 import com.supplychain.controltower.analytics.DemandForecastingEngine;
 import com.supplychain.controltower.analytics.PurchaseOrderGeneratorEngine;
 import com.supplychain.controltower.entity.AuditLog;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Inventory;
 import com.supplychain.controltower.entity.Product;
 import com.supplychain.controltower.entity.Recommendation;
+import com.supplychain.controltower.exception.TenantContextMissingException;
 import com.supplychain.controltower.repository.AuditLogRepository;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.InventoryRepository;
 import com.supplychain.controltower.repository.ProductRepository;
 import com.supplychain.controltower.repository.RecommendationRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,7 @@ public class ReplenishmentProposalService {
 
     private final InventoryRepository inventoryRepository;
     private final ProductRepository productRepository;
+    private final CompanyRepository companyRepository;
     private final ForecastService forecastService;
     private final PurchaseOrderGeneratorEngine poGeneratorEngine;
     private final RecommendationRepository recommendationRepository;
@@ -33,9 +38,13 @@ public class ReplenishmentProposalService {
 
     @Transactional
     public List<Recommendation> generateProposalsFromDatabaseStockouts() {
-        log.info("[REPLENISHMENT PROPOSAL SERVICE] Evaluating database stockouts for purchase order recommendations...");
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
 
-        List<Inventory> allInventory = inventoryRepository.findAll();
+        log.info("[REPLENISHMENT PROPOSAL SERVICE] Evaluating database stockouts for purchase order recommendations for companyId={}...", companyId);
+
+        List<Inventory> allInventory = inventoryRepository.findByCompanyId(companyId);
         List<Recommendation> createdProposals = new ArrayList<>();
 
         for (Inventory inv : allInventory) {
@@ -58,7 +67,7 @@ public class ReplenishmentProposalService {
                 }
 
                 // Check if active PENDING_APPROVAL recommendation already exists for this product
-                List<Recommendation> existingPending = recommendationRepository.findByStatus(Recommendation.ApprovalStatus.PENDING_APPROVAL);
+                List<Recommendation> existingPending = recommendationRepository.findByCompanyIdAndStatus(companyId, Recommendation.ApprovalStatus.PENDING_APPROVAL);
                 boolean exists = existingPending.stream().anyMatch(r ->
                         r.getActionPayloadJson() != null && r.getActionPayloadJson().contains("\"productId\":" + product.getId())
                 );
@@ -70,6 +79,7 @@ public class ReplenishmentProposalService {
                     String payloadJson = poGeneratorEngine.convertPayloadToJson(payload);
 
                     Recommendation recommendation = Recommendation.builder()
+                            .company(company)
                             .title(String.format("Automated Replenishment PO: %s (%d units)", payload.getProductName(), payload.getOrderQuantity()))
                             .type(Recommendation.RecommendationType.REORDER_STOCK)
                             .actionPayloadJson(payloadJson)
@@ -82,6 +92,7 @@ public class ReplenishmentProposalService {
                     createdProposals.add(saved);
 
                     auditLogRepository.save(AuditLog.builder()
+                            .company(company)
                             .userId(1L)
                             .username("SYSTEM_AI_ENGINE")
                             .actionTaken("GENERATED_PURCHASE_ORDER_RECOMMENDATION")
@@ -99,3 +110,4 @@ public class ReplenishmentProposalService {
         return createdProposals;
     }
 }
+

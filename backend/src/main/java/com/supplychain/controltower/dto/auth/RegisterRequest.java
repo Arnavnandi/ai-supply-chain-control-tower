@@ -24,4 +24,8 @@ public class RegisterRequest {
     private String password;
 
     private Role role = Role.ROLE_VIEWER;
+
+    private String companyCode;
+
+    private String companyName;
 }

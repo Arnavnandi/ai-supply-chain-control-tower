@@ -38,12 +38,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                if (userDetails instanceof UserPrincipal up) {
+                    TenantContext.setCompanyId(up.getCompanyId());
+                    TenantContext.setCompanyCode(up.getCompanyCode());
+                }
             }
+
+            filterChain.doFilter(request, response);
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
         }
-
-        filterChain.doFilter(request, response);
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

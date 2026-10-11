@@ -1,8 +1,13 @@
 package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.dto.domain.SupplierDto;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Supplier;
+import com.supplychain.controltower.exception.ResourceNotFoundException;
+import com.supplychain.controltower.exception.TenantContextMissingException;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.SupplierRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,22 +19,30 @@ import java.util.List;
 public class SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final CompanyRepository companyRepository;
 
     @Transactional(readOnly = true)
     public List<SupplierDto> getAllSuppliers() {
-        return supplierRepository.findAll().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return supplierRepository.findByCompanyId(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public SupplierDto getSupplierById(Long id) {
-        Supplier s = supplierRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Supplier not found with id: " + id));
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Supplier s = supplierRepository.findByCompanyIdAndId(companyId, id)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + id));
         return mapToDto(s);
     }
 
     @Transactional
     public SupplierDto createSupplier(SupplierDto dto) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
+
         Supplier supplier = Supplier.builder()
+                .company(company)
                 .code(dto.getCode())
                 .name(dto.getName())
                 .contactPerson(dto.getContactPerson())
@@ -61,3 +74,4 @@ public class SupplierService {
                 .build();
     }
 }
+

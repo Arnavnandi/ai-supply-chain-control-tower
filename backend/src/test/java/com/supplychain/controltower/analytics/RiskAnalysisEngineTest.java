@@ -43,6 +43,7 @@ class RiskAnalysisEngineTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         sampleProduct = Product.builder().id(1L).sku("SKU-001").name("Microcontroller").build();
         sampleWarehouse = Warehouse.builder().id(1L).name("North Hub").build();
         sampleSupplier = Supplier.builder()
@@ -77,10 +78,10 @@ class RiskAnalysisEngineTest {
                 .estimatedDeliveryDate(LocalDate.now().minusDays(2))
                 .build();
 
-        when(inventoryRepository.findLowStockInventory()).thenReturn(List.of(lowStock));
-        when(inventoryRepository.findOverstockedInventory()).thenReturn(List.of());
-        when(supplierRepository.findAll()).thenReturn(List.of(sampleSupplier));
-        when(shipmentRepository.findAll()).thenReturn(List.of(delayedShipment));
+        when(inventoryRepository.findLowStockInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of(lowStock));
+        when(inventoryRepository.findOverstockedInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of());
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(sampleSupplier));
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(List.of(delayedShipment));
 
         RiskAnalysisEngine.ControlTowerRiskReport report = riskAnalysisEngine.evaluateSystemRisks();
 

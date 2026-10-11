@@ -19,6 +19,7 @@ class InventoryToolsTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         inventoryRepository = mock(InventoryRepository.class);
         inventoryTools = new InventoryTools(inventoryRepository);
     }
@@ -35,14 +36,14 @@ class InventoryToolsTest {
                 .safetyStock(30)
                 .build();
 
-        when(inventoryRepository.findLowStockInventory()).thenReturn(List.of(inv));
+        when(inventoryRepository.findLowStockInventory(anyLong())).thenReturn(List.of(inv));
 
         List<InventoryTools.InventoryItemRecord> results = inventoryTools.getLowStockProducts();
         assertEquals(1, results.size());
         assertEquals("SKU-LOW-01", results.get(0).sku());
         assertEquals("North Hub", results.get(0).warehouse());
         assertEquals(15, results.get(0).availableQty());
-        verify(inventoryRepository, times(1)).findLowStockInventory();
+        verify(inventoryRepository, times(1)).findLowStockInventory(anyLong());
     }
 
     @Test
@@ -57,12 +58,12 @@ class InventoryToolsTest {
                 .safetyStock(200)
                 .build();
 
-        when(inventoryRepository.findOverstockedInventory()).thenReturn(List.of(inv));
+        when(inventoryRepository.findOverstockedInventory(anyLong())).thenReturn(List.of(inv));
 
         List<InventoryTools.InventoryItemRecord> results = inventoryTools.getOverstockedProducts();
         assertEquals(1, results.size());
         assertEquals("SKU-OVER-02", results.get(0).sku());
         assertEquals(3000, results.get(0).availableQty());
-        verify(inventoryRepository, times(1)).findOverstockedInventory();
+        verify(inventoryRepository, times(1)).findOverstockedInventory(anyLong());
     }
 }

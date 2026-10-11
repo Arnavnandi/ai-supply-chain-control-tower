@@ -66,7 +66,8 @@ public class StressTestingEngine {
         RiskAnalysisEngine.ControlTowerRiskReport baselineReport = riskAnalysisEngine.evaluateSystemRisks();
         double baselineScore = baselineReport.getOverallRiskScore();
 
-        List<Inventory> inventories = inventoryRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
         List<SimulatedStockoutItem> simulatedStockouts = new ArrayList<>();
 
         int simulatedStockoutCount = 0;

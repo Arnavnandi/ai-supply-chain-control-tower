@@ -2,9 +2,13 @@ package com.supplychain.controltower.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.supplychain.controltower.entity.AuditLog;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Recommendation;
+import com.supplychain.controltower.exception.TenantContextMissingException;
 import com.supplychain.controltower.repository.AuditLogRepository;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.RecommendationRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,7 @@ public class DisruptionMitigationActionBridgeService {
 
     private final RecommendationRepository recommendationRepository;
     private final AuditLogRepository auditLogRepository;
+    private final CompanyRepository companyRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -37,10 +42,14 @@ public class DisruptionMitigationActionBridgeService {
         if (disruptionType == null) {
             throw new IllegalArgumentException("DisruptionType cannot be null for action proposal conversion");
         }
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         String entityName = (targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "DEFAULT-TARGET";
 
-        log.info("[POLICY BRIDGE] Converting mitigation policy to persistent PENDING_APPROVAL proposal for {} | Entity: {}",
-                disruptionType, entityName);
+        log.info("[POLICY BRIDGE] Converting mitigation policy to persistent PENDING_APPROVAL proposal for companyId={} | {} | Entity: {}",
+                companyId, disruptionType, entityName);
 
         Recommendation.RecommendationType recType = mapDisruptionTypeToRecommendationType(disruptionType);
 
@@ -70,6 +79,7 @@ public class DisruptionMitigationActionBridgeService {
         }
 
         Recommendation recommendation = Recommendation.builder()
+                .company(company)
                 .title(title)
                 .type(recType)
                 .actionPayloadJson(payloadJson)
@@ -82,6 +92,7 @@ public class DisruptionMitigationActionBridgeService {
 
         try {
             auditLogRepository.save(AuditLog.builder()
+                    .company(company)
                     .userId(1L)
                     .username("MitigationPolicyEngine")
                     .actionTaken("PROPOSED_AUTOMATED_DISRUPTION_MITIGATION_POLICY")

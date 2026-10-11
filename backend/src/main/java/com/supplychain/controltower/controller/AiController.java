@@ -137,6 +137,7 @@ public class AiController {
 
     @GetMapping("/recommendations")
     public ResponseEntity<List<Recommendation>> getRecommendations() {
-        return ResponseEntity.ok(recommendationRepository.findByOrderByCreatedAtDesc());
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        return ResponseEntity.ok(recommendationRepository.findByCompanyIdOrderByCreatedAtDesc(companyId));
     }
 }

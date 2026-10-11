@@ -9,6 +9,13 @@ import java.util.Optional;
 
 @Repository
 public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
+    List<Shipment> findByCompanyId(Long companyId);
+    Optional<Shipment> findByCompanyIdAndId(Long companyId, Long id);
+    Optional<Shipment> findByCompanyIdAndTrackingCode(Long companyId, String trackingCode);
+    List<Shipment> findByCompanyIdAndStatus(Long companyId, Shipment.ShipmentStatus status);
+    List<Shipment> findByCompanyIdAndSupplierId(Long companyId, Long supplierId);
+    List<Shipment> findByCompanyIdAndDestinationWarehouseId(Long companyId, Long warehouseId);
+
     Optional<Shipment> findByTrackingCode(String trackingCode);
     List<Shipment> findByStatus(Shipment.ShipmentStatus status);
     List<Shipment> findBySupplierId(Long supplierId);

@@ -33,6 +33,7 @@ class PurchaseOrderGeneratorEngineTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         product = Product.builder().id(1L).sku("SKU-TEST-001").name("Hydraulic Valve").price(BigDecimal.valueOf(100.0)).reorderLevel(150).safetyStock(50).build();
         inventory = Inventory.builder().id(10L).product(product).quantityAvailable(20).reorderLevel(150).safetyStock(50).build();
         supplier = Supplier.builder().id(2L).code("SUP-VALVE").name("Valve Master Corp").build();
@@ -48,7 +49,7 @@ class PurchaseOrderGeneratorEngineTest {
                 .minimumOrderQuantity(100)
                 .build();
 
-        when(supplierProductRepository.findByProductId(1L)).thenReturn(List.of(sp));
+        when(supplierProductRepository.findByCompanyIdAndProductId(1L, 1L)).thenReturn(List.of(sp));
 
         PurchaseOrderGeneratorEngine.PurchaseOrderPayload payload =
                 poGeneratorEngine.generateReplenishmentPayload(product, inventory, 200);

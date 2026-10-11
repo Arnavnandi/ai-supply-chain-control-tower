@@ -40,6 +40,7 @@ class PostRecoveryRiskEvaluationEngineTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         mockProduct = Product.builder()
                 .id(1L)
                 .sku("SKU-ELEC-001")
@@ -50,9 +51,9 @@ class PostRecoveryRiskEvaluationEngineTest {
 
     @Test
     void testEvaluateInventoryShortageStockReplenished() {
-        when(productRepository.findBySku("SKU-ELEC-001")).thenReturn(Optional.of(mockProduct));
+        when(productRepository.findByCompanyIdAndSku(1L, "SKU-ELEC-001")).thenReturn(Optional.of(mockProduct));
         Inventory inv = Inventory.builder().id(10L).quantityAvailable(120).build();
-        when(inventoryRepository.findByProductId(1L)).thenReturn(List.of(inv));
+        when(inventoryRepository.findByCompanyIdAndProductId(1L, 1L)).thenReturn(List.of(inv));
 
         PostRecoveryRiskEvaluationEngine.PostRecoveryRiskResult result =
                 engine.evaluatePostExecutionRisk("INVENTORY_SHORTAGE", "SKU-ELEC-001", 70.0, "HIGH");
@@ -72,7 +73,7 @@ class PostRecoveryRiskEvaluationEngineTest {
                 .name("Alpha Tech Components")
                 .reliabilityScore(BigDecimal.valueOf(90.0))
                 .build();
-        when(supplierRepository.findByCode("SUP-TECH-001")).thenReturn(Optional.of(supplier));
+        when(supplierRepository.findByCompanyIdAndCode(1L, "SUP-TECH-001")).thenReturn(Optional.of(supplier));
 
         PostRecoveryRiskEvaluationEngine.PostRecoveryRiskResult result =
                 engine.evaluatePostExecutionRisk("SUPPLIER_DISRUPTION", "SUP-TECH-001", 80.0, "CRITICAL");
@@ -91,7 +92,7 @@ class PostRecoveryRiskEvaluationEngineTest {
                 .name("North Regional Warehouse")
                 .utilizationPercentage(BigDecimal.valueOf(60.0))
                 .build();
-        when(warehouseRepository.findByCode("WH-NORTH-01")).thenReturn(Optional.of(warehouse));
+        when(warehouseRepository.findByCompanyIdAndCode(1L, "WH-NORTH-01")).thenReturn(Optional.of(warehouse));
 
         PostRecoveryRiskEvaluationEngine.PostRecoveryRiskResult result =
                 engine.evaluatePostExecutionRisk("WAREHOUSE_CAPACITY_OVERRUN", "WH-NORTH-01", 75.0, "HIGH");

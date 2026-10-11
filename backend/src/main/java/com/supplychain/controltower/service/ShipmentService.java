@@ -3,6 +3,7 @@ package com.supplychain.controltower.service;
 import com.supplychain.controltower.dto.domain.ShipmentDto;
 import com.supplychain.controltower.entity.Shipment;
 import com.supplychain.controltower.repository.ShipmentRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,16 +18,19 @@ public class ShipmentService {
 
     @Transactional(readOnly = true)
     public List<ShipmentDto> getAllShipments() {
-        return shipmentRepository.findAll().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return shipmentRepository.findByCompanyId(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ShipmentDto> getDelayedShipments() {
-        return shipmentRepository.findByStatus(Shipment.ShipmentStatus.DELAYED).stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return shipmentRepository.findByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED).stream().map(this::mapToDto).toList();
     }
 
     private ShipmentDto mapToDto(Shipment s) {
-        boolean isDemo = s.getTrackingCode() != null && (s.getTrackingCode().startsWith("TRK-") || s.getTrackingCode().startsWith("SHP-"));
+        boolean isDemo = (s.getCompany() != null && "DEMO".equalsIgnoreCase(s.getCompany().getCode())) ||
+                (s.getTrackingCode() != null && (s.getTrackingCode().startsWith("TRK-") || s.getTrackingCode().startsWith("SHP-")));
         return ShipmentDto.builder()
                 .id(s.getId())
                 .trackingCode(s.getTrackingCode())
@@ -48,3 +52,4 @@ public class ShipmentService {
                 .build();
     }
 }
+

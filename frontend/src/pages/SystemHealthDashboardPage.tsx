@@ -118,17 +118,19 @@ export const SystemHealthDashboardPage: React.FC = () => {
     setWsStatus('CONNECTING');
 
     const getWsUrl = () => {
+      const token = localStorage.getItem('token');
+      const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
       if (import.meta.env.VITE_WS_BASE_URL) {
-        return import.meta.env.VITE_WS_BASE_URL;
+        return `${import.meta.env.VITE_WS_BASE_URL}${tokenQuery}`;
       }
       if (import.meta.env.MODE === 'production') {
-        return 'wss://ai-supply-chain-control-tower-backend.onrender.com/ws/telemetry';
+        return `wss://ai-supply-chain-control-tower-backend.onrender.com/ws/telemetry${tokenQuery}`;
       }
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return `${protocol}//${window.location.hostname}:8080/ws/telemetry`;
+        return `${protocol}//${window.location.hostname}:8080/ws/telemetry${tokenQuery}`;
       }
-      return `${protocol}//${window.location.host}/ws/telemetry`;
+      return `${protocol}//${window.location.host}/ws/telemetry${tokenQuery}`;
     };
 
     const wsUrl = getWsUrl();
@@ -410,16 +412,22 @@ export const SystemHealthDashboardPage: React.FC = () => {
             </div>
 
             {simResult && (
-              <div className="mt-4 p-3.5 rounded-lg bg-slate-950/80 border border-amber-500/30 text-xs space-y-2">
-                <div className="flex items-center justify-between text-amber-400 font-bold">
-                  <span>Simulation Complete</span>
+              <div className={`mt-4 p-3.5 rounded-lg bg-slate-950/80 border ${simResult.error ? 'border-rose-500/40 text-rose-300' : 'border-amber-500/30 text-amber-300'} text-xs space-y-2`}>
+                <div className={`flex items-center justify-between font-bold ${simResult.error ? 'text-rose-400' : 'text-amber-400'}`}>
+                  <span>{simResult.error ? 'Simulation Execution Failed' : 'Simulation Complete'}</span>
                   <span>ID: {simResult.simulationId || 'SIM-001'}</span>
                 </div>
-                <p className="text-slate-300 text-[11px]">{simResult.scenarioDescription}</p>
-                {simResult.consensusSynthesis && (
-                  <div className="text-[11px] text-cyan-300">
-                    Consensus Decision: <strong className="text-white">{simResult.consensusSynthesis.consensusDecision}</strong>
-                  </div>
+                {simResult.error ? (
+                  <p className="text-rose-300 text-[11px] font-medium">{simResult.error}</p>
+                ) : (
+                  <>
+                    <p className="text-slate-300 text-[11px]">{simResult.scenarioDescription}</p>
+                    {simResult.consensusSynthesis && (
+                      <div className="text-[11px] text-cyan-300">
+                        Consensus Decision: <strong className="text-white">{simResult.consensusSynthesis.consensusDecision}</strong>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

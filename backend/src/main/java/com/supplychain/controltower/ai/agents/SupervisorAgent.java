@@ -59,8 +59,18 @@ public class SupervisorAgent {
 
         List<CompletableFuture<DomainFinding>> futures = new ArrayList<>();
 
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
+                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+
         for (String domain : selectedDomains) {
-            futures.add(CompletableFuture.supplyAsync(() -> executeDomainAgentSafely(domain, prompt))
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+                try {
+                    return executeDomainAgentSafely(domain, prompt);
+                } finally {
+                    com.supplychain.controltower.security.TenantContext.clear();
+                }
+            })
                     .orTimeout(3, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
                         log.warn("[SUPERVISOR AGENT TIMEOUT/FAIL] Domain agent '{}' failed: {}", domain, ex.getMessage());

@@ -56,7 +56,8 @@ public class LogisticsAnalyticsEngine {
     public LogisticsAnalyticsSummary analyzeLogisticsPerformance() {
         log.info("[LOGISTICS ANALYTICS ENGINE] Evaluating carrier performance and route bottlenecks across shipments...");
 
-        List<Shipment> shipments = shipmentRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Shipment> shipments = shipmentRepository.findByCompanyId(companyId);
 
         int total = shipments.size();
         int delayed = 0;

@@ -2,8 +2,11 @@ package com.supplychain.controltower.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.supplychain.controltower.dto.TelemetryEvent;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.TelemetryEventEntity;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.TelemetryEventRepository;
+import com.supplychain.controltower.security.TenantContext;
 import com.supplychain.controltower.websocket.TelemetryWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,7 @@ public class TelemetryEventPublisher {
 
     private final TelemetryWebSocketHandler webSocketHandler;
     private final TelemetryEventRepository telemetryEventRepository;
+    private final CompanyRepository companyRepository;
     private final ObjectMapper objectMapper;
 
     public void publish(TelemetryEvent event) {
@@ -37,7 +41,8 @@ public class TelemetryEventPublisher {
         String json = null;
         try {
             json = objectMapper.writeValueAsString(event);
-            webSocketHandler.broadcastMessage(json);
+            Long companyId = TenantContext.getCompanyId();
+            webSocketHandler.broadcastMessageToCompany(companyId, json);
         } catch (Exception ex) {
             log.warn("[TELEMETRY SERIALIZATION FAIL] Failed to serialize telemetry event: {}", ex.getMessage());
         }
@@ -47,7 +52,11 @@ public class TelemetryEventPublisher {
 
     private void persistEventSafely(TelemetryEvent event, String metadataJson) {
         try {
+            Long companyId = TenantContext.getCompanyId();
+            Company company = companyId != null ? companyRepository.findById(companyId).orElse(null) : null;
+
             TelemetryEventEntity entity = TelemetryEventEntity.builder()
+                    .company(company)
                     .eventId(event.getEventId())
                     .correlationId(event.getCorrelationId())
                     .eventType(event.getEventType() != null ? event.getEventType().name() : "UNKNOWN")
@@ -68,3 +77,4 @@ public class TelemetryEventPublisher {
         return webSocketHandler.getActiveSessionCount();
     }
 }
+

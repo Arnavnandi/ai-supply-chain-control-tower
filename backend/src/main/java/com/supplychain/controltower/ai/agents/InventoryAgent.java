@@ -27,23 +27,41 @@ public class InventoryAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
+                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
         try {
-            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
-                    .system("""
-                            You are the Specialized Inventory Control Agent.
-                            Your sole responsibility is analyzing SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
-                            Always ground your analysis in PostgreSQL database data via tools getLowStockProducts and getOverstockedProducts.
-                            """)
-                    .user(prompt)
-                    .functions("getLowStockProducts", "getOverstockedProducts")
-                    .call()
-                    .content())
+            return CompletableFuture.supplyAsync(() -> {
+                com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+                try {
+                    return chatClient.prompt()
+                            .system("""
+                                    You are the Specialized Inventory Control Agent.
+                                    Your sole responsibility is analyzing SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
+                                    Always ground your analysis in PostgreSQL database data via tools getLowStockProducts and getOverstockedProducts.
+                                    """)
+                            .user(prompt)
+                            .functions("getLowStockProducts", "getOverstockedProducts")
+                            .call()
+                            .content();
+                } finally {
+                    com.supplychain.controltower.security.TenantContext.clear();
+                }
+            })
                     .orTimeout(2, TimeUnit.SECONDS)
                     .join();
         } catch (Exception ex) {
             log.warn("[INVENTORY AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
-            return generateFallbackAnalysis(prompt);
+            com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+            try {
+                return generateFallbackAnalysis(prompt);
+            } finally {
+                com.supplychain.controltower.security.TenantContext.clear();
+            }
         }
+    }
+
+    public String generateFallbackAnalysis(String prompt, Throwable ex) {
+        return generateFallbackAnalysis(prompt);
     }
 
     public String generateFallbackAnalysis(String prompt) {

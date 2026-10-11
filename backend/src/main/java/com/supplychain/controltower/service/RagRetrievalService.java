@@ -163,11 +163,21 @@ public class RagRetrievalService {
 
     private List<RetrievedChunk> getSemanticCandidates(String query) {
         List<RetrievedChunk> candidates = new ArrayList<>();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getCompanyId();
         try {
             List<Document> docs = vectorStore.similaritySearch(query);
             if (docs != null) {
                 for (Document doc : docs) {
                     Map<String, Object> meta = doc.getMetadata();
+                    String scope = meta != null && meta.containsKey("documentScope") ? String.valueOf(meta.get("documentScope")) : "SYSTEM";
+                    Object docCompanyId = meta != null ? meta.get("companyId") : null;
+
+                    if (companyId != null && !"SYSTEM".equalsIgnoreCase(scope) && docCompanyId != null && !"0".equals(String.valueOf(docCompanyId))) {
+                        if (!String.valueOf(companyId).equals(String.valueOf(docCompanyId))) {
+                            continue; // Isolate custom company docs
+                        }
+                    }
+
                     String chunkId = meta != null && meta.containsKey("chunkId") ? String.valueOf(meta.get("chunkId")) : UUID.randomUUID().toString();
                     String sourceName = meta != null && meta.containsKey("sourceName") ? String.valueOf(meta.get("sourceName")) : "technical_documentation_report.md";
                     String sourceType = meta != null && meta.containsKey("sourceType") ? String.valueOf(meta.get("sourceType")) : "TECHNICAL_DOCS";

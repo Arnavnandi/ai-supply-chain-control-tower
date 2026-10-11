@@ -70,7 +70,8 @@ public class MultiEchelonInventoryRebalancingEngine {
         String planId = "REBALANCE-PLAN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         log.info("[MULTI-ECHELON REBALANCE ENGINE] Computing inter-hub inventory transfers for target: {} | SKU: {}", targetHub, sku);
 
-        List<Warehouse> warehouses = warehouseRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
         Warehouse targetWh = warehouses.stream()
                 .filter(w -> w.getCode() != null && w.getCode().equalsIgnoreCase(targetHub))
                 .findFirst()

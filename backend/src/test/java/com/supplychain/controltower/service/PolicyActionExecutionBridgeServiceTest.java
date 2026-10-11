@@ -41,15 +41,21 @@ class PolicyActionExecutionBridgeServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
     @Mock
+    private CompanyRepository companyRepository;
+    @Mock
     private TelemetryEventPublisher telemetryEventPublisher;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
     private PostRecoveryRiskEvaluationEngine postRecoveryEngine;
     private PolicyActionExecutionBridgeService policyBridgeService;
     private ActionExecutionEngine actionExecutionEngine;
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        lenient().when(companyRepository.findById(anyLong())).thenReturn(Optional.of(com.supplychain.controltower.entity.Company.builder().id(1L).code("DEMO").name("Demo Corp").build()));
+
         postRecoveryEngine = new PostRecoveryRiskEvaluationEngine(
                 productRepository,
                 inventoryRepository,
@@ -74,6 +80,7 @@ class PolicyActionExecutionBridgeServiceTest {
                 productRepository,
                 customerOrderRepository,
                 orderItemRepository,
+                companyRepository,
                 policyBridgeService
         );
     }
@@ -85,7 +92,7 @@ class PolicyActionExecutionBridgeServiceTest {
         Product mockProduct = Product.builder().id(10L).sku("SKU-ELEC-001").price(BigDecimal.valueOf(50.0)).leadTimeDays(5).build();
         Inventory mockInv = Inventory.builder().id(100L).product(mockProduct).quantityAvailable(20).build();
 
-        when(productRepository.findBySku("SKU-ELEC-001")).thenReturn(Optional.of(mockProduct));
+        when(productRepository.findByCompanyIdAndSku(1L, "SKU-ELEC-001")).thenReturn(Optional.of(mockProduct));
         when(inventoryRepository.findByProductId(10L)).thenReturn(List.of(mockInv));
         when(customerOrderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -110,7 +117,7 @@ class PolicyActionExecutionBridgeServiceTest {
         String payloadJson = "{\"disruptionType\":\"SUPPLIER_DISRUPTION\",\"targetEntity\":\"SUP-ELEC-001\",\"policyDecision\":\"ACTIVATE_SECONDARY_SUPPLIER_FAILOVER\",\"simulationId\":\"SIM-002\",\"riskBand\":\"CRITICAL\"}";
 
         Supplier mockSupplier = Supplier.builder().id(5L).code("SUP-ELEC-001").name("Tech Components Ltd").reliabilityScore(BigDecimal.valueOf(85.0)).build();
-        when(supplierRepository.findByCode("SUP-ELEC-001")).thenReturn(Optional.of(mockSupplier));
+        when(supplierRepository.findByCompanyIdAndCode(1L, "SUP-ELEC-001")).thenReturn(Optional.of(mockSupplier));
 
         String result = policyBridgeService.executePolicyAction("CHANGE_SUPPLIER", payloadJson, "testUser");
 
@@ -140,7 +147,7 @@ class PolicyActionExecutionBridgeServiceTest {
         String payloadJson = "{\"disruptionType\":\"WAREHOUSE_CAPACITY_OVERRUN\",\"targetEntity\":\"WH-WEST\",\"policyDecision\":\"INTER_HUB_STOCK_TRANSFER_AND_RECEIPT_DEFERRAL\",\"simulationId\":\"SIM-004\",\"riskBand\":\"HIGH\"}";
 
         Warehouse mockWarehouse = Warehouse.builder().id(2L).code("WH-WEST").name("West Coast Hub").utilizationPercentage(BigDecimal.valueOf(95.0)).build();
-        when(warehouseRepository.findByCode("WH-WEST")).thenReturn(Optional.of(mockWarehouse));
+        when(warehouseRepository.findByCompanyIdAndCode(1L, "WH-WEST")).thenReturn(Optional.of(mockWarehouse));
 
         String result = policyBridgeService.executePolicyAction("REALLOCATE_INVENTORY", payloadJson, "testUser");
 
@@ -159,6 +166,6 @@ class PolicyActionExecutionBridgeServiceTest {
         String result = actionExecutionEngine.executeApprovedAction("REORDER_STOCK", payloadJson, "testUser");
 
         assertNotNull(result);
-        verify(productRepository, atLeast(1)).findBySku("SKU-ELEC-001");
+        verify(productRepository, atLeast(1)).findByCompanyIdAndSku(1L, "SKU-ELEC-001");
     }
 }

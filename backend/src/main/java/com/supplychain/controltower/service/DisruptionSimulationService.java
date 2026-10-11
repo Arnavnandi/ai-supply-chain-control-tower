@@ -2,6 +2,7 @@ package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.ai.agents.SupervisorAgent;
 import com.supplychain.controltower.dto.TelemetryEvent;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,9 @@ public class DisruptionSimulationService {
     }
 
     public DisruptionSimulationResult simulateDisruption(DisruptionType type, String targetEntity) {
+        if (TenantContext.getCompanyId() == null) {
+            TenantContext.setCompanyId(1L);
+        }
         String simulationId = "SIM-" + UUID.randomUUID().toString().substring(0, 8);
         log.info("[DISRUPTION SIMULATION] Initiating simulationId: {} | Type: {} | Target: {}",
                 simulationId, type, targetEntity);

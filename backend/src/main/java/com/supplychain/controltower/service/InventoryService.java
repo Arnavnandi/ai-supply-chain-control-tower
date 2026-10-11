@@ -1,12 +1,17 @@
 package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.dto.domain.InventoryDto;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Inventory;
 import com.supplychain.controltower.entity.Product;
 import com.supplychain.controltower.entity.Warehouse;
+import com.supplychain.controltower.exception.ResourceNotFoundException;
+import com.supplychain.controltower.exception.TenantContextMissingException;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.InventoryRepository;
 import com.supplychain.controltower.repository.ProductRepository;
 import com.supplychain.controltower.repository.WarehouseRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,31 +26,40 @@ public class InventoryService {
     private final InventoryRepository inventoryRepository;
     private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
+    private final CompanyRepository companyRepository;
 
     @Transactional(readOnly = true)
     public List<InventoryDto> getAllInventory() {
-        return inventoryRepository.findAll().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return inventoryRepository.findByCompanyId(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<InventoryDto> getLowStockInventory() {
-        return inventoryRepository.findLowStockInventory().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return inventoryRepository.findLowStockInventory(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<InventoryDto> getOverstockedInventory() {
-        return inventoryRepository.findOverstockedInventory().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return inventoryRepository.findOverstockedInventory(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional
     public InventoryDto adjustStock(Long productId, Long warehouseId, Integer adjustmentQty) {
-        Inventory inv = inventoryRepository.findByProductIdAndWarehouseId(productId, warehouseId)
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
+
+        Inventory inv = inventoryRepository.findByCompanyIdAndProductIdAndWarehouseId(companyId, productId, warehouseId)
                 .orElseGet(() -> {
-                    Product product = productRepository.findById(productId)
-                            .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
-                    Warehouse warehouse = warehouseRepository.findById(warehouseId)
-                            .orElseThrow(() -> new RuntimeException("Warehouse not found: " + warehouseId));
+                    Product product = productRepository.findByCompanyIdAndId(companyId, productId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId + " for company " + companyId));
+                    Warehouse warehouse = warehouseRepository.findByCompanyIdAndId(companyId, warehouseId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with id: " + warehouseId + " for company " + companyId));
                     return Inventory.builder()
+                            .company(company)
                             .product(product)
                             .warehouse(warehouse)
                             .quantityAvailable(0)
@@ -74,8 +88,9 @@ public class InventoryService {
             status = "OVERSTOCK";
         }
 
-        boolean isDemo = inv.getProduct() != null && inv.getProduct().getSku() != null &&
-                (inv.getProduct().getSku().startsWith("SKU-ELEC-") || inv.getProduct().getSku().startsWith("SKU-IND-") || inv.getProduct().getSku().startsWith("SKU-PKG-") || inv.getProduct().getSku().startsWith("SKU-PROD-"));
+        boolean isDemo = (inv.getCompany() != null && "DEMO".equalsIgnoreCase(inv.getCompany().getCode())) ||
+                (inv.getProduct() != null && inv.getProduct().getSku() != null &&
+                (inv.getProduct().getSku().startsWith("SKU-ELEC-") || inv.getProduct().getSku().startsWith("SKU-IND-") || inv.getProduct().getSku().startsWith("SKU-PKG-") || inv.getProduct().getSku().startsWith("SKU-PROD-")));
 
         return InventoryDto.builder()
                 .id(inv.getId())
@@ -96,3 +111,4 @@ public class InventoryService {
                 .build();
     }
 }
+

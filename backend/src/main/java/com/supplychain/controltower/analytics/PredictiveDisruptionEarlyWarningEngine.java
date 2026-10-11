@@ -68,11 +68,12 @@ public class PredictiveDisruptionEarlyWarningEngine {
         log.info("[PREDICTIVE EARLY WARNING ENGINE] Executing automated anomaly scan across PostgreSQL operational streams. ScanId: {} | ConvertProposals: {}",
                 scanId, convertToActionProposals);
 
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         List<PredictiveEarlyWarningNode> warnings = new ArrayList<>();
         List<Long> recommendationIds = new ArrayList<>();
 
         // 1. Scan Supplier Reliability Anomalies
-        List<Supplier> suppliers = supplierRepository.findAll();
+        List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
         for (Supplier supplier : suppliers) {
             if (supplier.getReliabilityScore() != null && supplier.getReliabilityScore().doubleValue() < 85.0) {
                 double prob = Math.min(0.95, (100.0 - supplier.getReliabilityScore().doubleValue()) / 100.0 + 0.35);
@@ -111,7 +112,7 @@ public class PredictiveDisruptionEarlyWarningEngine {
         }
 
         // 2. Scan Inventory Deficit Anomalies
-        List<Inventory> inventories = inventoryRepository.findAll();
+        List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
         for (Inventory inv : inventories) {
             if (inv.getQuantityAvailable() != null && inv.getQuantityAvailable() < inv.getSafetyStock()) {
                 double score = 75.0;
@@ -147,7 +148,7 @@ public class PredictiveDisruptionEarlyWarningEngine {
         }
 
         // 3. Scan Warehouse Utilization Anomalies
-        List<Warehouse> warehouses = warehouseRepository.findAll();
+        List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
         for (Warehouse wh : warehouses) {
             if (wh.getUtilizationPercentage() != null && wh.getUtilizationPercentage().doubleValue() > 75.0) {
                 double score = wh.getUtilizationPercentage().doubleValue() * 0.9;

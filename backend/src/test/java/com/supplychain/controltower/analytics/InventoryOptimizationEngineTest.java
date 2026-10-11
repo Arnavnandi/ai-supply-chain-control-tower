@@ -33,14 +33,15 @@ class InventoryOptimizationEngineTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         product = Product.builder().id(1L).sku("SKU-OPT-001").name("Control Board").leadTimeDays(7).safetyStock(50).reorderLevel(150).build();
         inventory = Inventory.builder().id(10L).product(product).quantityAvailable(30).safetyStock(50).reorderLevel(150).build();
     }
 
     @Test
     void testOptimizeSafetyStockLevelsCalculatesDynamicSafetyStock() {
-        when(inventoryRepository.findAll()).thenReturn(List.of(inventory));
-        when(forecastService.calculateMonthlySalesFromDatabase(1L)).thenReturn(List.of(100, 120, 140, 110, 130, 150));
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of(inventory));
+        when(forecastService.calculateMonthlySalesFromDatabase(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(1L))).thenReturn(List.of(100, 120, 140, 110, 130, 150));
 
         InventoryOptimizationEngine.SafetyStockOptimizationReport report = optimizationEngine.optimizeSafetyStockLevels();
 

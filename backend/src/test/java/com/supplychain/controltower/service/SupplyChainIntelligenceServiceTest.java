@@ -48,6 +48,7 @@ class SupplyChainIntelligenceServiceTest {
 
     @Test
     void testGetControlTowerIntelligenceAggregatesReport() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         DashboardSummaryDto kpis = DashboardSummaryDto.builder()
                 .totalProducts(10L)
                 .totalInventoryUnits(5000L)
@@ -86,7 +87,7 @@ class SupplyChainIntelligenceServiceTest {
 
         when(dashboardService.getDashboardSummary()).thenReturn(kpis);
         when(riskAnalysisEngine.evaluateSystemRisks()).thenReturn(riskReport);
-        when(productRepository.findAll()).thenReturn(List.of(sampleProduct));
+        when(productRepository.findByCompanyId(1L)).thenReturn(List.of(sampleProduct));
         when(forecastService.getDemandForecast(anyLong())).thenReturn(forecast);
 
         SupplyChainIntelligenceService.IntelligenceSummaryDto result = intelligenceService.getControlTowerIntelligence();

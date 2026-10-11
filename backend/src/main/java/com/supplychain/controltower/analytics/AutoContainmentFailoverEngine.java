@@ -70,7 +70,8 @@ public class AutoContainmentFailoverEngine {
         String planId = "FAILOVER-PLAN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         log.info("[AUTO CONTAINMENT ENGINE] Computing multi-supplier 60/40 failover routing for failed supplier: {} | Primary Hub: {}", failedCode, primaryWarehouse);
 
-        List<Supplier> suppliers = supplierRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
         Supplier failedSupplier = suppliers.stream()
                 .filter(s -> s.getCode() != null && s.getCode().equalsIgnoreCase(failedCode))
                 .findFirst()
@@ -92,7 +93,7 @@ public class AutoContainmentFailoverEngine {
                 ? fallbackSupplier.getReliabilityScore().doubleValue()
                 : 92.5;
 
-        List<Warehouse> warehouses = warehouseRepository.findAll();
+        List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
         Warehouse altWarehouse = warehouses.stream()
                 .filter(w -> w.getCode() != null && !w.getCode().equalsIgnoreCase(primaryWarehouse))
                 .findFirst()

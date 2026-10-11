@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -25,7 +26,11 @@ class HistoricalMitigationEfficacyEngineTest {
 
     @Test
     void testCalculateHistoricalEfficacy() {
-        when(recommendationRepository.count()).thenReturn(15L);
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        List<com.supplychain.controltower.entity.Recommendation> recs = java.util.stream.IntStream.range(0, 15)
+                .mapToObj(i -> com.supplychain.controltower.entity.Recommendation.builder().status(com.supplychain.controltower.entity.Recommendation.ApprovalStatus.EXECUTED).build())
+                .toList();
+        when(recommendationRepository.findByCompanyId(1L)).thenReturn(recs);
 
         HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport report =
                 engine.calculateHistoricalEfficacy();

@@ -6,13 +6,16 @@ interface User {
   username: string;
   email: string;
   role: string;
+  companyId?: number;
+  companyCode?: string;
+  companyName?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, companyCode?: string, companyName?: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -58,14 +61,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (usernameOrEmail: string, password: string) => {
     const res = await axiosInstance.post('/auth/login', { usernameOrEmail, password });
-    const { token: jwtToken, id, username, email, role } = res.data;
+    const { token: jwtToken, id, username, email, role, companyId, companyCode, companyName } = res.data;
     localStorage.setItem('control_tower_token', jwtToken);
     setToken(jwtToken);
-    setUser({ id, username, email, role });
+    setUser({ id, username, email, role, companyId, companyCode, companyName });
   };
 
-  const register = async (username: string, email: string, password: string) => {
-    await axiosInstance.post('/auth/register', { username, email, password });
+  const register = async (username: string, email: string, password: string, companyCode?: string, companyName?: string) => {
+    await axiosInstance.post('/auth/register', { username, email, password, companyCode, companyName });
     await login(username, password);
   };
 

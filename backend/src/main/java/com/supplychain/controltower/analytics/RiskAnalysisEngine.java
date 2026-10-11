@@ -52,10 +52,11 @@ public class RiskAnalysisEngine {
     }
 
     public ControlTowerRiskReport evaluateSystemRisks() {
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         List<ExplainableRiskItem> risks = new ArrayList<>();
 
         // 1. Inventory Risk Detection (Stockout & Overstock)
-        List<Inventory> lowStockItems = inventoryRepository.findLowStockInventory();
+        List<Inventory> lowStockItems = inventoryRepository.findLowStockInventory(companyId);
         for (Inventory item : lowStockItems) {
             String severity = (item.getQuantityAvailable() == 0 || item.getQuantityAvailable() < item.getSafetyStock() / 2)
                     ? "CRITICAL" : "HIGH";
@@ -81,7 +82,7 @@ public class RiskAnalysisEngine {
                     .build());
         }
 
-        List<Inventory> overstockedItems = inventoryRepository.findOverstockedInventory();
+        List<Inventory> overstockedItems = inventoryRepository.findOverstockedInventory(companyId);
         for (Inventory item : overstockedItems) {
             String problem = String.format("Excess Inventory Accumulation for '%s' at '%s'",
                     item.getProduct().getName(), item.getWarehouse().getName());
@@ -105,7 +106,7 @@ public class RiskAnalysisEngine {
         }
 
         // 2. Supplier Performance Risk Detection
-        List<Supplier> suppliers = supplierRepository.findAll();
+        List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
         for (Supplier s : suppliers) {
             double rel = s.getReliabilityScore() != null ? s.getReliabilityScore().doubleValue() : 100.0;
             double del = s.getDeliveryPerformancePct() != null ? s.getDeliveryPerformancePct().doubleValue() : 100.0;
@@ -136,7 +137,7 @@ public class RiskAnalysisEngine {
         }
 
         // 3. Shipment / Logistics Risk Detection
-        List<Shipment> shipments = shipmentRepository.findAll();
+        List<Shipment> shipments = shipmentRepository.findByCompanyId(companyId);
         LocalDate today = LocalDate.now();
         for (Shipment sh : shipments) {
             boolean isDelayed = Shipment.ShipmentStatus.DELAYED.equals(sh.getStatus()) ||

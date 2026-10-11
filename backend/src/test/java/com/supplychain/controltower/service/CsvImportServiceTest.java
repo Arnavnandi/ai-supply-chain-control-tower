@@ -31,6 +31,7 @@ class CsvImportServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         categoryRepository = mock(CategoryRepository.class);
         productRepository = mock(ProductRepository.class);
         supplierRepository = mock(SupplierRepository.class);
@@ -41,6 +42,9 @@ class CsvImportServiceTest {
         orderItemRepository = mock(OrderItemRepository.class);
         shipmentRepository = mock(ShipmentRepository.class);
 
+        CompanyRepository companyRepository = mock(CompanyRepository.class);
+        when(companyRepository.findById(anyLong())).thenReturn(Optional.of(com.supplychain.controltower.entity.Company.builder().id(1L).code("DEMO").name("Demo Corp").build()));
+
         csvImportService = new CsvImportService(
                 categoryRepository,
                 productRepository,
@@ -50,7 +54,8 @@ class CsvImportServiceTest {
                 inventoryRepository,
                 customerOrderRepository,
                 orderItemRepository,
-                shipmentRepository
+                shipmentRepository,
+                companyRepository
         );
     }
 

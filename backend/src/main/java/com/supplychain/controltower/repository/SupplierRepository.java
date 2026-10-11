@@ -9,6 +9,11 @@ import java.util.Optional;
 
 @Repository
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
+    List<Supplier> findByCompanyId(Long companyId);
+    Optional<Supplier> findByCompanyIdAndId(Long companyId, Long id);
+    Optional<Supplier> findByCompanyIdAndCode(Long companyId, String code);
+    List<Supplier> findByCompanyIdOrderByReliabilityScoreDesc(Long companyId);
+
     Optional<Supplier> findByCode(String code);
     List<Supplier> findByOrderByReliabilityScoreDesc();
 }

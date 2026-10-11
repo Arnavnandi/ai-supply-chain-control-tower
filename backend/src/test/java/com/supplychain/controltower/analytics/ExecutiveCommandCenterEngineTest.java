@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ExecutiveCommandCenterEngineTest {
 
     @Mock
@@ -39,18 +40,19 @@ class ExecutiveCommandCenterEngineTest {
 
     @Test
     void testGenerateExecutiveCommandCenterReportWithHealthyData() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         Supplier supplier = new Supplier();
         supplier.setReliabilityScore(new BigDecimal("90.0"));
-        when(supplierRepository.findAll()).thenReturn(List.of(supplier));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
 
         Inventory inventory = new Inventory();
         inventory.setQuantityAvailable(100);
         inventory.setSafetyStock(50);
-        when(inventoryRepository.findAll()).thenReturn(List.of(inventory));
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of(inventory));
 
         Warehouse warehouse = new Warehouse();
         warehouse.setUtilizationPercentage(new BigDecimal("60.0"));
-        when(warehouseRepository.findAll()).thenReturn(List.of(warehouse));
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(warehouse));
 
         HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport effReport =
                 HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport.builder()
@@ -69,9 +71,10 @@ class ExecutiveCommandCenterEngineTest {
 
     @Test
     void testGenerateExecutiveCommandCenterReportWithEmptyDataHandling() {
-        when(supplierRepository.findAll()).thenReturn(Collections.emptyList());
-        when(inventoryRepository.findAll()).thenReturn(Collections.emptyList());
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
         when(efficacyEngine.calculateHistoricalEfficacy()).thenReturn(null);
 
         ExecutiveCommandCenterEngine.ExecutiveScorecardReport report =

@@ -48,27 +48,29 @@ class DashboardServiceTest {
 
     @Test
     void testGetDashboardSummaryWithDatabaseData() {
-        when(productRepository.count()).thenReturn(5L);
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        Product mockProduct = Product.builder().id(1L).sku("MOCK-1").build();
+        when(productRepository.findByCompanyId(1L)).thenReturn(List.of(mockProduct, mockProduct, mockProduct, mockProduct, mockProduct));
 
         Warehouse wh1 = Warehouse.builder().code("WH-NORTH").name("North Warehouse").totalCapacityUnits(10000).currentUtilizationUnits(8000).utilizationPercentage(new BigDecimal("80.00")).build();
-        when(warehouseRepository.findAll()).thenReturn(List.of(wh1));
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(wh1));
 
         Inventory inv1 = Inventory.builder().warehouse(wh1).quantityAvailable(500).reservedQuantity(50).safetyStock(100).build();
-        when(inventoryRepository.findAll()).thenReturn(List.of(inv1));
-        when(inventoryRepository.calculateTotalInventoryValue()).thenReturn(22500.0);
-        when(inventoryRepository.findLowStockInventory()).thenReturn(List.of());
-        when(inventoryRepository.findOverstockedInventory()).thenReturn(List.of());
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of(inv1));
+        when(inventoryRepository.calculateTotalInventoryValue(org.mockito.ArgumentMatchers.anyLong())).thenReturn(22500.0);
+        when(inventoryRepository.findLowStockInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of());
+        when(inventoryRepository.findOverstockedInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of());
 
         CustomerOrder o1 = CustomerOrder.builder().orderNumber("ORD-1").orderDate(LocalDate.now().minusDays(10)).build();
         OrderItem oi1 = OrderItem.builder().order(o1).quantity(100).build();
         o1.setItems(List.of(oi1));
-        when(orderRepository.findByOrderByOrderDateDesc()).thenReturn(List.of(o1));
-        when(orderRepository.findByStatus(CustomerOrder.OrderStatus.PENDING)).thenReturn(List.of());
-        when(orderRepository.findByStatus(CustomerOrder.OrderStatus.PROCESSING)).thenReturn(List.of());
-        when(shipmentRepository.findByStatus(Shipment.ShipmentStatus.DELAYED)).thenReturn(List.of());
+        when(orderRepository.findByCompanyIdOrderByOrderDateDesc(1L)).thenReturn(List.of(o1));
+        when(orderRepository.findByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PENDING)).thenReturn(List.of());
+        when(orderRepository.findByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PROCESSING)).thenReturn(List.of());
+        when(shipmentRepository.findByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED)).thenReturn(List.of());
 
         Supplier s1 = Supplier.builder().name("TechComp").reliabilityScore(new BigDecimal("95.0")).build();
-        when(supplierRepository.findAll()).thenReturn(List.of(s1));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(s1));
 
         DashboardSummaryDto summary = dashboardService.getDashboardSummary();
 
@@ -82,12 +84,13 @@ class DashboardServiceTest {
 
     @Test
     void testGetDashboardSummaryEmptyDatabaseReturnsEmptyTrendsWithoutCrashing() {
-        when(productRepository.count()).thenReturn(0L);
-        when(inventoryRepository.findAll()).thenReturn(List.of());
-        when(inventoryRepository.calculateTotalInventoryValue()).thenReturn(0.0);
-        when(orderRepository.findByOrderByOrderDateDesc()).thenReturn(List.of());
-        when(warehouseRepository.findAll()).thenReturn(List.of());
-        when(supplierRepository.findAll()).thenReturn(List.of());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(productRepository.findByCompanyId(1L)).thenReturn(List.of());
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of());
+        when(inventoryRepository.calculateTotalInventoryValue(org.mockito.ArgumentMatchers.anyLong())).thenReturn(0.0);
+        when(orderRepository.findByCompanyIdOrderByOrderDateDesc(1L)).thenReturn(List.of());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of());
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of());
 
         DashboardSummaryDto summary = dashboardService.getDashboardSummary();
 

@@ -27,23 +27,41 @@ public class WarehouseAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
+                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
         try {
-            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
-                    .system("""
-                            You are the Specialized Warehouse Facilities Agent.
-                            Your responsibility is evaluating distribution hub storage capacity, space utilization %, and multi-facility balancing.
-                            Always ground your analysis in PostgreSQL database data via getWarehouseUtilization.
-                            """)
-                    .user(prompt)
-                    .functions("getWarehouseUtilization")
-                    .call()
-                    .content())
+            return CompletableFuture.supplyAsync(() -> {
+                com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+                try {
+                    return chatClient.prompt()
+                            .system("""
+                                    You are the Specialized Warehouse Facilities Agent.
+                                    Your responsibility is evaluating distribution hub storage capacity, space utilization %, and multi-facility balancing.
+                                    Always ground your analysis in PostgreSQL database data via getWarehouseUtilization.
+                                    """)
+                            .user(prompt)
+                            .functions("getWarehouseUtilization")
+                            .call()
+                            .content();
+                } finally {
+                    com.supplychain.controltower.security.TenantContext.clear();
+                }
+            })
                     .orTimeout(2, TimeUnit.SECONDS)
                     .join();
         } catch (Exception ex) {
             log.warn("[WAREHOUSE AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
-            return generateFallbackAnalysis(prompt);
+            com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+            try {
+                return generateFallbackAnalysis(prompt);
+            } finally {
+                com.supplychain.controltower.security.TenantContext.clear();
+            }
         }
+    }
+
+    public String generateFallbackAnalysis(String prompt, Throwable ex) {
+        return generateFallbackAnalysis(prompt);
     }
 
     public String generateFallbackAnalysis(String prompt) {

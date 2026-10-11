@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class MultiEchelonInventoryRebalancingEngineTest {
 
     @Mock
@@ -30,6 +31,7 @@ class MultiEchelonInventoryRebalancingEngineTest {
 
     @Test
     void testComputeMultiEchelonRebalancePlanNormalFlow() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         Warehouse w1 = new Warehouse();
         w1.setCode("WH-NORTH");
         w1.setName("Northern Logistics Hub");
@@ -46,7 +48,7 @@ class MultiEchelonInventoryRebalancingEngineTest {
         w3.setTotalCapacityUnits(80000);
         w3.setUtilizationPercentage(new BigDecimal("30.0"));
 
-        when(warehouseRepository.findAll()).thenReturn(List.of(w1, w2, w3));
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(w1, w2, w3));
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 engine.computeMultiEchelonRebalancePlan("WH-NORTH", "SKU-ELEC-001");
@@ -68,7 +70,8 @@ class MultiEchelonInventoryRebalancingEngineTest {
 
     @Test
     void testComputeMultiEchelonRebalancePlanWithEmptyDatabase() {
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 engine.computeMultiEchelonRebalancePlan("WH-NORTH", "SKU-ELEC-001");

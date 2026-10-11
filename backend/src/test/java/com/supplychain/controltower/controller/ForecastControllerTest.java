@@ -30,6 +30,7 @@ class ForecastControllerTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         forecastingEngine = new DemandForecastingEngine();
         productRepository = mock(ProductRepository.class);
         inventoryRepository = mock(InventoryRepository.class);
@@ -57,9 +58,9 @@ class ForecastControllerTest {
         OrderItem item2 = OrderItem.builder().product(p).order(order2).quantity(140).build();
         OrderItem item3 = OrderItem.builder().product(p).order(order3).quantity(160).build();
 
-        when(productRepository.findById(100L)).thenReturn(Optional.of(p));
-        when(inventoryRepository.findByProductId(100L)).thenReturn(List.of(inv));
-        when(orderItemRepository.findByProductIdWithOrderDate(100L)).thenReturn(List.of(item1, item2, item3));
+        when(productRepository.findByCompanyIdAndId(1L, 100L)).thenReturn(Optional.of(p));
+        when(inventoryRepository.findByCompanyIdAndProductId(1L, 100L)).thenReturn(List.of(inv));
+        when(orderItemRepository.findByProductIdWithOrderDate(1L, 100L)).thenReturn(List.of(item1, item2, item3));
 
         ResponseEntity<DemandForecastingEngine.ForecastResult> response = forecastController.getForecastForProduct(100L);
 
@@ -67,7 +68,7 @@ class ForecastControllerTest {
         assertEquals("SKU-FCAST-100", response.getBody().getProductSku());
         assertEquals("SUCCESS", response.getBody().getStatus());
         assertNotNull(response.getBody().getProjected30DayDemand());
-        verify(orderItemRepository, times(1)).findByProductIdWithOrderDate(100L);
+        verify(orderItemRepository, times(1)).findByProductIdWithOrderDate(1L, 100L);
     }
 
     @Test
@@ -75,9 +76,9 @@ class ForecastControllerTest {
         Product p = Product.builder().id(200L).sku("SKU-NEW-200").name("New Component").leadTimeDays(5).build();
         Inventory inv = Inventory.builder().product(p).quantityAvailable(30).build();
 
-        when(productRepository.findById(200L)).thenReturn(Optional.of(p));
-        when(inventoryRepository.findByProductId(200L)).thenReturn(List.of(inv));
-        when(orderItemRepository.findByProductIdWithOrderDate(200L)).thenReturn(List.of());
+        when(productRepository.findByCompanyIdAndId(1L, 200L)).thenReturn(Optional.of(p));
+        when(inventoryRepository.findByCompanyIdAndProductId(1L, 200L)).thenReturn(List.of(inv));
+        when(orderItemRepository.findByProductIdWithOrderDate(1L, 200L)).thenReturn(List.of());
 
         ResponseEntity<DemandForecastingEngine.ForecastResult> response = forecastController.getForecastForProduct(200L);
 
@@ -85,6 +86,6 @@ class ForecastControllerTest {
         assertEquals("SKU-NEW-200", response.getBody().getProductSku());
         assertEquals("INSUFFICIENT_DATA", response.getBody().getStatus());
         assertEquals(0, response.getBody().getProjected30DayDemand());
-        verify(orderItemRepository, times(1)).findByProductIdWithOrderDate(200L);
+        verify(orderItemRepository, times(1)).findByProductIdWithOrderDate(1L, 200L);
     }
 }

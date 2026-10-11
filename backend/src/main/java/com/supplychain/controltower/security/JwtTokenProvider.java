@@ -20,12 +20,15 @@ public class JwtTokenProvider {
     private long jwtExpirationInMs;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
-        if (keyBytes.length < 32) {
-            // Fallback for short secrets in local development
-            return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+            if (keyBytes.length >= 32) {
+                return Keys.hmacShaKeyFor(keyBytes);
+            }
+        } catch (Exception ignored) {
+            // Fallback for non-base64 or plain text development secrets
         }
-        return Keys.hmacShaKeyFor(keyBytes);
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
     public String generateToken(Authentication authentication) {
@@ -39,6 +42,8 @@ public class JwtTokenProvider {
                 .claim("id", userPrincipal.getId())
                 .claim("email", userPrincipal.getEmail())
                 .claim("role", userPrincipal.getAuthorities().iterator().next().getAuthority())
+                .claim("companyId", userPrincipal.getCompanyId())
+                .claim("companyCode", userPrincipal.getCompanyCode())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
@@ -53,6 +58,27 @@ public class JwtTokenProvider {
                 .getPayload();
 
         return claims.getSubject();
+    }
+
+    public Long getCompanyIdFromJwt(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        Number val = claims.get("companyId", Number.class);
+        return val != null ? val.longValue() : null;
+    }
+
+    public String getCompanyCodeFromJwt(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+        return claims.get("companyCode", String.class);
     }
 
     public boolean validateToken(String authToken) {

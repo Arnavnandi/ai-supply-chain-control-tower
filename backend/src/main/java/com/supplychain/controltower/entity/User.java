@@ -35,6 +35,10 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;

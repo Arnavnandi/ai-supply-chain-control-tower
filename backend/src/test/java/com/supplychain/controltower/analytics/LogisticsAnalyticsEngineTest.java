@@ -52,7 +52,8 @@ class LogisticsAnalyticsEngineTest {
 
     @Test
     void analyzeLogisticsPerformance_ShouldComputeCarrierAndRouteMetrics() {
-        when(shipmentRepository.findAll()).thenReturn(List.of(onTimeShipment, delayedShipment));
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(List.of(onTimeShipment, delayedShipment));
 
         LogisticsAnalyticsEngine.LogisticsAnalyticsSummary summary = logisticsAnalyticsEngine.analyzeLogisticsPerformance();
 

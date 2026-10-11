@@ -31,6 +31,9 @@ class ActionApprovalServiceTest {
     @Mock
     private ActionExecutionEngine actionExecutionEngine;
 
+    @Mock
+    private com.supplychain.controltower.repository.CompanyRepository companyRepository;
+
     @InjectMocks
     private ActionApprovalService actionApprovalService;
 
@@ -38,6 +41,8 @@ class ActionApprovalServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        lenient().when(companyRepository.findById(anyLong())).thenReturn(Optional.of(com.supplychain.controltower.entity.Company.builder().id(1L).code("DEMO").name("Demo Corp").build()));
         pendingRec = Recommendation.builder()
                 .id(100L)
                 .title("Reorder Valve Stock")
@@ -51,7 +56,7 @@ class ActionApprovalServiceTest {
 
     @Test
     void testApproveAndExecuteRecommendation() {
-        when(recommendationRepository.findById(100L)).thenReturn(Optional.of(pendingRec));
+        when(recommendationRepository.findByCompanyIdAndId(1L, 100L)).thenReturn(Optional.of(pendingRec));
         when(actionExecutionEngine.executeApprovedAction(anyString(), anyString(), anyString()))
                 .thenReturn("Replenished 150 units of SKU-TEST-001");
         when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(i -> i.getArgument(0));
@@ -67,7 +72,7 @@ class ActionApprovalServiceTest {
 
     @Test
     void testRejectRecommendation() {
-        when(recommendationRepository.findById(100L)).thenReturn(Optional.of(pendingRec));
+        when(recommendationRepository.findByCompanyIdAndId(1L, 100L)).thenReturn(Optional.of(pendingRec));
         when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(i -> i.getArgument(0));
 
         Recommendation result = actionApprovalService.rejectRecommendation(100L, "ManagerJohn");
@@ -84,7 +89,7 @@ class ActionApprovalServiceTest {
                 .status(Recommendation.ApprovalStatus.EXECUTED)
                 .build();
 
-        when(recommendationRepository.findById(200L)).thenReturn(Optional.of(executedRec));
+        when(recommendationRepository.findByCompanyIdAndId(1L, 200L)).thenReturn(Optional.of(executedRec));
 
         assertThrows(RuntimeException.class, () ->
                 actionApprovalService.approveAndExecute(200L, "ManagerJohn")

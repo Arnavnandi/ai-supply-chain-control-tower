@@ -31,6 +31,9 @@ class DisruptionMitigationActionBridgeServiceTest {
     @Mock
     private AuditLogRepository auditLogRepository;
 
+    @Mock
+    private com.supplychain.controltower.repository.CompanyRepository companyRepository;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -47,6 +50,8 @@ class DisruptionMitigationActionBridgeServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        lenient().when(companyRepository.findById(anyLong())).thenReturn(java.util.Optional.of(com.supplychain.controltower.entity.Company.builder().id(1L).code("DEMO").name("Demo Corp").build()));
         policyEngine = new DisruptionMitigationPolicyEngine(
                 disruptionSimulationService,
                 telemetryEventPublisher,

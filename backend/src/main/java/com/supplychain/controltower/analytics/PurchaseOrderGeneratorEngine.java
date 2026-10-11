@@ -55,8 +55,8 @@ public class PurchaseOrderGeneratorEngine {
         // Required Qty = (Reorder Level - Current Stock) + Safety Stock + (30-day forecast / 2)
         int targetQty = Math.max((reorderLevel - currentStock) + safetyStock + (projectedDemand30Day / 2), 50);
 
-        // 2. Select Supplier & Contract Price from database
-        List<SupplierProduct> supplierProducts = supplierProductRepository.findByProductId(product.getId());
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<SupplierProduct> supplierProducts = supplierProductRepository.findByCompanyIdAndProductId(companyId, product.getId());
 
         Supplier selectedSupplier = null;
         BigDecimal contractPrice = product.getPrice() != null ? product.getPrice() : BigDecimal.valueOf(50.0);

@@ -33,24 +33,42 @@ public class RiskAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
+                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
         try {
-            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
-                    .system("""
-                            You are the Specialized Operational Risk Analysis Agent.
-                            Your responsibility is synthesizing risk alerts across stockouts, shipment delays, supplier disruptions, and capacity overruns.
-                            Always ground your analysis in PostgreSQL database data via getActiveSupplyChainRisks, getDemandForecasts, getLowStockProducts, and getDelayedShipments.
-                            Provide clear explainability: problem detected, raw metrics cause, and recommended action.
-                            """)
-                    .user(prompt)
-                    .functions("getActiveSupplyChainRisks", "getDemandForecasts", "getLowStockProducts", "getDelayedShipments")
-                    .call()
-                    .content())
+            return CompletableFuture.supplyAsync(() -> {
+                com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+                try {
+                    return chatClient.prompt()
+                            .system("""
+                                    You are the Specialized Operational Risk Analysis Agent.
+                                    Your responsibility is synthesizing risk alerts across stockouts, shipment delays, supplier disruptions, and capacity overruns.
+                                    Always ground your analysis in PostgreSQL database data via getActiveSupplyChainRisks, getDemandForecasts, getLowStockProducts, and getDelayedShipments.
+                                    Provide clear explainability: problem detected, raw metrics cause, and recommended action.
+                                    """)
+                            .user(prompt)
+                            .functions("getActiveSupplyChainRisks", "getDemandForecasts", "getLowStockProducts", "getDelayedShipments")
+                            .call()
+                            .content();
+                } finally {
+                    com.supplychain.controltower.security.TenantContext.clear();
+                }
+            })
                     .orTimeout(2, TimeUnit.SECONDS)
                     .join();
         } catch (Exception ex) {
             log.warn("[RISK AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
-            return generateFallbackAnalysis(prompt);
+            com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+            try {
+                return generateFallbackAnalysis(prompt);
+            } finally {
+                com.supplychain.controltower.security.TenantContext.clear();
+            }
         }
+    }
+
+    public String generateFallbackAnalysis(String prompt, Throwable ex) {
+        return generateFallbackAnalysis(prompt);
     }
 
     public String generateFallbackAnalysis(String prompt) {

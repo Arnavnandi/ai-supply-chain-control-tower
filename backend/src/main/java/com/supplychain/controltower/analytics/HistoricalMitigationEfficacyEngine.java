@@ -53,7 +53,10 @@ public class HistoricalMitigationEfficacyEngine {
         String reportId = "HIST-EFFICACY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         log.info("[HISTORICAL EFFICACY ENGINE] Scanned PostgreSQL audit logs and recommendations for historical recovery performance. ReportId: {}", reportId);
 
-        long executedCount = recommendationRepository.count();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        long executedCount = recommendationRepository.findByCompanyId(companyId).stream()
+                .filter(r -> r.getStatus() == com.supplychain.controltower.entity.Recommendation.ApprovalStatus.EXECUTED)
+                .count();
         int totalExecuted = Math.max(12, (int) executedCount);
 
         List<CategoryEfficacyMetric> breakdowns = new ArrayList<>();

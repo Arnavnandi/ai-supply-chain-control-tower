@@ -58,9 +58,12 @@ public class SupplierAnalyticsEngine {
     public SupplierAnalyticsSummary analyzeSupplierPerformance() {
         log.info("[SUPPLIER ANALYTICS ENGINE] Evaluating OTIF performance and risk matrix across PostgreSQL suppliers...");
 
-        List<Supplier> suppliers = supplierRepository.findAll();
-        List<Shipment> allShipments = shipmentRepository.findAll();
-        List<SupplierProduct> allContracts = supplierProductRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
+        List<Shipment> allShipments = shipmentRepository.findByCompanyId(companyId);
+        List<SupplierProduct> allContracts = supplierProductRepository.findAll().stream()
+                .filter(sp -> sp.getCompany() != null && companyId.equals(sp.getCompany().getId()))
+                .toList();
 
         List<SupplierPerformanceMetric> metrics = new ArrayList<>();
 

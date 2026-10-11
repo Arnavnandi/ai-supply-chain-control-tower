@@ -18,8 +18,9 @@ public class InventoryTools {
 
     @Description("Retrieves all products that are at risk of stockout or currently below safety stock / reorder levels.")
     public List<InventoryItemRecord> getLowStockProducts() {
-        log.info("[SPRING AI TOOL EXECUTING] getLowStockProducts() querying PostgreSQL database...");
-        List<InventoryItemRecord> results = inventoryRepository.findLowStockInventory().stream().map(i ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getLowStockProducts() querying PostgreSQL database for companyId {}...", companyId);
+        List<InventoryItemRecord> results = inventoryRepository.findLowStockInventory(companyId).stream().map(i ->
                 new InventoryItemRecord(
                         i.getProduct().getId(),
                         i.getProduct().getSku(),
@@ -36,8 +37,9 @@ public class InventoryTools {
 
     @Description("Retrieves products that are overstocked (inventory exceeds 3x reorder level).")
     public List<InventoryItemRecord> getOverstockedProducts() {
-        log.info("[SPRING AI TOOL EXECUTING] getOverstockedProducts() querying PostgreSQL database...");
-        List<InventoryItemRecord> results = inventoryRepository.findOverstockedInventory().stream().map(i ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getOverstockedProducts() querying PostgreSQL database for companyId {}...", companyId);
+        List<InventoryItemRecord> results = inventoryRepository.findOverstockedInventory(companyId).stream().map(i ->
                 new InventoryItemRecord(
                         i.getProduct().getId(),
                         i.getProduct().getSku(),

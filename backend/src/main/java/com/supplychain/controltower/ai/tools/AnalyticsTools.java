@@ -17,8 +17,12 @@ public class AnalyticsTools {
 
     @Description("Retrieves active supply chain risk alerts across inventory, suppliers, warehouses, and logistics.")
     public List<RiskAlertRecord> getSupplyChainRisks() {
-        log.info("[SPRING AI TOOL EXECUTING] getSupplyChainRisks() querying PostgreSQL database...");
-        List<RiskAlertRecord> results = riskAlertRepository.findAll().stream().map(r ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getSupplyChainRisks() querying PostgreSQL database for companyId: {}...", companyId);
+        List<com.supplychain.controltower.entity.RiskAlert> alerts = (companyId != null)
+                ? riskAlertRepository.findByCompanyIdOrderByCreatedAtDesc(companyId)
+                : riskAlertRepository.findAll();
+        List<RiskAlertRecord> results = alerts.stream().map(r ->
                 new RiskAlertRecord(
                         r.getId(),
                         r.getRiskCategory().name(),

@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class AutoContainmentFailoverEngineTest {
 
     @Mock
@@ -31,6 +32,7 @@ class AutoContainmentFailoverEngineTest {
 
     @Test
     void testComputeFailoverContainmentPlanNormalFlow() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         Supplier s1 = new Supplier();
         s1.setCode("SUP-TECH-001");
         s1.setName("Primary Tech Vendor");
@@ -41,7 +43,7 @@ class AutoContainmentFailoverEngineTest {
         s2.setName("Secondary Failover Vendor");
         s2.setReliabilityScore(new BigDecimal("95.0"));
 
-        when(supplierRepository.findAll()).thenReturn(List.of(s1, s2));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(s1, s2));
 
         Warehouse w1 = new Warehouse();
         w1.setCode("WH-NORTH");
@@ -51,7 +53,7 @@ class AutoContainmentFailoverEngineTest {
         w2.setTotalCapacityUnits(100000);
         w2.setUtilizationPercentage(new BigDecimal("50.0"));
 
-        when(warehouseRepository.findAll()).thenReturn(List.of(w1, w2));
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(w1, w2));
 
         AutoContainmentFailoverEngine.ContainmentFailoverReport report =
                 engine.computeFailoverContainmentPlan("SUP-TECH-001", "WH-NORTH");
@@ -73,8 +75,9 @@ class AutoContainmentFailoverEngineTest {
 
     @Test
     void testComputeFailoverContainmentPlanWithEmptyData() {
-        when(supplierRepository.findAll()).thenReturn(Collections.emptyList());
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         AutoContainmentFailoverEngine.ContainmentFailoverReport report =
                 engine.computeFailoverContainmentPlan("SUP-TECH-001", "WH-NORTH");

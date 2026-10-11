@@ -34,8 +34,9 @@ class ProductionResilienceIntegrationTest {
 
     @Test
     void testFailoverEngineResilienceWithNullAndEmptyInputs() {
-        when(supplierRepository.findAll()).thenReturn(Collections.emptyList());
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         AutoContainmentFailoverEngine.ContainmentFailoverReport report =
                 failoverEngine.computeFailoverContainmentPlan(null, null);
@@ -50,7 +51,8 @@ class ProductionResilienceIntegrationTest {
 
     @Test
     void testMultiEchelonRebalanceResilienceWithBlankInputs() {
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 rebalanceEngine.computeMultiEchelonRebalancePlan("   ", "");

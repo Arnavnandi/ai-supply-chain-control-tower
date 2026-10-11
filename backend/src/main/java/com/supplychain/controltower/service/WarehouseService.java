@@ -1,8 +1,13 @@
 package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.dto.domain.WarehouseDto;
+import com.supplychain.controltower.entity.Company;
 import com.supplychain.controltower.entity.Warehouse;
+import com.supplychain.controltower.exception.ResourceNotFoundException;
+import com.supplychain.controltower.exception.TenantContextMissingException;
+import com.supplychain.controltower.repository.CompanyRepository;
 import com.supplychain.controltower.repository.WarehouseRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,21 +21,28 @@ import java.util.List;
 public class WarehouseService {
 
     private final WarehouseRepository warehouseRepository;
+    private final CompanyRepository companyRepository;
 
     @Transactional(readOnly = true)
     public List<WarehouseDto> getAllWarehouses() {
-        return warehouseRepository.findAll().stream().map(this::mapToDto).toList();
+        Long companyId = TenantContext.getRequiredCompanyId();
+        return warehouseRepository.findByCompanyId(companyId).stream().map(this::mapToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public WarehouseDto getWarehouseById(Long id) {
-        Warehouse w = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse not found with id: " + id));
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Warehouse w = warehouseRepository.findByCompanyIdAndId(companyId, id)
+                .orElseThrow(() -> new ResourceNotFoundException("Warehouse not found with id: " + id));
         return mapToDto(w);
     }
 
     @Transactional
     public WarehouseDto createWarehouse(WarehouseDto dto) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
+
         BigDecimal utilizationPct = BigDecimal.ZERO;
         if (dto.getTotalCapacityUnits() != null && dto.getTotalCapacityUnits() > 0) {
             utilizationPct = BigDecimal.valueOf((double) dto.getCurrentUtilizationUnits() / dto.getTotalCapacityUnits() * 100)
@@ -38,6 +50,7 @@ public class WarehouseService {
         }
 
         Warehouse warehouse = Warehouse.builder()
+                .company(company)
                 .code(dto.getCode())
                 .name(dto.getName())
                 .location(dto.getLocation())
@@ -65,3 +78,4 @@ public class WarehouseService {
                 .build();
     }
 }
+

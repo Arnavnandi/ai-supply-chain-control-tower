@@ -2,6 +2,7 @@ package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.entity.TelemetryEventEntity;
 import com.supplychain.controltower.repository.TelemetryEventRepository;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -21,18 +22,21 @@ public class TelemetryController {
     @GetMapping("/events")
     public ResponseEntity<List<TelemetryEventEntity>> getRecentEvents(
             @RequestParam(defaultValue = "50") int limit) {
+        Long companyId = TenantContext.getRequiredCompanyId();
         int boundedLimit = Math.min(Math.max(limit, 1), 200);
-        log.info("[TELEMETRY CONTROLLER] Fetching recent telemetry events (limit={})", boundedLimit);
-        List<TelemetryEventEntity> events = telemetryEventRepository.findByOrderByCreatedAtDesc(PageRequest.of(0, boundedLimit));
+        log.info("[TELEMETRY CONTROLLER] Fetching recent telemetry events for companyId={} (limit={})", companyId, boundedLimit);
+        List<TelemetryEventEntity> events = telemetryEventRepository.findByCompanyIdOrderByCreatedAtDesc(companyId, PageRequest.of(0, boundedLimit));
         return ResponseEntity.ok(events);
     }
 
     @GetMapping("/alerts")
     public ResponseEntity<List<TelemetryEventEntity>> getActiveAlerts(
             @RequestParam(defaultValue = "50") int limit) {
+        Long companyId = TenantContext.getRequiredCompanyId();
         int boundedLimit = Math.min(Math.max(limit, 1), 200);
-        log.info("[TELEMETRY CONTROLLER] Fetching active telemetry alerts (limit={})", boundedLimit);
-        List<TelemetryEventEntity> alerts = telemetryEventRepository.findActiveAlerts(PageRequest.of(0, boundedLimit));
+        log.info("[TELEMETRY CONTROLLER] Fetching active telemetry alerts for companyId={} (limit={})", companyId, boundedLimit);
+        List<TelemetryEventEntity> alerts = telemetryEventRepository.findActiveAlerts(companyId, PageRequest.of(0, boundedLimit));
         return ResponseEntity.ok(alerts);
     }
 }
+

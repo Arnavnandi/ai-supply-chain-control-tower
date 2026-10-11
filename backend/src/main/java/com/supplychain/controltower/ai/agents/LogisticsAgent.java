@@ -27,23 +27,41 @@ public class LogisticsAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
+                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
         try {
-            return CompletableFuture.supplyAsync(() -> chatClient.prompt()
-                    .system("""
-                            You are the Specialized Logistics & Transit Tracking Agent.
-                            Your responsibility is monitoring in-transit shipments, carrier delays, shipment routes, and delivery estimates.
-                            Always ground your analysis in PostgreSQL database data via getDelayedShipments.
-                            """)
-                    .user(prompt)
-                    .functions("getDelayedShipments")
-                    .call()
-                    .content())
+            return CompletableFuture.supplyAsync(() -> {
+                com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+                try {
+                    return chatClient.prompt()
+                            .system("""
+                                    You are the Specialized Logistics & Transit Tracking Agent.
+                                    Your responsibility is monitoring in-transit shipments, carrier delays, shipment routes, and delivery estimates.
+                                    Always ground your analysis in PostgreSQL database data via getDelayedShipments.
+                                    """)
+                            .user(prompt)
+                            .functions("getDelayedShipments")
+                            .call()
+                            .content();
+                } finally {
+                    com.supplychain.controltower.security.TenantContext.clear();
+                }
+            })
                     .orTimeout(2, TimeUnit.SECONDS)
                     .join();
         } catch (Exception ex) {
             log.warn("[LOGISTICS AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
-            return generateFallbackAnalysis(prompt);
+            com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
+            try {
+                return generateFallbackAnalysis(prompt);
+            } finally {
+                com.supplychain.controltower.security.TenantContext.clear();
+            }
         }
+    }
+
+    public String generateFallbackAnalysis(String prompt, Throwable ex) {
+        return generateFallbackAnalysis(prompt);
     }
 
     public String generateFallbackAnalysis(String prompt) {

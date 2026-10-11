@@ -22,15 +22,26 @@ public class UserPrincipal implements UserDetails {
     @JsonIgnore
     private String password;
 
+    private Long companyId;
+    private String companyCode;
+    private String companyStatus;
+
     private Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
+        Long cId = user.getCompany() != null ? user.getCompany().getId() : 1L;
+        String cCode = user.getCompany() != null ? user.getCompany().getCode() : "DEMO";
+        String cStatus = user.getCompany() != null ? user.getCompany().getStatus() : "ACTIVE";
+
         return new UserPrincipal(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getPassword(),
+                cId,
+                cCode,
+                cStatus,
                 authorities
         );
     }
@@ -39,11 +50,15 @@ public class UserPrincipal implements UserDetails {
     public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() {
+        return companyStatus == null || !"SUSPENDED".equalsIgnoreCase(companyStatus);
+    }
 
     @Override
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() {
+        return companyStatus == null || !"SUSPENDED".equalsIgnoreCase(companyStatus);
+    }
 }

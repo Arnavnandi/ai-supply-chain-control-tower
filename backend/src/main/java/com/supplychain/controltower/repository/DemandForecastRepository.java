@@ -8,6 +8,9 @@ import java.util.List;
 
 @Repository
 public interface DemandForecastRepository extends JpaRepository<DemandForecast, Long> {
+    List<DemandForecast> findByCompanyIdAndProductId(Long companyId, Long productId);
+    List<DemandForecast> findByCompanyIdAndProductIdOrderByForecastDateAsc(Long companyId, Long productId);
+
     List<DemandForecast> findByProductId(Long productId);
     List<DemandForecast> findByProductIdOrderByForecastDateAsc(Long productId);
 }

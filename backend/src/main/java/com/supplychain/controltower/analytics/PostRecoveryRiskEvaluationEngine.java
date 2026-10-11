@@ -44,18 +44,19 @@ public class PostRecoveryRiskEvaluationEngine {
         double residualScore;
         String evaluationSummary;
 
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             switch (disruptionTypeStr.toUpperCase()) {
                 case "INVENTORY_SHORTAGE" -> {
-                    Product product = productRepository.findBySku(targetEntity)
+                    Product product = productRepository.findByCompanyIdAndSku(companyId, targetEntity)
                             .orElseGet(() -> {
-                                List<Product> products = productRepository.searchProducts(targetEntity);
+                                List<Product> products = productRepository.searchProducts(companyId, targetEntity);
                                 return !products.isEmpty() ? products.get(0) : null;
                             });
 
                     int currentStock = 0;
                     if (product != null) {
-                        List<Inventory> inventories = inventoryRepository.findByProductId(product.getId());
+                        List<Inventory> inventories = inventoryRepository.findByCompanyIdAndProductId(companyId, product.getId());
                         currentStock = inventories.stream()
                                 .mapToInt(i -> i.getQuantityAvailable() != null ? i.getQuantityAvailable() : 0)
                                 .sum();
@@ -72,7 +73,7 @@ public class PostRecoveryRiskEvaluationEngine {
                     }
                 }
                 case "SUPPLIER_DISRUPTION" -> {
-                    Supplier supplier = supplierRepository.findByCode(targetEntity).orElse(null);
+                    Supplier supplier = supplierRepository.findByCompanyIdAndCode(companyId, targetEntity).orElse(null);
                     double score = (supplier != null && supplier.getReliabilityScore() != null)
                             ? supplier.getReliabilityScore().doubleValue()
                             : 85.0;
@@ -81,7 +82,7 @@ public class PostRecoveryRiskEvaluationEngine {
                             score, residualScore);
                 }
                 case "WAREHOUSE_CAPACITY_OVERRUN" -> {
-                    Warehouse warehouse = warehouseRepository.findByCode(targetEntity).orElse(null);
+                    Warehouse warehouse = warehouseRepository.findByCompanyIdAndCode(companyId, targetEntity).orElse(null);
                     double util = (warehouse != null && warehouse.getUtilizationPercentage() != null)
                             ? warehouse.getUtilizationPercentage().doubleValue()
                             : 65.0;

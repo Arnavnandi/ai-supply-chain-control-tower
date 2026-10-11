@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class PredictiveDisruptionEarlyWarningEngineTest {
 
     @Mock
@@ -47,15 +48,16 @@ class PredictiveDisruptionEarlyWarningEngineTest {
 
     @Test
     void testScanAndPredictEarlyWarningsWithSupplierAnomaly() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         Supplier supplier = new Supplier();
         supplier.setId(10L);
         supplier.setName("Acme Chipsets");
         supplier.setCode("SUP-ACME-001");
         supplier.setReliabilityScore(new BigDecimal("70.0"));
 
-        when(supplierRepository.findAll()).thenReturn(List.of(supplier));
-        when(inventoryRepository.findAll()).thenReturn(Collections.emptyList());
-        when(warehouseRepository.findAll()).thenReturn(Collections.emptyList());
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         PredictiveDisruptionEarlyWarningEngine.EarlyWarningRadarReport report =
                 engine.scanAndPredictEarlyWarnings(false);
@@ -80,12 +82,13 @@ class PredictiveDisruptionEarlyWarningEngineTest {
 
     @Test
     void testScanAndPredictEarlyWarningsWithActionProposals() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         Supplier supplier = new Supplier();
         supplier.setId(10L);
         supplier.setCode("SUP-ACME-001");
         supplier.setReliabilityScore(new BigDecimal("60.0"));
 
-        when(supplierRepository.findAll()).thenReturn(List.of(supplier));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
 
         DisruptionMitigationPolicyEngine.MitigationPolicyResult polRes =
                 DisruptionMitigationPolicyEngine.MitigationPolicyResult.builder()

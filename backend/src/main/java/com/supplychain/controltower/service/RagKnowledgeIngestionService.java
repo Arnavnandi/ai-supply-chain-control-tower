@@ -177,7 +177,7 @@ public class RagKnowledgeIngestionService implements CommandLineRunner {
                 String safeType = kc.getSourceType() != null ? kc.getSourceType() : "";
                 String safeChunkId = kc.getChunkId() != null ? kc.getChunkId() : "";
 
-                String metaJson = String.format("{\"chunkId\":\"%s\",\"sourceName\":\"%s\",\"sourceType\":\"%s\",\"title\":\"%s\"}",
+                String metaJson = String.format("{\"chunkId\":\"%s\",\"sourceName\":\"%s\",\"sourceType\":\"%s\",\"title\":\"%s\",\"documentScope\":\"SYSTEM\",\"companyId\":0}",
                         safeChunkId, safeSource, safeType, safeTitle);
                 jdbcTemplate.update(sql, kc.getContent(), metaJson);
                 inserted++;

@@ -1,7 +1,9 @@
 package com.supplychain.controltower.service;
 
 import com.supplychain.controltower.entity.*;
+import com.supplychain.controltower.exception.TenantContextMissingException;
 import com.supplychain.controltower.repository.*;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class CsvImportService {
     private final CustomerOrderRepository customerOrderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ShipmentRepository shipmentRepository;
+    private final CompanyRepository companyRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -142,6 +145,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importCategories(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -155,8 +162,9 @@ public class CsvImportService {
 
                     if (name == null) continue;
 
-                    Optional<Category> existing = categoryRepository.findByName(name);
-                    Category category = existing.orElseGet(() -> Category.builder().build());
+                    Optional<Category> existing = categoryRepository.findByCompanyIdAndName(companyId, name);
+                    Category category = existing.orElseGet(() -> Category.builder().company(company).build());
+                    category.setCompany(company);
                     category.setName(name);
                     category.setDescription(description);
 
@@ -175,6 +183,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importProducts(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -197,12 +209,13 @@ public class CsvImportService {
 
                     Category category = null;
                     if (categoryId != null) {
-                        category = categoryRepository.findById(categoryId)
-                                .orElseThrow(() -> new IllegalArgumentException("Category not found with id: " + categoryId));
+                        category = categoryRepository.findByCompanyIdAndId(companyId, categoryId)
+                                .orElse(null);
                     }
 
-                    Optional<Product> existing = productRepository.findBySku(sku);
-                    Product product = existing.orElseGet(() -> Product.builder().build());
+                    Optional<Product> existing = productRepository.findByCompanyIdAndSku(companyId, sku);
+                    Product product = existing.orElseGet(() -> Product.builder().company(company).build());
+                    product.setCompany(company);
                     product.setSku(sku);
                     product.setName(name);
                     product.setDescription(description);
@@ -228,6 +241,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importSuppliers(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -245,8 +262,9 @@ public class CsvImportService {
                     Double leadTime = parseDouble(record, "average_lead_time_days", errors);
                     Double leadTimeVariance = parseDouble(record, "lead_time_variance_days", errors);
 
-                    Optional<Supplier> existing = supplierRepository.findByCode(code);
-                    Supplier supplier = existing.orElseGet(() -> Supplier.builder().build());
+                    Optional<Supplier> existing = supplierRepository.findByCompanyIdAndCode(companyId, code);
+                    Supplier supplier = existing.orElseGet(() -> Supplier.builder().company(company).build());
+                    supplier.setCompany(company);
                     supplier.setCode(code);
                     supplier.setName(name);
                     supplier.setContactPerson(record.isSet("contact_person") ? record.get("contact_person") : null);
@@ -273,6 +291,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importSupplierProducts(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -288,16 +310,17 @@ public class CsvImportService {
 
                     if (supplierId == null || productId == null || contractPrice == null) continue;
 
-                    Supplier supplier = supplierRepository.findById(supplierId)
+                    Supplier supplier = supplierRepository.findByCompanyIdAndId(companyId, supplierId)
                             .orElseThrow(() -> new IllegalArgumentException("Supplier not found with id: " + supplierId));
-                    Product product = productRepository.findById(productId)
+                    Product product = productRepository.findByCompanyIdAndId(companyId, productId)
                             .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
 
                     Boolean preferred = record.isSet("is_preferred_supplier") ? Boolean.parseBoolean(record.get("is_preferred_supplier")) : false;
                     Integer moq = parseInteger(record, "minimum_order_quantity", errors);
 
-                    List<SupplierProduct> existing = supplierProductRepository.findBySupplierIdAndProductId(supplierId, productId);
-                    SupplierProduct sp = existing.isEmpty() ? SupplierProduct.builder().build() : existing.get(0);
+                    List<SupplierProduct> existing = supplierProductRepository.findByCompanyIdAndSupplierIdAndProductId(companyId, supplierId, productId);
+                    SupplierProduct sp = existing.isEmpty() ? SupplierProduct.builder().company(company).build() : existing.get(0);
+                    sp.setCompany(company);
                     sp.setSupplier(supplier);
                     sp.setProduct(product);
                     sp.setContractPrice(contractPrice);
@@ -320,6 +343,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importWarehouses(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -337,8 +364,9 @@ public class CsvImportService {
                     Integer usedCapacity = parseInteger(record, "current_utilization_units", errors);
                     BigDecimal pct = parseBigDecimal(record, "utilization_percentage", errors);
 
-                    Optional<Warehouse> existing = warehouseRepository.findByCode(code);
-                    Warehouse warehouse = existing.orElseGet(() -> Warehouse.builder().build());
+                    Optional<Warehouse> existing = warehouseRepository.findByCompanyIdAndCode(companyId, code);
+                    Warehouse warehouse = existing.orElseGet(() -> Warehouse.builder().company(company).build());
+                    warehouse.setCompany(company);
                     warehouse.setCode(code);
                     warehouse.setName(name);
                     warehouse.setLocation(record.isSet("location") ? record.get("location") : null);
@@ -363,6 +391,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importInventories(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -377,9 +409,9 @@ public class CsvImportService {
 
                     if (productId == null || warehouseId == null || qtyAvail == null) continue;
 
-                    Product product = productRepository.findById(productId)
+                    Product product = productRepository.findByCompanyIdAndId(companyId, productId)
                             .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
-                    Warehouse warehouse = warehouseRepository.findById(warehouseId)
+                    Warehouse warehouse = warehouseRepository.findByCompanyIdAndId(companyId, warehouseId)
                             .orElseThrow(() -> new IllegalArgumentException("Warehouse not found with id: " + warehouseId));
 
                     Integer reserved = parseInteger(record, "reserved_quantity", errors);
@@ -387,8 +419,9 @@ public class CsvImportService {
                     Integer safetyStock = parseInteger(record, "safety_stock", errors);
                     LocalDateTime lastRestock = parseDateTime(record, "last_restocked_at", errors);
 
-                    Optional<Inventory> existing = inventoryRepository.findByProductIdAndWarehouseId(productId, warehouseId);
-                    Inventory inventory = existing.orElseGet(() -> Inventory.builder().build());
+                    Optional<Inventory> existing = inventoryRepository.findByCompanyIdAndProductIdAndWarehouseId(companyId, productId, warehouseId);
+                    Inventory inventory = existing.orElseGet(() -> Inventory.builder().company(company).build());
+                    inventory.setCompany(company);
                     inventory.setProduct(product);
                     inventory.setWarehouse(warehouse);
                     inventory.setQuantityAvailable(qtyAvail);
@@ -412,6 +445,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importOrders(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -437,8 +474,9 @@ public class CsvImportService {
                         status = CustomerOrder.OrderStatus.PROCESSING;
                     }
 
-                    Optional<CustomerOrder> existing = customerOrderRepository.findByOrderNumber(orderNumber);
-                    CustomerOrder order = existing.orElseGet(() -> CustomerOrder.builder().build());
+                    Optional<CustomerOrder> existing = customerOrderRepository.findByCompanyIdAndOrderNumber(companyId, orderNumber);
+                    CustomerOrder order = existing.orElseGet(() -> CustomerOrder.builder().company(company).build());
+                    order.setCompany(company);
                     order.setOrderNumber(orderNumber);
                     order.setCustomerName(customerName);
                     order.setOrderDate(orderDate);
@@ -461,6 +499,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importOrderItems(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -476,13 +518,14 @@ public class CsvImportService {
 
                     if (orderId == null || productId == null || quantity == null || unitPrice == null) continue;
 
-                    CustomerOrder order = customerOrderRepository.findById(orderId)
+                    CustomerOrder order = customerOrderRepository.findByCompanyIdAndId(companyId, orderId)
                             .orElseThrow(() -> new IllegalArgumentException("CustomerOrder not found with id: " + orderId));
-                    Product product = productRepository.findById(productId)
+                    Product product = productRepository.findByCompanyIdAndId(companyId, productId)
                             .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
 
-                    List<OrderItem> existing = orderItemRepository.findByOrderIdAndProductId(orderId, productId);
-                    OrderItem item = existing.isEmpty() ? OrderItem.builder().build() : existing.get(0);
+                    List<OrderItem> existing = orderItemRepository.findByCompanyIdAndOrderIdAndProductId(companyId, orderId, productId);
+                    OrderItem item = existing.isEmpty() ? OrderItem.builder().company(company).build() : existing.get(0);
+                    item.setCompany(company);
                     item.setOrder(order);
                     item.setProduct(product);
                     item.setQuantity(quantity);
@@ -503,6 +546,10 @@ public class CsvImportService {
 
     @Transactional
     public ImportResult importShipments(InputStream is) {
+        Long companyId = TenantContext.getRequiredCompanyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new TenantContextMissingException("Company not found with id: " + companyId));
+
         List<String> errors = new ArrayList<>();
         int imported = 0, processed = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
@@ -518,9 +565,9 @@ public class CsvImportService {
                     Long warehouseId = parseLong(record, "destination_warehouse_id", errors);
                     Long orderId = parseLong(record, "order_id", errors);
 
-                    Supplier supplier = supplierId != null ? supplierRepository.findById(supplierId).orElse(null) : null;
-                    Warehouse warehouse = warehouseId != null ? warehouseRepository.findById(warehouseId).orElse(null) : null;
-                    CustomerOrder order = orderId != null ? customerOrderRepository.findById(orderId).orElse(null) : null;
+                    Supplier supplier = supplierId != null ? supplierRepository.findByCompanyIdAndId(companyId, supplierId).orElse(null) : null;
+                    Warehouse warehouse = warehouseId != null ? warehouseRepository.findByCompanyIdAndId(companyId, warehouseId).orElse(null) : null;
+                    CustomerOrder order = orderId != null ? customerOrderRepository.findByCompanyIdAndId(companyId, orderId).orElse(null) : null;
 
                     LocalDate shippedDate = parseDate(record, "shipped_date", errors);
                     LocalDate estDelivery = parseDate(record, "estimated_delivery_date", errors);
@@ -535,8 +582,9 @@ public class CsvImportService {
                         status = Shipment.ShipmentStatus.IN_TRANSIT;
                     }
 
-                    Optional<Shipment> existing = shipmentRepository.findByTrackingCode(trackingCode);
-                    Shipment shipment = existing.orElseGet(() -> Shipment.builder().build());
+                    Optional<Shipment> existing = shipmentRepository.findByCompanyIdAndTrackingCode(companyId, trackingCode);
+                    Shipment shipment = existing.orElseGet(() -> Shipment.builder().company(company).build());
+                    shipment.setCompany(company);
                     shipment.setTrackingCode(trackingCode);
                     shipment.setSupplier(supplier);
                     shipment.setDestinationWarehouse(warehouse);
