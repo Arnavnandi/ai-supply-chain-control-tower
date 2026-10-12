@@ -55,66 +55,82 @@ public class ExecutiveCommandCenterEngine {
 
         // 1. Component 1: Supplier OTIF Health (30% weight)
         List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
-        double supplierOtif = 85.0;
+        Double supplierOtif = null;
         if (!suppliers.isEmpty()) {
-            supplierOtif = suppliers.stream()
+            OptionalDouble avgRel = suppliers.stream()
                     .map(Supplier::getReliabilityScore)
                     .filter(Objects::nonNull)
                     .mapToDouble(BigDecimal::doubleValue)
-                    .average()
-                    .orElse(85.0);
+                    .average();
+            if (avgRel.isPresent()) {
+                supplierOtif = Math.min(100.0, Math.max(0.0, avgRel.getAsDouble()));
+            }
         }
-        supplierOtif = Math.min(100.0, Math.max(0.0, supplierOtif));
 
         // 2. Component 2: Inventory Buffer Safety (25% weight)
         List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
-        double inventoryScore = 80.0;
+        Double inventoryScore = null;
         if (!inventories.isEmpty()) {
             long total = inventories.size();
             long healthy = inventories.stream()
                     .filter(i -> i.getQuantityAvailable() != null && i.getQuantityAvailable() >= i.getSafetyStock())
                     .count();
-            inventoryScore = (healthy * 100.0) / total;
+            inventoryScore = Math.min(100.0, Math.max(0.0, (healthy * 100.0) / total));
         }
-        inventoryScore = Math.min(100.0, Math.max(0.0, inventoryScore));
 
         // 3. Component 3: Warehouse Storage Capacity Health (25% weight)
         List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
-        double warehouseScore = 88.0;
+        Double warehouseScore = null;
         if (!warehouses.isEmpty()) {
-            double avgUtilization = warehouses.stream()
+            OptionalDouble avgUtil = warehouses.stream()
                     .map(Warehouse::getUtilizationPercentage)
                     .filter(Objects::nonNull)
                     .mapToDouble(BigDecimal::doubleValue)
-                    .average()
-                    .orElse(70.0);
-            // 100% capacity utilization is bad (overrun), optimal is <= 70%
-            warehouseScore = Math.max(0.0, 100.0 - (avgUtilization > 70.0 ? (avgUtilization - 70.0) * 2.5 : 0.0));
+                    .average();
+            if (avgUtil.isPresent()) {
+                double util = avgUtil.getAsDouble();
+                warehouseScore = Math.min(100.0, Math.max(0.0, 100.0 - (util > 70.0 ? (util - 70.0) * 2.5 : 0.0)));
+            }
         }
-        warehouseScore = Math.min(100.0, Math.max(0.0, warehouseScore));
 
         // 4. Component 4: Historical Mitigation Efficacy (20% weight)
-        double efficacyScore = 94.2;
+        Double efficacyScore = null;
         try {
             HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport eff = efficacyEngine.calculateHistoricalEfficacy();
-            if (eff != null) {
-                efficacyScore = eff.getOverallSuccessRatePct();
+            if (eff != null && eff.getTotalHistoricalExecutions() > 0) {
+                efficacyScore = Math.min(100.0, Math.max(0.0, eff.getOverallSuccessRatePct()));
             }
         } catch (Exception ex) {
-            log.warn("[EXECUTIVE CC] Historical efficacy fallback used: {}", ex.getMessage());
+            log.warn("[EXECUTIVE CC] Historical efficacy calculation error: {}", ex.getMessage());
         }
-        efficacyScore = Math.min(100.0, Math.max(0.0, efficacyScore));
 
-        // Formula: 30% Supplier + 25% Inventory + 25% Warehouse + 20% Efficacy
-        double totalResiliencyIndex = (0.30 * supplierOtif)
-                + (0.25 * inventoryScore)
-                + (0.25 * warehouseScore)
-                + (0.20 * efficacyScore);
+        // Calculate dynamic weighted resiliency index across available components
+        double weightedSum = 0.0;
+        double totalWeight = 0.0;
+        if (supplierOtif != null) {
+            weightedSum += 0.30 * supplierOtif;
+            totalWeight += 0.30;
+        }
+        if (inventoryScore != null) {
+            weightedSum += 0.25 * inventoryScore;
+            totalWeight += 0.25;
+        }
+        if (warehouseScore != null) {
+            weightedSum += 0.25 * warehouseScore;
+            totalWeight += 0.25;
+        }
+        if (efficacyScore != null) {
+            weightedSum += 0.20 * efficacyScore;
+            totalWeight += 0.20;
+        }
 
+        double totalResiliencyIndex = totalWeight > 0 ? (weightedSum / totalWeight) : 0.0;
         totalResiliencyIndex = Math.min(100.0, Math.max(0.0, totalResiliencyIndex));
 
         String band;
-        if (totalResiliencyIndex >= 88.0) {
+        if (totalWeight == 0.0) {
+            band = "INSUFFICIENT_DATA";
+        } else if (totalResiliencyIndex >= 88.0) {
             band = "OPTIMAL";
         } else if (totalResiliencyIndex >= 75.0) {
             band = "HEALTHY";
@@ -125,17 +141,21 @@ public class ExecutiveCommandCenterEngine {
         }
 
         List<String> riskHighlights = new ArrayList<>();
-        if (inventoryScore < 85.0) {
-            riskHighlights.add("Inventory deficit detected: several SKUs are currently operating below safety stock levels.");
-        }
-        if (warehouseScore < 85.0) {
-            riskHighlights.add("Warehouse utilization spike: storage capacity at primary distribution hubs is approaching threshold limits.");
-        }
-        if (supplierOtif < 85.0) {
-            riskHighlights.add("Supplier OTIF degradation: key tier-1 chip/component vendors show delivery delays.");
-        }
-        if (riskHighlights.isEmpty()) {
-            riskHighlights.add("Operational parameters within nominal tolerances across all 4 regional hubs.");
+        if (totalWeight == 0.0) {
+            riskHighlights.add("No operational records available. Suppliers, inventory, and warehouses must be populated to compute resiliency.");
+        } else {
+            if (inventoryScore != null && inventoryScore < 85.0) {
+                riskHighlights.add("Inventory deficit detected: several SKUs are currently operating below safety stock levels.");
+            }
+            if (warehouseScore != null && warehouseScore < 85.0) {
+                riskHighlights.add("Warehouse utilization spike: storage capacity at primary distribution hubs is approaching threshold limits.");
+            }
+            if (supplierOtif != null && supplierOtif < 85.0) {
+                riskHighlights.add("Supplier OTIF degradation: key tier-1 chip/component vendors show delivery delays.");
+            }
+            if (riskHighlights.isEmpty()) {
+                riskHighlights.add(String.format("Operational parameters within nominal tolerances across %d regional facilities.", warehouses.size()));
+            }
         }
 
         List<String> attentionAreas = List.of(
@@ -144,19 +164,32 @@ public class ExecutiveCommandCenterEngine {
                 "Evaluate Cost vs SLA speed tradeoffs for expedited air freight options."
         );
 
+        String briefing;
+        if (totalWeight == 0.0) {
+            briefing = "Executive Briefing: Insufficient operational telemetry. Resilience Index cannot be calculated without active supplier, warehouse, or inventory records.";
+        } else {
+            briefing = String.format("Executive Briefing: Overall Resiliency Index stands at %.1f/100 (%s). Supplier OTIF: %s, Inventory Safety: %s, Warehouse Health: %s, Historical Efficacy: %s.",
+                    totalResiliencyIndex, band,
+                    supplierOtif != null ? String.format("%.1f%%", supplierOtif) : "N/A",
+                    inventoryScore != null ? String.format("%.1f%%", inventoryScore) : "N/A",
+                    warehouseScore != null ? String.format("%.1f%%", warehouseScore) : "N/A",
+                    efficacyScore != null ? String.format("%.1f%%", efficacyScore) : "N/A");
+        }
+
         ExecutiveScorecardReport report = ExecutiveScorecardReport.builder()
                 .reportId(reportId)
                 .overallResiliencyIndex(totalResiliencyIndex)
                 .resiliencyStatusBand(band)
-                .supplierOtifComponentScore(supplierOtif)
-                .inventoryBufferComponentScore(inventoryScore)
-                .warehouseCapacityComponentScore(warehouseScore)
-                .historicalEfficacyComponentScore(efficacyScore)
-                .overallPortfolioStatus(String.format("Control Tower operational state is %s with an overall Resiliency Index of %.1f/100.", band, totalResiliencyIndex))
+                .supplierOtifComponentScore(supplierOtif != null ? supplierOtif : 0.0)
+                .inventoryBufferComponentScore(inventoryScore != null ? inventoryScore : 0.0)
+                .warehouseCapacityComponentScore(warehouseScore != null ? warehouseScore : 0.0)
+                .historicalEfficacyComponentScore(efficacyScore != null ? efficacyScore : 0.0)
+                .overallPortfolioStatus(totalWeight == 0.0
+                        ? "Control Tower operational state is uninitialized (Insufficient Data)."
+                        : String.format("Control Tower operational state is %s with an overall Resiliency Index of %.1f/100.", band, totalResiliencyIndex))
                 .majorRiskHighlights(riskHighlights)
                 .recommendedExecutiveAttentionAreas(attentionAreas)
-                .executiveBriefingSummary(String.format("Executive Briefing: Overall Resiliency Index stands at %.1f/100 (%s). Supplier OTIF: %.1f%%, Inventory Safety: %.1f%%, Warehouse Health: %.1f%%, Historical Efficacy: %.1f%%.",
-                        totalResiliencyIndex, band, supplierOtif, inventoryScore, warehouseScore, efficacyScore))
+                .executiveBriefingSummary(briefing)
                 .build();
 
         log.info("[EXECUTIVE CC COMPLETE] ReportId: {} | ResiliencyIndex: %.1f (%s)", reportId, totalResiliencyIndex, band);

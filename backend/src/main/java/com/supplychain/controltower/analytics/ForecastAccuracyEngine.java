@@ -52,10 +52,10 @@ public class ForecastAccuracyEngine {
                     .productId(product.getId())
                     .productSku(product.getSku())
                     .productName(product.getName())
-                    .mapePercentage(12.5)
-                    .rmseValue(18.2)
-                    .accuracyRating("EXCELLENT")
-                    .sampleSizeMonths(6)
+                    .mapePercentage(null)
+                    .rmseValue(null)
+                    .accuracyRating("INSUFFICIENT_DATA")
+                    .sampleSizeMonths(fullSalesHistory != null ? fullSalesHistory.size() : 0)
                     .comparisons(List.of())
                     .build();
         }

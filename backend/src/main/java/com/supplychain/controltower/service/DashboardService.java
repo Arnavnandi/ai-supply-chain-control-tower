@@ -43,17 +43,33 @@ public class DashboardService {
         long delayedShipmentsCount = shipmentRepository.findByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED).size();
 
         // Calculate average supplier reliability
-        Double avgRel = supplierRepository.findByCompanyId(companyId).stream()
-                .map(s -> s.getReliabilityScore() != null ? s.getReliabilityScore().doubleValue() : 80.0)
-                .mapToDouble(Double::doubleValue).average().orElse(85.0);
+        List<com.supplychain.controltower.entity.Supplier> companySuppliers = supplierRepository.findByCompanyId(companyId);
+        OptionalDouble avgRelOpt = companySuppliers.stream()
+                .map(com.supplychain.controltower.entity.Supplier::getReliabilityScore)
+                .filter(Objects::nonNull)
+                .mapToDouble(BigDecimal::doubleValue)
+                .average();
+        BigDecimal avgRel = avgRelOpt.isPresent()
+                ? BigDecimal.valueOf(avgRelOpt.getAsDouble()).setScale(2, RoundingMode.HALF_UP)
+                : null;
 
         // Calculate average warehouse utilization
-        Double avgUtil = warehouseRepository.findByCompanyId(companyId).stream()
-                .map(w -> w.getUtilizationPercentage() != null ? w.getUtilizationPercentage().doubleValue() : 50.0)
-                .mapToDouble(Double::doubleValue).average().orElse(65.0);
+        List<com.supplychain.controltower.entity.Warehouse> companyWarehouses = warehouseRepository.findByCompanyId(companyId);
+        OptionalDouble avgUtilOpt = companyWarehouses.stream()
+                .map(com.supplychain.controltower.entity.Warehouse::getUtilizationPercentage)
+                .filter(Objects::nonNull)
+                .mapToDouble(BigDecimal::doubleValue)
+                .average();
+        BigDecimal avgUtil = avgUtilOpt.isPresent()
+                ? BigDecimal.valueOf(avgUtilOpt.getAsDouble()).setScale(2, RoundingMode.HALF_UP)
+                : null;
 
         // Calculate overall Supply Chain Risk Score (0-100) based on stockouts, delays, and overutilization
-        double riskScore = Math.min(100.0, (lowStockCount * 15.0) + (delayedShipmentsCount * 20.0) + (avgUtil > 90 ? 25.0 : 5.0));
+        double riskScore = 0.0;
+        if (totalProducts > 0 || !allInventory.isEmpty() || !companySuppliers.isEmpty() || !companyWarehouses.isEmpty()) {
+            double warehousePenalty = (avgUtilOpt.isPresent() && avgUtilOpt.getAsDouble() > 90.0) ? 25.0 : 0.0;
+            riskScore = Math.min(100.0, (lowStockCount * 15.0) + (delayedShipmentsCount * 20.0) + warehousePenalty);
+        }
 
         // Calculate real demand trends from PostgreSQL Customer Orders & Order Items
         List<CustomerOrder> allOrders = orderRepository.findByCompanyIdOrderByOrderDateDesc(companyId);
@@ -113,19 +129,23 @@ public class DashboardService {
             }
         }
 
-        List<Map<String, Object>> supplierPerformance = supplierRepository.findByCompanyId(companyId).stream().map(s ->
-                Map.of("name", (Object) s.getName(),
-                        "reliability", s.getReliabilityScore() != null ? s.getReliabilityScore() : 80,
-                        "deliveryRate", s.getDeliveryPerformancePct() != null ? s.getDeliveryPerformancePct() : 85,
-                        "leadTime", s.getAverageLeadTimeDays() != null ? s.getAverageLeadTimeDays() : 7.0)
-        ).toList();
+        List<Map<String, Object>> supplierPerformance = companySuppliers.stream().map(s -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("name", s.getName());
+            map.put("reliability", s.getReliabilityScore());
+            map.put("deliveryRate", s.getDeliveryPerformancePct());
+            map.put("leadTime", s.getAverageLeadTimeDays());
+            return map;
+        }).toList();
 
-        List<Map<String, Object>> warehouseUtilization = warehouseRepository.findByCompanyId(companyId).stream().map(w ->
-                Map.of("name", (Object) w.getName(),
-                        "capacity", w.getTotalCapacityUnits(),
-                        "used", w.getCurrentUtilizationUnits(),
-                        "pct", w.getUtilizationPercentage() != null ? w.getUtilizationPercentage() : 50)
-        ).toList();
+        List<Map<String, Object>> warehouseUtilization = companyWarehouses.stream().map(w -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("name", w.getName());
+            map.put("capacity", w.getTotalCapacityUnits());
+            map.put("used", w.getCurrentUtilizationUnits());
+            map.put("pct", w.getUtilizationPercentage());
+            return map;
+        }).toList();
 
         return DashboardSummaryDto.builder()
                 .totalProducts(totalProducts)
@@ -135,8 +155,8 @@ public class DashboardService {
                 .overstockedProductsCount(overstockCount)
                 .pendingOrdersCount(pendingOrdersCount)
                 .delayedShipmentsCount(delayedShipmentsCount)
-                .overallSupplierReliabilityPct(BigDecimal.valueOf(avgRel).setScale(2, RoundingMode.HALF_UP))
-                .averageWarehouseUtilizationPct(BigDecimal.valueOf(avgUtil).setScale(2, RoundingMode.HALF_UP))
+                .overallSupplierReliabilityPct(avgRel)
+                .averageWarehouseUtilizationPct(avgUtil)
                 .supplyChainRiskScore(BigDecimal.valueOf(riskScore).setScale(2, RoundingMode.HALF_UP))
                 .inventoryTrends(inventoryTrends)
                 .demandTrends(demandTrends)

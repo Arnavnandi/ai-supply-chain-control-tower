@@ -1144,20 +1144,26 @@ export const AnalyticsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
               <span className="text-xs text-slate-400 uppercase font-bold block">MAPE Accuracy Index</span>
-              <span className="text-3xl font-black text-emerald-400 mt-2 block">{accuracyData.mapePercentage}%</span>
+              <span className="text-3xl font-black text-emerald-400 mt-2 block">
+                {accuracyData.mapePercentage != null ? `${accuracyData.mapePercentage}%` : 'N/A'}
+              </span>
               <span className="text-xs text-slate-500 mt-1 block">Mean Absolute Percentage Error</span>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
               <span className="text-xs text-slate-400 uppercase font-bold block">RMSE Error Standard</span>
-              <span className="text-3xl font-black text-blue-400 mt-2 block">{accuracyData.rmseValue}</span>
+              <span className="text-3xl font-black text-blue-400 mt-2 block">
+                {accuracyData.rmseValue != null ? accuracyData.rmseValue : 'N/A'}
+              </span>
               <span className="text-xs text-slate-500 mt-1 block">Root Mean Squared Error</span>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
               <span className="text-xs text-slate-400 uppercase font-bold block">Backtesting Model Rating</span>
-              <span className="text-3xl font-black text-purple-400 mt-2 block">{accuracyData.accuracyRating}</span>
-              <span className="text-xs text-slate-500 mt-1 block">Validated over 6-month historical dataset</span>
+              <span className="text-3xl font-black text-purple-400 mt-2 block">{accuracyData.accuracyRating || 'INSUFFICIENT_DATA'}</span>
+              <span className="text-xs text-slate-500 mt-1 block">
+                {accuracyData.sampleSizeMonths ? `Validated over ${accuracyData.sampleSizeMonths}-month dataset` : 'Requires minimum 4-month order history'}
+              </span>
             </div>
           </div>
 
@@ -1176,14 +1182,22 @@ export const AnalyticsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 text-slate-300">
-                {accuracyData.comparisons.map((c, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-4 font-bold text-white">{c.monthLabel}</td>
-                    <td className="p-4 font-bold text-emerald-400">{c.actualSales} units</td>
-                    <td className="p-4 font-bold text-blue-400">{c.predictedDemand} units</td>
-                    <td className="p-4 font-mono font-bold text-purple-400">{c.absolutePercentageError}%</td>
+                {accuracyData.comparisons && accuracyData.comparisons.length > 0 ? (
+                  accuracyData.comparisons.map((c, idx) => (
+                    <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="p-4 font-bold text-white">{c.monthLabel}</td>
+                      <td className="p-4 font-bold text-emerald-400">{c.actualSales} units</td>
+                      <td className="p-4 font-bold text-blue-400">{c.predictedDemand} units</td>
+                      <td className="p-4 font-mono font-bold text-purple-400">{c.absolutePercentageError}%</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-6 text-center text-slate-400">
+                      Insufficient monthly order history to perform out-of-sample backtesting (requires at least 4 months of sales).
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

@@ -27,9 +27,14 @@ public class TelemetryWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         Long companyId = extractCompanyIdFromSession(session);
-        if (companyId != null) {
-            session.getAttributes().put("companyId", companyId);
+        if (companyId == null) {
+            log.warn("[WEBSOCKET AUTH REJECTED] Unauthenticated websocket session rejected: {}", session.getId());
+            try {
+                session.close(new CloseStatus(4001, "Valid authentication token required"));
+            } catch (IOException ignored) {}
+            return;
         }
+        session.getAttributes().put("companyId", companyId);
         sessions.add(session);
         log.info("[WEBSOCKET TELEMETRY] Client connected: {} | CompanyId: {} | Total sessions: {}", session.getId(), companyId, sessions.size());
     }
@@ -65,8 +70,14 @@ public class TelemetryWebSocketHandler extends TextWebSocketHandler {
             }
 
             Long sessionCompanyId = (Long) session.getAttributes().get("companyId");
-            if (targetCompanyId != null && sessionCompanyId != null && !targetCompanyId.equals(sessionCompanyId)) {
-                continue; // Isolate telemetry to target company
+            // Do not send any messages to unauthenticated sessions
+            if (sessionCompanyId == null) {
+                continue;
+            }
+
+            // Isolate telemetry to target company
+            if (targetCompanyId != null && !targetCompanyId.equals(sessionCompanyId)) {
+                continue;
             }
 
             try {

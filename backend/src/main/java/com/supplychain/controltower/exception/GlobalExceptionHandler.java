@@ -67,6 +67,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDto);
     }
 
+    @ExceptionHandler(TenantContextMissingException.class)
+    public ResponseEntity<ErrorResponseDto> handleTenantContextMissingException(TenantContextMissingException ex) {
+        log.warn("[TENANT CONTEXT MISSING] {}", ex.getMessage());
+
+        ErrorResponseDto errorDto = ErrorResponseDto.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDto);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponseDto> handleIllegalArgumentException(IllegalArgumentException ex) {
         log.warn("[ILLEGAL ARGUMENT EXCEPTION] {}", ex.getMessage());

@@ -18,8 +18,9 @@ public class WarehouseTools {
 
     @Description("Retrieves warehouse capacity utilization metrics for all distribution centers.")
     public List<WarehouseUtilizationRecord> getWarehouseUtilization() {
-        log.info("[SPRING AI TOOL EXECUTING] getWarehouseUtilization() querying PostgreSQL database...");
-        List<WarehouseUtilizationRecord> results = warehouseRepository.findAll().stream().map(w ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getWarehouseUtilization() querying PostgreSQL database for companyId {}...", companyId);
+        List<WarehouseUtilizationRecord> results = warehouseRepository.findByCompanyId(companyId).stream().map(w ->
                 new WarehouseUtilizationRecord(
                         w.getId(),
                         w.getCode(),

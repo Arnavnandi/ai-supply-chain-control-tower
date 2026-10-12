@@ -49,6 +49,10 @@ public class CostSlaOptimizationEngine {
         private String optimalStrategyId;
         private String executiveRecommendationSummary;
         @Builder.Default
+        private boolean isSimulation = true;
+        @Builder.Default
+        private String simulationModel = "SCENARIO_SIMULATION";
+        @Builder.Default
         private String timestamp = LocalDateTime.now().toString();
     }
 
@@ -139,7 +143,9 @@ public class CostSlaOptimizationEngine {
                 .initialRiskBand("HIGH")
                 .tradeoffs(options)
                 .optimalStrategyId("OPT-EXPEDITED-AIR")
-                .executiveRecommendationSummary("Strategy 'OPT-EXPEDITED-AIR' is recommended: protects 98.5% SLA and reduces risk from 70.0 (HIGH) to 15.0 (LOW).")
+                .executiveRecommendationSummary("[SIMULATION SCENARIO] Strategy 'OPT-EXPEDITED-AIR' is recommended: protects 98.5% SLA and reduces risk from 70.0 (HIGH) to 15.0 (LOW).")
+                .isSimulation(true)
+                .simulationModel("SCENARIO_SIMULATION")
                 .build();
 
         log.info("[COST-SLA ENGINE COMPLETE] AnalysisId: {} | OptimalStrategy: {}", analysisId, report.getOptimalStrategyId());

@@ -22,14 +22,15 @@ public class ForecastTools {
 
     @Description("Retrieves 3-month demand forecasts, projected 7-day/30-day burn rates, confidence corridors, and stockout warnings for product SKUs based on 12-month historical sales data.")
     public List<ForecastItemRecord> getDemandForecasts() {
-        log.info("[SPRING AI TOOL EXECUTING] getDemandForecasts() querying database demand analytics...");
-        List<Product> products = productRepository.findAll();
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getDemandForecasts() querying database demand analytics for companyId: {}...", companyId);
+        List<Product> products = productRepository.findByCompanyId(companyId);
         List<ForecastItemRecord> results = new ArrayList<>();
 
         for (Product p : products) {
             try {
                 DemandForecastingEngine.ForecastResult f = forecastService.getDemandForecast(p.getId());
-                if ("SUCCESS".equals(f.getStatus())) {
+                if (f != null) {
                     results.add(new ForecastItemRecord(
                             p.getId(),
                             p.getSku(),
@@ -38,7 +39,7 @@ public class ForecastTools {
                             f.getProjected30DayDemand(),
                             f.getDaysUntilStockout(),
                             f.getStockoutWarning(),
-                            f.getMethod()
+                            "INSUFFICIENT_DATA".equals(f.getStatus()) ? "INSUFFICIENT_DATA" : f.getMethod()
                     ));
                 }
             } catch (Exception ex) {

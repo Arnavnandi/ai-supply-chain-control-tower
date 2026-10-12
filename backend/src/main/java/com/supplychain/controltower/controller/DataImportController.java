@@ -19,8 +19,12 @@ public class DataImportController {
 
     @PostMapping("/sample-dataset")
     public ResponseEntity<CsvImportService.ImportResult> importSampleDataset() {
-        log.info("[REST API] Triggered 1-click sample dataset import...");
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[REST API] Triggered 1-click sample dataset import for companyId: {}", companyId);
         CsvImportService.ImportResult result = csvImportService.importSampleDataset();
+        if (!result.isSuccess()) {
+            return ResponseEntity.badRequest().body(result);
+        }
         return ResponseEntity.ok(result);
     }
 
@@ -29,23 +33,43 @@ public class DataImportController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "entityType", defaultValue = "products") String entityType) {
 
-        log.info("[REST API] File upload received for entityType '{}': filename='{}', size={} bytes",
-                entityType, file.getOriginalFilename(), file.getSize());
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[REST API] File upload received for companyId {}: entityType '{}', filename '{}', size {} bytes",
+                companyId, entityType, file.getOriginalFilename(), file.getSize());
 
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Uploaded CSV file is empty"));
+            return ResponseEntity.badRequest().body(CsvImportService.ImportResult.builder()
+                    .success(false)
+                    .entityType(entityType)
+                    .totalRowsProcessed(0)
+                    .recordsImported(0)
+                    .recordsFailed(1)
+                    .recordsRejected(0)
+                    .errors(java.util.List.of("Uploaded CSV file is empty (0 bytes)."))
+                    .message("Uploaded CSV file is empty.")
+                    .build());
         }
 
         try {
             CsvImportService.ImportResult result = csvImportService.importSingleEntityFile(entityType, file.getInputStream());
+            if (!result.isSuccess()) {
+                return ResponseEntity.badRequest().body(result);
+            }
             return ResponseEntity.ok(result);
+        } catch (com.supplychain.controltower.exception.TenantContextMissingException ex) {
+            throw ex;
         } catch (Exception ex) {
             log.error("[REST API IMPORT FAIL] Error processing CSV upload: {}", ex.getMessage(), ex);
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "success", false,
-                    "entityType", entityType,
-                    "message", "CSV import failed: " + ex.getMessage()
-            ));
+            return ResponseEntity.badRequest().body(CsvImportService.ImportResult.builder()
+                    .success(false)
+                    .entityType(entityType)
+                    .totalRowsProcessed(0)
+                    .recordsImported(0)
+                    .recordsFailed(1)
+                    .recordsRejected(0)
+                    .errors(java.util.List.of("CSV import failed: " + ex.getMessage()))
+                    .message("CSV import failed: " + ex.getMessage())
+                    .build());
         }
     }
 }

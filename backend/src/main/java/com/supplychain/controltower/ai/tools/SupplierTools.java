@@ -22,8 +22,9 @@ public class SupplierTools {
 
     @Description("Retrieves supplier performance metrics including reliability scores, delivery rates, and average lead times.")
     public List<SupplierPerformanceRecord> getSupplierPerformance() {
-        log.info("[SPRING AI TOOL EXECUTING] getSupplierPerformance() querying PostgreSQL database...");
-        List<SupplierPerformanceRecord> results = supplierRepository.findAll().stream().map(s ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getSupplierPerformance() querying PostgreSQL database for companyId {}...", companyId);
+        List<SupplierPerformanceRecord> results = supplierRepository.findByCompanyId(companyId).stream().map(s ->
                 new SupplierPerformanceRecord(
                         s.getId(),
                         s.getCode(),
@@ -39,9 +40,10 @@ public class SupplierTools {
 
     @Description("Compares supplier pricing, lead times, and reliability scores for a specific product ID.")
     public List<SupplierComparisonRecord> getSuppliersForProduct(Long productId) {
-        log.info("[SPRING AI TOOL EXECUTING] getSuppliersForProduct(productId={}) querying PostgreSQL database...", productId);
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getSuppliersForProduct(productId={}) querying PostgreSQL database for companyId {}...", productId, companyId);
         if (productId == null) return List.of();
-        List<SupplierComparisonRecord> results = supplierProductRepository.findByProductId(productId).stream().map(sp ->
+        List<SupplierComparisonRecord> results = supplierProductRepository.findByCompanyIdAndProductId(companyId, productId).stream().map(sp ->
                 new SupplierComparisonRecord(
                         sp.getSupplier().getId(),
                         sp.getSupplier().getName(),

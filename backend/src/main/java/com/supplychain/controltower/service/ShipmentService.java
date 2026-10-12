@@ -29,8 +29,7 @@ public class ShipmentService {
     }
 
     private ShipmentDto mapToDto(Shipment s) {
-        boolean isDemo = (s.getCompany() != null && "DEMO".equalsIgnoreCase(s.getCompany().getCode())) ||
-                (s.getTrackingCode() != null && (s.getTrackingCode().startsWith("TRK-") || s.getTrackingCode().startsWith("SHP-")));
+        boolean isDemo = s.getCompany() != null && "DEMO".equalsIgnoreCase(s.getCompany().getCode());
         return ShipmentDto.builder()
                 .id(s.getId())
                 .trackingCode(s.getTrackingCode())

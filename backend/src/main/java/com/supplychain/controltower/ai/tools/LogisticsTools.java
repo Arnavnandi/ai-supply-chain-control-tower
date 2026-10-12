@@ -19,8 +19,9 @@ public class LogisticsTools {
 
     @Description("Retrieves all currently delayed shipments, including delay days and carrier information.")
     public List<DelayedShipmentRecord> getDelayedShipments() {
-        log.info("[SPRING AI TOOL EXECUTING] getDelayedShipments() querying PostgreSQL database...");
-        List<DelayedShipmentRecord> results = shipmentRepository.findByStatus(Shipment.ShipmentStatus.DELAYED).stream().map(s ->
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        log.info("[SPRING AI TOOL EXECUTING] getDelayedShipments() querying PostgreSQL database for companyId {}...", companyId);
+        List<DelayedShipmentRecord> results = shipmentRepository.findByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED).stream().map(s ->
                 new DelayedShipmentRecord(
                         s.getId(),
                         s.getTrackingCode(),

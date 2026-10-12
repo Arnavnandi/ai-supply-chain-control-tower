@@ -8,6 +8,8 @@ import com.supplychain.controltower.analytics.StressTestingEngine;
 import com.supplychain.controltower.entity.Product;
 import com.supplychain.controltower.repository.ProductRepository;
 import com.supplychain.controltower.service.ExecutiveReportService;
+import com.supplychain.controltower.exception.ResourceNotFoundException;
+import com.supplychain.controltower.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,9 +31,10 @@ public class AdvancedAnalyticsController {
 
     @GetMapping("/accuracy/{productId}")
     public ResponseEntity<ForecastAccuracyEngine.AccuracyMetrics> getForecastAccuracy(@PathVariable Long productId) {
-        log.info("[ADVANCED ANALYTICS] Fetching forecast accuracy for Product ID={}", productId);
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        Long companyId = TenantContext.getRequiredCompanyId();
+        log.info("[ADVANCED ANALYTICS] Fetching forecast accuracy for Product ID={} and companyId={}", productId, companyId);
+        Product product = productRepository.findByCompanyIdAndId(companyId, productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
         return ResponseEntity.ok(accuracyEngine.calculateForecastAccuracy(product));
     }
 

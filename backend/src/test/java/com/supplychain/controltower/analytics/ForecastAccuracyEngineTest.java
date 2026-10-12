@@ -47,4 +47,19 @@ class ForecastAccuracyEngineTest {
         assertNotNull(metrics.getAccuracyRating());
         assertEquals(4, metrics.getComparisons().size());
     }
+
+    @Test
+    void testCalculateForecastAccuracyWithInsufficientHistoryReturnsInsufficientData() {
+        when(forecastService.calculateMonthlySalesFromDatabase(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.eq(1L))).thenReturn(List.of(120, 150));
+
+        ForecastAccuracyEngine.AccuracyMetrics metrics = accuracyEngine.calculateForecastAccuracy(product);
+
+        assertNotNull(metrics);
+        assertEquals("SKU-ACC-001", metrics.getProductSku());
+        assertNull(metrics.getMapePercentage());
+        assertNull(metrics.getRmseValue());
+        assertEquals("INSUFFICIENT_DATA", metrics.getAccuracyRating());
+        assertEquals(2, metrics.getSampleSizeMonths());
+        assertTrue(metrics.getComparisons().isEmpty());
+    }
 }

@@ -6,6 +6,8 @@ import com.supplychain.controltower.entity.SupplierProduct;
 import com.supplychain.controltower.repository.ShipmentRepository;
 import com.supplychain.controltower.repository.SupplierProductRepository;
 import com.supplychain.controltower.repository.SupplierRepository;
+import com.supplychain.controltower.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,11 +28,17 @@ class LogisticsSupplierToolsTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setCompanyId(1L);
         supplierRepository = mock(SupplierRepository.class);
         supplierProductRepository = mock(SupplierProductRepository.class);
         shipmentRepository = mock(ShipmentRepository.class);
         supplierTools = new SupplierTools(supplierRepository, supplierProductRepository);
         logisticsTools = new LogisticsTools(shipmentRepository);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     @Test
@@ -44,13 +52,13 @@ class LogisticsSupplierToolsTest {
                 .averageLeadTimeDays(7.5)
                 .build();
 
-        when(supplierRepository.findAll()).thenReturn(List.of(s));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(s));
 
         List<SupplierTools.SupplierPerformanceRecord> result = supplierTools.getSupplierPerformance();
         assertEquals(1, result.size());
         assertEquals("SUP-01", result.get(0).code());
         assertEquals(new BigDecimal("95.50"), result.get(0).reliabilityScore());
-        verify(supplierRepository, times(1)).findAll();
+        verify(supplierRepository, times(1)).findByCompanyId(1L);
     }
 
     @Test
@@ -68,13 +76,13 @@ class LogisticsSupplierToolsTest {
                 .status(Shipment.ShipmentStatus.DELAYED)
                 .build();
 
-        when(shipmentRepository.findByStatus(Shipment.ShipmentStatus.DELAYED)).thenReturn(List.of(shipment));
+        when(shipmentRepository.findByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED)).thenReturn(List.of(shipment));
 
         List<LogisticsTools.DelayedShipmentRecord> result = logisticsTools.getDelayedShipments();
         assertEquals(1, result.size());
         assertEquals("TRK-100", result.get(0).trackingCode());
         assertEquals(2, result.get(0).delayDays());
         assertEquals("Express Cargo", result.get(0).carrier());
-        verify(shipmentRepository, times(1)).findByStatus(Shipment.ShipmentStatus.DELAYED);
+        verify(shipmentRepository, times(1)).findByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED);
     }
 }

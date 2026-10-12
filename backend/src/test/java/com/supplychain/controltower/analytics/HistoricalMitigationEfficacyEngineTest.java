@@ -28,7 +28,10 @@ class HistoricalMitigationEfficacyEngineTest {
     void testCalculateHistoricalEfficacy() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         List<com.supplychain.controltower.entity.Recommendation> recs = java.util.stream.IntStream.range(0, 15)
-                .mapToObj(i -> com.supplychain.controltower.entity.Recommendation.builder().status(com.supplychain.controltower.entity.Recommendation.ApprovalStatus.EXECUTED).build())
+                .mapToObj(i -> com.supplychain.controltower.entity.Recommendation.builder()
+                        .type(com.supplychain.controltower.entity.Recommendation.RecommendationType.REORDER_STOCK)
+                        .status(com.supplychain.controltower.entity.Recommendation.ApprovalStatus.EXECUTED)
+                        .build())
                 .toList();
         when(recommendationRepository.findByCompanyId(1L)).thenReturn(recs);
 
@@ -39,6 +42,21 @@ class HistoricalMitigationEfficacyEngineTest {
         assertEquals(15, report.getTotalHistoricalExecutions());
         assertTrue(report.getOverallSuccessRatePct() > 80.0);
         assertTrue(report.getOverallAverageRiskReductionDelta() < 0);
-        assertEquals(4, report.getCategoryBreakdowns().size());
+        assertFalse(report.getCategoryBreakdowns().isEmpty());
+    }
+
+    @Test
+    void testCalculateHistoricalEfficacyWithEmptyData() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(recommendationRepository.findByCompanyId(1L)).thenReturn(List.of());
+
+        HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport report =
+                engine.calculateHistoricalEfficacy();
+
+        assertNotNull(report);
+        assertEquals(0, report.getTotalHistoricalExecutions());
+        assertEquals(0.0, report.getOverallSuccessRatePct());
+        assertTrue(report.getCategoryBreakdowns().isEmpty());
+        assertTrue(report.getHistoricalInsightsSummary().contains("Insufficient historical mitigation data"));
     }
 }

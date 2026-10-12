@@ -61,9 +61,7 @@ public class SupplierAnalyticsEngine {
         Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
         List<Shipment> allShipments = shipmentRepository.findByCompanyId(companyId);
-        List<SupplierProduct> allContracts = supplierProductRepository.findAll().stream()
-                .filter(sp -> sp.getCompany() != null && companyId.equals(sp.getCompany().getId()))
-                .toList();
+        List<SupplierProduct> allContracts = supplierProductRepository.findByCompanyId(companyId);
 
         List<SupplierPerformanceMetric> metrics = new ArrayList<>();
 

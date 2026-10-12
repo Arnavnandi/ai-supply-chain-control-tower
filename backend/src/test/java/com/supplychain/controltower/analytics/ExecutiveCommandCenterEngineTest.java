@@ -81,7 +81,33 @@ class ExecutiveCommandCenterEngineTest {
                 commandCenterEngine.generateExecutiveCommandCenterReport();
 
         assertNotNull(report);
-        assertTrue(report.getOverallResiliencyIndex() > 0.0);
-        assertNotNull(report.getResiliencyStatusBand());
+        assertEquals(0.0, report.getOverallResiliencyIndex());
+        assertEquals("INSUFFICIENT_DATA", report.getResiliencyStatusBand());
+        assertTrue(report.getExecutiveBriefingSummary().contains("Insufficient operational telemetry"));
+    }
+
+    @Test
+    void testGenerateExecutiveCommandCenterReportWithPartiallyPopulatedData() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        Supplier supplier = new Supplier();
+        supplier.setReliabilityScore(new BigDecimal("90.0"));
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
+
+        Inventory inventory = new Inventory();
+        inventory.setQuantityAvailable(100);
+        inventory.setSafetyStock(50);
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of(inventory));
+
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(efficacyEngine.calculateHistoricalEfficacy()).thenReturn(null);
+
+        ExecutiveCommandCenterEngine.ExecutiveScorecardReport report =
+                commandCenterEngine.generateExecutiveCommandCenterReport();
+
+        assertNotNull(report);
+        assertTrue(report.getOverallResiliencyIndex() >= 85.0);
+        assertNotEquals("INSUFFICIENT_DATA", report.getResiliencyStatusBand());
+        assertEquals(0.0, report.getWarehouseCapacityComponentScore());
+        assertEquals(0.0, report.getHistoricalEfficacyComponentScore());
     }
 }

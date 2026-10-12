@@ -47,21 +47,50 @@ class TelemetryWebSocketHandlerTest {
         handler.afterConnectionEstablished(sessionA);
 
         org.junit.jupiter.api.Assertions.assertEquals(10L, attributes.get("companyId"));
+        org.junit.jupiter.api.Assertions.assertEquals(1, handler.getActiveSessionCount());
+    }
+
+    @Test
+    void testHandshakeRejectsUnauthenticatedConnectionWithoutToken() throws Exception {
+        when(sessionA.getUri()).thenReturn(URI.create("/ws/telemetry"));
+
+        handler.afterConnectionEstablished(sessionA);
+
+        org.junit.jupiter.api.Assertions.assertEquals(0, handler.getActiveSessionCount());
+        verify(sessionA, times(1)).close(any(org.springframework.web.socket.CloseStatus.class));
+    }
+
+    @Test
+    void testHandshakeRejectsInvalidToken() throws Exception {
+        when(tokenProvider.validateToken("invalidToken")).thenReturn(false);
+        when(sessionA.getUri()).thenReturn(URI.create("/ws/telemetry?token=invalidToken"));
+
+        handler.afterConnectionEstablished(sessionA);
+
+        org.junit.jupiter.api.Assertions.assertEquals(0, handler.getActiveSessionCount());
+        verify(sessionA, times(1)).close(any(org.springframework.web.socket.CloseStatus.class));
     }
 
     @Test
     void testBroadcastMessageToCompanyDeliversToTargetCompanyAndSkipsOtherCompany() throws Exception {
-        Map<String, Object> attrsA = new HashMap<>(Map.of("companyId", 1L));
-        Map<String, Object> attrsB = new HashMap<>(Map.of("companyId", 2L));
+        Map<String, Object> attrsA = new HashMap<>();
+        Map<String, Object> attrsB = new HashMap<>();
 
-        when(sessionA.isOpen()).thenReturn(true);
+        when(tokenProvider.validateToken("tokenA")).thenReturn(true);
+        when(tokenProvider.getCompanyIdFromJwt("tokenA")).thenReturn(1L);
+        when(sessionA.getUri()).thenReturn(URI.create("/ws/telemetry?token=tokenA"));
         when(sessionA.getAttributes()).thenReturn(attrsA);
 
-        when(sessionB.isOpen()).thenReturn(true);
+        when(tokenProvider.validateToken("tokenB")).thenReturn(true);
+        when(tokenProvider.getCompanyIdFromJwt("tokenB")).thenReturn(2L);
+        when(sessionB.getUri()).thenReturn(URI.create("/ws/telemetry?token=tokenB"));
         when(sessionB.getAttributes()).thenReturn(attrsB);
 
         handler.afterConnectionEstablished(sessionA);
         handler.afterConnectionEstablished(sessionB);
+
+        when(sessionA.isOpen()).thenReturn(true);
+        when(sessionB.isOpen()).thenReturn(true);
 
         // Broadcast event for Company 1
         handler.broadcastMessageToCompany(1L, "{\"eventType\":\"STOCKOUT\"}");

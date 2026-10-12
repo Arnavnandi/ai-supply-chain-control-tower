@@ -7,7 +7,8 @@ import {
   ShieldAlert,
   HelpCircle,
   TrendingUp,
-  Radar
+  Radar,
+  RefreshCw
 } from 'lucide-react';
 import {
   AreaChart,
@@ -69,27 +70,31 @@ export const DashboardPage: React.FC = () => {
   const [radarReport, setRadarReport] = useState<EarlyWarningRadarReport | null>(null);
   const [executiveScorecard, setExecutiveScorecard] = useState<ExecutiveScorecardReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedExplainableItem, setSelectedExplainableItem] = useState<ExplainableRiskItem | null>(null);
 
+  const fetchDashboardData = async (isManualRefresh = false) => {
+    if (isManualRefresh) setRefreshing(true);
+    try {
+      const [sumRes, intelRes, radarRes, execRes] = await Promise.all([
+        axiosInstance.get('/dashboard/summary'),
+        axiosInstance.get('/intelligence/summary'),
+        axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=false'),
+        axiosInstance.get('/public/simulation/executive/command-center')
+      ]);
+      setSummary(sumRes.data);
+      setIntelligence(intelRes.data);
+      setRadarReport(radarRes.data);
+      setExecutiveScorecard(execRes.data);
+    } catch (err) {
+      console.error('Failed to load control tower intelligence', err);
+    } finally {
+      setLoading(false);
+      if (isManualRefresh) setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [sumRes, intelRes, radarRes, execRes] = await Promise.all([
-          axiosInstance.get('/dashboard/summary'),
-          axiosInstance.get('/intelligence/summary'),
-          axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=false'),
-          axiosInstance.get('/public/simulation/executive/command-center')
-        ]);
-        setSummary(sumRes.data);
-        setIntelligence(intelRes.data);
-        setRadarReport(radarRes.data);
-        setExecutiveScorecard(execRes.data);
-      } catch (err) {
-        console.error('Failed to load control tower intelligence', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchDashboardData();
   }, []);
 
@@ -116,7 +121,7 @@ export const DashboardPage: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-black text-white">
-                  {executiveScorecard.overallResiliencyIndex.toFixed(1)}
+                  {executiveScorecard.overallResiliencyIndex > 0 ? executiveScorecard.overallResiliencyIndex.toFixed(1) : 'N/A'}
                 </span>
                 <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">/ 100</span>
                 <span className={`px-3 py-1 text-xs font-extrabold uppercase rounded-lg border ${
@@ -124,9 +129,13 @@ export const DashboardPage: React.FC = () => {
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                     : executiveScorecard.resiliencyStatusBand === 'HEALTHY'
                     ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : executiveScorecard.resiliencyStatusBand === 'WARNING'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : executiveScorecard.resiliencyStatusBand === 'CRITICAL'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                    : 'bg-slate-700/30 text-slate-400 border-slate-600/40'
                 }`}>
-                  {executiveScorecard.resiliencyStatusBand} Resiliency
+                  {executiveScorecard.resiliencyStatusBand === 'INSUFFICIENT_DATA' ? 'Insufficient Data' : `${executiveScorecard.resiliencyStatusBand} Resiliency`}
                 </span>
               </div>
               <h2 className="text-base font-bold text-white">Executive Command Center Resiliency Index</h2>
@@ -137,22 +146,30 @@ export const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto shrink-0">
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Supplier OTIF (30%)</span>
-                <span className="text-base font-black text-purple-300">{executiveScorecard.supplierOtifComponentScore.toFixed(0)}%</span>
+                <span className="text-base font-black text-purple-300">
+                  {executiveScorecard.supplierOtifComponentScore > 0 ? `${executiveScorecard.supplierOtifComponentScore.toFixed(0)}%` : 'N/A'}
+                </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Inventory Safety (25%)</span>
-                <span className="text-base font-black text-cyan-300">{executiveScorecard.inventoryBufferComponentScore.toFixed(0)}%</span>
+                <span className="text-base font-black text-cyan-300">
+                  {executiveScorecard.inventoryBufferComponentScore > 0 ? `${executiveScorecard.inventoryBufferComponentScore.toFixed(0)}%` : 'N/A'}
+                </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Warehouse Health (25%)</span>
-                <span className="text-base font-black text-amber-300">{executiveScorecard.warehouseCapacityComponentScore.toFixed(0)}%</span>
+                <span className="text-base font-black text-amber-300">
+                  {executiveScorecard.warehouseCapacityComponentScore > 0 ? `${executiveScorecard.warehouseCapacityComponentScore.toFixed(0)}%` : 'N/A'}
+                </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Efficacy Rating (20%)</span>
-                <span className="text-base font-black text-emerald-300">{executiveScorecard.historicalEfficacyComponentScore.toFixed(0)}%</span>
+                <span className="text-base font-black text-emerald-300">
+                  {executiveScorecard.historicalEfficacyComponentScore > 0 ? `${executiveScorecard.historicalEfficacyComponentScore.toFixed(0)}%` : 'N/A'}
+                </span>
               </div>
             </div>
           </div>
@@ -176,28 +193,47 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <Link
-          to="/ai-assistant"
-          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-2 transition-all shadow-lg shadow-indigo-600/20 shrink-0"
-        >
-          <Bot className="w-4 h-4" />
-          <span>Ask AI Assistant</span>
-        </Link>
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={() => fetchDashboardData(true)}
+            disabled={refreshing}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition-all border border-slate-700/80 disabled:opacity-50 cursor-pointer"
+            title="Recalculate and refresh dashboard metrics from database"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'}`} />
+            <span>{refreshing ? 'Recalculating...' : 'Refresh Telemetry'}</span>
+          </button>
+          <Link
+            to="/ai-assistant"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-2 transition-all shadow-lg shadow-indigo-600/20 shrink-0"
+          >
+            <Bot className="w-4 h-4" />
+            <span>Ask AI Assistant</span>
+          </Link>
+        </div>
       </div>
 
       {/* 1.5. Predictive Early-Warning Radar Widget */}
-      {radarReport && radarReport.earlyWarnings && (
-        <div className="bg-slate-900/90 border border-amber-500/30 p-5 rounded-2xl shadow-xl space-y-4 relative overflow-hidden">
+      {radarReport && (
+        <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-                <Radar className="w-5 h-5 animate-pulse text-amber-400" />
+              <div className={`p-2.5 rounded-xl border ${
+                radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              }`}>
+                <Radar className={`w-5 h-5 ${radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0 ? 'animate-pulse text-amber-400' : 'text-emerald-400'}`} />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <span>Predictive Disruption Early-Warning Radar</span>
-                  <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
-                    Autonomous Intelligence
+                  <span className={`px-2 py-0.5 text-[10px] font-extrabold uppercase rounded border ${
+                    radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  }`}>
+                    {radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0 ? 'Autonomous Intelligence' : 'Nominal Status'}
                   </span>
                 </h3>
                 <p className="text-xs text-slate-400">Continuous anomaly detection scanning lead times, burn velocity & warehouse capacity</p>
@@ -206,38 +242,50 @@ export const DashboardPage: React.FC = () => {
 
             <div className="flex items-center gap-3 text-xs">
               <span className="text-slate-400">Highest Failure Probability:</span>
-              <span className="px-2.5 py-1 bg-red-500/20 text-red-400 border border-red-500/30 font-bold rounded-lg">
-                {(radarReport.highestFailureProbability * 100).toFixed(0)}% Impending Disruption
+              <span className={`px-2.5 py-1 font-bold rounded-lg border ${
+                radarReport.highestFailureProbability > 0
+                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              }`}>
+                {radarReport.highestFailureProbability > 0
+                  ? `${(radarReport.highestFailureProbability * 100).toFixed(0)}% Impending Disruption`
+                  : '0% (Nominal)'}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {radarReport.earlyWarnings.map((warn) => (
-              <div key={warn.warningId} className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
-                    {warn.domain} • {warn.targetEntity}
-                  </span>
-                  <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold rounded">
-                    Impact in {warn.estimatedDaysToImpact} Days
-                  </span>
-                </div>
-
-                <h4 className="text-xs font-bold text-white">{warn.predictedDisruptionType}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">{warn.anomalyExplanation}</p>
-
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                  <span className="text-emerald-400 font-semibold truncate max-w-[200px]">{warn.proactiveMitigationStrategy}</span>
-                  {warn.recommendationId && (
-                    <span className="text-purple-300 font-mono font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 whitespace-nowrap">
-                      Rec #{warn.recommendationId}
+          {radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {radarReport.earlyWarnings.map((warn) => (
+                <div key={warn.warningId} className="bg-slate-950/80 border border-slate-800 p-4 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
+                      {warn.domain} • {warn.targetEntity}
                     </span>
-                  )}
+                    <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold rounded">
+                      Impact in {warn.estimatedDaysToImpact} Days
+                    </span>
+                  </div>
+
+                  <h4 className="text-xs font-bold text-white">{warn.predictedDisruptionType}</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">{warn.anomalyExplanation}</p>
+
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                    <span className="text-emerald-400 font-semibold truncate max-w-[200px]">{warn.proactiveMitigationStrategy}</span>
+                    {warn.recommendationId && (
+                      <span className="text-purple-300 font-mono font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 whitespace-nowrap">
+                        Rec #{warn.recommendationId}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-slate-950/40 border border-slate-800/60 rounded-xl text-center text-xs text-slate-400">
+              No predictive disruption anomalies detected. Operational parameters within normal tolerances across active network.
+            </div>
+          )}
         </div>
       )}
 
@@ -278,7 +326,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <p className="text-2xl font-bold text-white mt-2">{summary?.totalProducts || 0} Products</p>
           <p className="text-xs text-slate-400 mt-1">
-            Total Available Stock: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString()} units</span>
+            Total Available Stock: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString() || 0} units</span>
           </p>
         </div>
 
@@ -291,9 +339,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
           <p className="text-2xl font-bold text-emerald-400 mt-2">
-            ${summary?.totalInventoryValue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            ${summary?.totalInventoryValue?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
           </p>
-          <p className="text-xs text-slate-400 mt-1">Across 4 regional logistics hubs</p>
+          <p className="text-xs text-slate-400 mt-1">Across {summary?.warehouseUtilization?.length || 0} regional logistics hubs</p>
         </div>
 
         {/* Supplier Reliability */}
@@ -304,8 +352,10 @@ export const DashboardPage: React.FC = () => {
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-purple-300 mt-2">{summary?.overallSupplierReliabilityPct}%</p>
-          <p className="text-xs text-slate-400 mt-1">Delayed Cargo Transit: <span className="text-rose-400 font-semibold">{summary?.delayedShipmentsCount} shipments</span></p>
+          <p className="text-2xl font-bold text-purple-300 mt-2">
+            {summary?.overallSupplierReliabilityPct != null ? `${summary.overallSupplierReliabilityPct}%` : 'N/A'}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">Delayed Cargo Transit: <span className="text-rose-400 font-semibold">{summary?.delayedShipmentsCount || 0} shipments</span></p>
         </div>
       </div>
 
@@ -324,39 +374,45 @@ export const DashboardPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recommendations.slice(0, 6).map((item) => (
-            <div
-              key={item.id}
-              className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all space-y-3 flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    {item.category}
-                  </span>
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                    item.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                    item.severity === 'HIGH' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                  }`}>
-                    {item.severity}
-                  </span>
-                </div>
-                <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{item.title}</h4>
-                <p className="text-xs text-slate-400 line-clamp-2">{item.problemDetected}</p>
-              </div>
-
-              <button
-                onClick={() => setSelectedExplainableItem(item)}
-                className="w-full mt-2 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+        {recommendations.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recommendations.slice(0, 6).map((item) => (
+              <div
+                key={item.id}
+                className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all space-y-3 flex flex-col justify-between"
               >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>Explain Recommendation</span>
-              </button>
-            </div>
-          ))}
-        </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                      {item.category}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                      item.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                      item.severity === 'HIGH' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                      'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                    }`}>
+                      {item.severity}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{item.title}</h4>
+                  <p className="text-xs text-slate-400 line-clamp-2">{item.problemDetected}</p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedExplainableItem(item)}
+                  className="w-full mt-2 py-2 px-3 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>Explain Recommendation</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center text-slate-400 text-xs border border-slate-800/80 rounded-xl bg-slate-950/40">
+            No active risk alerts or mitigation proposals detected for this company. Operational state is nominal.
+          </div>
+        )}
       </div>
 
       {/* 4. Analytics Charts Grid */}
@@ -389,7 +445,11 @@ export const DashboardPage: React.FC = () => {
                   <Area type="monotone" dataKey="safety" stroke="#f59e0b" fill="none" strokeDasharray="4 4" name="Safety Threshold" />
                 </AreaChart>
               </ResponsiveContainer>
-            ) : null}
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                No multi-warehouse inventory telemetry recorded yet.
+              </div>
+            )}
           </div>
         </div>
 
@@ -415,7 +475,11 @@ export const DashboardPage: React.FC = () => {
                   <Line type="monotone" dataKey="forecasted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name="Statistical Forecast" />
                 </LineChart>
               </ResponsiveContainer>
-            ) : null}
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                No customer order trends recorded yet to compute demand forecast.
+              </div>
+            )}
           </div>
         </div>
       </div>

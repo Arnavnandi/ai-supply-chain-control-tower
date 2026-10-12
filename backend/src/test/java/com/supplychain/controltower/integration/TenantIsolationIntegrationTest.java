@@ -15,6 +15,10 @@ import com.supplychain.controltower.exception.TenantContextMissingException;
 import com.supplychain.controltower.repository.*;
 import com.supplychain.controltower.security.TenantContext;
 import com.supplychain.controltower.service.*;
+import com.supplychain.controltower.ai.tools.*;
+import com.supplychain.controltower.controller.AdvancedAnalyticsController;
+import com.supplychain.controltower.entity.Shipment;
+import com.supplychain.controltower.entity.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -69,6 +74,30 @@ class TenantIsolationIntegrationTest {
 
     @Autowired
     private RiskController riskController;
+
+    @Autowired
+    private SupplierRepository supplierRepository;
+
+    @Autowired
+    private ShipmentRepository shipmentRepository;
+
+    @Autowired
+    private SupplierTools supplierTools;
+
+    @Autowired
+    private WarehouseTools warehouseTools;
+
+    @Autowired
+    private LogisticsTools logisticsTools;
+
+    @Autowired
+    private ForecastTools forecastTools;
+
+    @Autowired
+    private AnalyticsTools analyticsTools;
+
+    @Autowired
+    private AdvancedAnalyticsController advancedAnalyticsController;
 
     private Company companyA;
     private Company companyB;
@@ -359,5 +388,199 @@ class TenantIsolationIntegrationTest {
         // Under Company B: Attempt to access Company A's alert ID throws 404
         final Long alertAId = savedAlertA.getId();
         assertThrows(ResourceNotFoundException.class, () -> riskController.getRiskById(alertAId));
+    }
+
+    @Test
+    @DisplayName("9. AI Tools Strict Isolation: Spring AI tools only return authenticated company records")
+    void testAiToolsStrictTenantIsolation() {
+        // Setup records for Company A
+        Supplier supA = supplierRepository.save(Supplier.builder()
+                .company(companyA)
+                .code("SUP-A")
+                .name("Supplier Alpha")
+                .reliabilityScore(new BigDecimal("95.00"))
+                .deliveryPerformancePct(new BigDecimal("92.00"))
+                .build());
+
+        Warehouse whA = warehouseRepository.save(Warehouse.builder()
+                .company(companyA)
+                .code("WH-A")
+                .name("Warehouse Alpha")
+                .location("Location Alpha")
+                .totalCapacityUnits(1000)
+                .currentUtilizationUnits(500)
+                .utilizationPercentage(new BigDecimal("50.00"))
+                .build());
+
+        Shipment shipA = shipmentRepository.save(Shipment.builder()
+                .company(companyA)
+                .trackingCode("TRK-A-001")
+                .supplier(supA)
+                .destinationWarehouse(whA)
+                .shippedDate(LocalDate.now().minusDays(5))
+                .estimatedDeliveryDate(LocalDate.now().plusDays(2))
+                .status(Shipment.ShipmentStatus.DELAYED)
+                .delayDays(2)
+                .build());
+
+        Product prodA = productRepository.save(Product.builder()
+                .company(companyA)
+                .sku("SKU-AI-A")
+                .name("Product Alpha")
+                .price(new BigDecimal("100.00"))
+                .reorderLevel(10)
+                .safetyStock(5)
+                .leadTimeDays(7)
+                .build());
+
+        RiskAlert alertA = riskAlertRepository.save(RiskAlert.builder()
+                .company(companyA)
+                .riskCategory(RiskAlert.RiskCategory.STOCKOUT)
+                .severityLevel(RiskAlert.SeverityLevel.HIGH)
+                .entityType("Product")
+                .description("Alert for A")
+                .recommendationText("Reorder")
+                .status(RiskAlert.RiskStatus.ACTIVE)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        // Setup records for Company B
+        Supplier supB = supplierRepository.save(Supplier.builder()
+                .company(companyB)
+                .code("SUP-B")
+                .name("Supplier Beta")
+                .reliabilityScore(new BigDecimal("88.00"))
+                .deliveryPerformancePct(new BigDecimal("85.00"))
+                .build());
+
+        Warehouse whB = warehouseRepository.save(Warehouse.builder()
+                .company(companyB)
+                .code("WH-B")
+                .name("Warehouse Beta")
+                .location("Location Beta")
+                .totalCapacityUnits(2000)
+                .currentUtilizationUnits(1200)
+                .utilizationPercentage(new BigDecimal("60.00"))
+                .build());
+
+        Shipment shipB = shipmentRepository.save(Shipment.builder()
+                .company(companyB)
+                .trackingCode("TRK-B-001")
+                .supplier(supB)
+                .destinationWarehouse(whB)
+                .shippedDate(LocalDate.now().minusDays(6))
+                .estimatedDeliveryDate(LocalDate.now().plusDays(1))
+                .status(Shipment.ShipmentStatus.DELAYED)
+                .delayDays(4)
+                .build());
+
+        Product prodB = productRepository.save(Product.builder()
+                .company(companyB)
+                .sku("SKU-AI-B")
+                .name("Product Beta")
+                .price(new BigDecimal("200.00"))
+                .reorderLevel(20)
+                .safetyStock(10)
+                .leadTimeDays(14)
+                .build());
+
+        RiskAlert alertB = riskAlertRepository.save(RiskAlert.builder()
+                .company(companyB)
+                .riskCategory(RiskAlert.RiskCategory.SHIPMENT_DELAY)
+                .severityLevel(RiskAlert.SeverityLevel.CRITICAL)
+                .entityType("Shipment")
+                .description("Alert for B")
+                .recommendationText("Reroute")
+                .status(RiskAlert.RiskStatus.ACTIVE)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        // Test under Company A context
+        TenantContext.setCompanyId(companyA.getId());
+        var supsA = supplierTools.getSupplierPerformance();
+        assertTrue(supsA.stream().anyMatch(s -> "SUP-A".equals(s.code())));
+        assertFalse(supsA.stream().anyMatch(s -> "SUP-B".equals(s.code())), "Company A must not see Company B's suppliers in AI tools");
+
+        var whsA = warehouseTools.getWarehouseUtilization();
+        assertTrue(whsA.stream().anyMatch(w -> "WH-A".equals(w.code())));
+        assertFalse(whsA.stream().anyMatch(w -> "WH-B".equals(w.code())), "Company A must not see Company B's warehouses in AI tools");
+
+        var delaysA = logisticsTools.getDelayedShipments();
+        assertTrue(delaysA.stream().anyMatch(d -> "TRK-A-001".equals(d.trackingCode())));
+        assertFalse(delaysA.stream().anyMatch(d -> "TRK-B-001".equals(d.trackingCode())), "Company A must not see Company B's delayed shipments in AI tools");
+
+        var prodsA = forecastTools.getDemandForecasts();
+        assertTrue(prodsA.stream().anyMatch(f -> "SKU-AI-A".equals(f.sku())));
+        assertFalse(prodsA.stream().anyMatch(f -> "SKU-AI-B".equals(f.sku())), "Company A must not see Company B's products in AI tools");
+
+        var risksA = analyticsTools.getSupplyChainRisks();
+        assertTrue(risksA.stream().anyMatch(r -> "Alert for A".equals(r.description())));
+        assertFalse(risksA.stream().anyMatch(r -> "Alert for B".equals(r.description())), "Company A must not see Company B's risk alerts in AI tools");
+
+        // Test under Company B context
+        TenantContext.setCompanyId(companyB.getId());
+        var supsB = supplierTools.getSupplierPerformance();
+        assertTrue(supsB.stream().anyMatch(s -> "SUP-B".equals(s.code())));
+        assertFalse(supsB.stream().anyMatch(s -> "SUP-A".equals(s.code())), "Company B must not see Company A's suppliers in AI tools");
+
+        var whsB = warehouseTools.getWarehouseUtilization();
+        assertTrue(whsB.stream().anyMatch(w -> "WH-B".equals(w.code())));
+        assertFalse(whsB.stream().anyMatch(w -> "WH-A".equals(w.code())), "Company B must not see Company A's warehouses in AI tools");
+
+        var delaysB = logisticsTools.getDelayedShipments();
+        assertTrue(delaysB.stream().anyMatch(d -> "TRK-B-001".equals(d.trackingCode())));
+        assertFalse(delaysB.stream().anyMatch(d -> "TRK-A-001".equals(d.trackingCode())), "Company B must not see Company A's delayed shipments in AI tools");
+
+        var prodsB = forecastTools.getDemandForecasts();
+        assertTrue(prodsB.stream().anyMatch(f -> "SKU-AI-B".equals(f.sku())));
+        assertFalse(prodsB.stream().anyMatch(f -> "SKU-AI-A".equals(f.sku())), "Company B must not see Company A's products in AI tools");
+
+        var risksB = analyticsTools.getSupplyChainRisks();
+        assertTrue(risksB.stream().anyMatch(r -> "Alert for B".equals(r.description())));
+        assertFalse(risksB.stream().anyMatch(r -> "Alert for A".equals(r.description())), "Company B must not see Company A's risk alerts in AI tools");
+    }
+
+    @Test
+    @DisplayName("10. Product Accuracy Cross-Tenant ID Manipulation Blocked")
+    void testProductAccuracyCrossTenantDirectIdLookupBlocked() {
+        Product prodA = productRepository.save(Product.builder()
+                .company(companyA)
+                .sku("SKU-ACC-A")
+                .name("Accuracy Product Alpha")
+                .price(new BigDecimal("50.00"))
+                .reorderLevel(10)
+                .safetyStock(5)
+                .leadTimeDays(7)
+                .build());
+
+        Product prodB = productRepository.save(Product.builder()
+                .company(companyB)
+                .sku("SKU-ACC-B")
+                .name("Accuracy Product Beta")
+                .price(new BigDecimal("80.00"))
+                .reorderLevel(20)
+                .safetyStock(10)
+                .leadTimeDays(10)
+                .build());
+
+        // Under Company A: Own product succeeds
+        TenantContext.setCompanyId(companyA.getId());
+        var accA = advancedAnalyticsController.getForecastAccuracy(prodA.getId()).getBody();
+        assertNotNull(accA);
+        assertEquals(prodA.getId(), accA.getProductId());
+
+        // Under Company A: Manipulated Product ID of Company B throws 404 (ResourceNotFoundException)
+        final Long prodBId = prodB.getId();
+        assertThrows(ResourceNotFoundException.class, () -> advancedAnalyticsController.getForecastAccuracy(prodBId));
+
+        // Under Company B: Own product succeeds
+        TenantContext.setCompanyId(companyB.getId());
+        var accB = advancedAnalyticsController.getForecastAccuracy(prodB.getId()).getBody();
+        assertNotNull(accB);
+        assertEquals(prodB.getId(), accB.getProductId());
+
+        // Under Company B: Manipulated Product ID of Company A throws 404 (ResourceNotFoundException)
+        final Long prodAId = prodA.getId();
+        assertThrows(ResourceNotFoundException.class, () -> advancedAnalyticsController.getForecastAccuracy(prodAId));
     }
 }

@@ -183,59 +183,33 @@ public class PredictiveDisruptionEarlyWarningEngine {
             }
         }
 
-        // Default Synthetic Early Warning Node if DB metrics are optimal
-        if (warnings.isEmpty()) {
-            PredictiveEarlyWarningNode defaultNode = PredictiveEarlyWarningNode.builder()
-                    .warningId("WARN-LOG-DEFAULT")
-                    .domain("LOGISTICS")
-                    .predictedDisruptionType(DisruptionSimulationService.DisruptionType.LOGISTICS_DELAY)
-                    .targetEntity("TRK-ROUTE-009")
-                    .anomalySeverityScore(68.0)
-                    .predictiveRiskBand("HIGH")
-                    .failureProbability(0.79)
-                    .estimatedDaysToImpact(3)
-                    .anomalyExplanation("Transit delay acceleration detected on Route TRK-ROUTE-009 (Port congestion anomaly).")
-                    .proactiveMitigationStrategy("Reroute high-priority shipments to secondary air freight carrier.")
-                    .build();
-
-            if (convertToActionProposals) {
-                try {
-                    DisruptionMitigationPolicyEngine.MitigationPolicyResult polRes =
-                            policyEngine.evaluateAndMitigate(DisruptionSimulationService.DisruptionType.LOGISTICS_DELAY, "TRK-ROUTE-009", true);
-                    if (polRes.getRecommendationId() != null) {
-                        defaultNode.setRecommendationId(polRes.getRecommendationId());
-                        recommendationIds.add(polRes.getRecommendationId());
-                    }
-                } catch (Exception ex) {
-                    log.warn("[PREDICTIVE ENGINE WARN] Proposal creation error for default warning: {}", ex.getMessage());
-                }
-            }
-            warnings.add(defaultNode);
-        }
+        // No artificial synthetic warning injected when DB metrics are optimal or unpopulated
 
         int criticalCount = (int) warnings.stream().filter(w -> "CRITICAL".equalsIgnoreCase(w.getPredictiveRiskBand())).count();
         double maxProb = warnings.stream().mapToDouble(PredictiveEarlyWarningNode::getFailureProbability).max().orElse(0.0);
 
-        // Broadcast Telemetry Event
-        try {
-            telemetryPublisher.publish(TelemetryEvent.builder()
-                    .eventType(TelemetryEvent.EventType.STOCKOUT_ALERT)
-                    .severity(TelemetryEvent.Severity.WARNING)
-                    .sourceDomain("PREDICTIVE_RADAR_ENGINE")
-                    .entityId("SYSTEM-WIDE")
-                    .message(String.format("[PREDICTIVE RADAR DETECTED] %d early-warning anomalies detected. Highest probability: %.2f.",
-                            warnings.size(), maxProb))
-                    .metadata(Map.ofEntries(
-                            Map.entry("scanId", scanId),
-                            Map.entry("anomaliesCount", warnings.size()),
-                            Map.entry("criticalWarningsCount", criticalCount),
-                            Map.entry("highestFailureProbability", maxProb),
-                            Map.entry("recommendationIds", recommendationIds.toString()),
-                            Map.entry("status", "EARLY_WARNINGS_DETECTED")
-                    ))
-                    .build());
-        } catch (Exception ex) {
-            log.warn("[PREDICTIVE TELEMETRY WARN] Could not publish radar telemetry: {}", ex.getMessage());
+        // Broadcast Telemetry Event only if real anomalies detected
+        if (!warnings.isEmpty()) {
+            try {
+                telemetryPublisher.publish(TelemetryEvent.builder()
+                        .eventType(TelemetryEvent.EventType.STOCKOUT_ALERT)
+                        .severity(TelemetryEvent.Severity.WARNING)
+                        .sourceDomain("PREDICTIVE_RADAR_ENGINE")
+                        .entityId("SYSTEM-WIDE")
+                        .message(String.format("[PREDICTIVE RADAR DETECTED] %d early-warning anomalies detected. Highest probability: %.2f.",
+                                warnings.size(), maxProb))
+                        .metadata(Map.ofEntries(
+                                Map.entry("scanId", scanId),
+                                Map.entry("anomaliesCount", warnings.size()),
+                                Map.entry("criticalWarningsCount", criticalCount),
+                                Map.entry("highestFailureProbability", maxProb),
+                                Map.entry("recommendationIds", recommendationIds.toString()),
+                                Map.entry("status", "EARLY_WARNINGS_DETECTED")
+                        ))
+                        .build());
+            } catch (Exception ex) {
+                log.warn("[PREDICTIVE TELEMETRY WARN] Could not publish radar telemetry: {}", ex.getMessage());
+            }
         }
 
         EarlyWarningRadarReport report = EarlyWarningRadarReport.builder()

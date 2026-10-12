@@ -18,7 +18,11 @@ export const DataImportPage: React.FC = () => {
       const res = await axiosInstance.post('/data/import/sample-dataset');
       setResult(res.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Sample dataset import failed.');
+      if (err.response?.data?.errors || err.response?.data?.totalRowsProcessed !== undefined) {
+        setResult(err.response.data);
+      } else {
+        setError(err.response?.data?.message || 'Sample dataset import failed.');
+      }
     } finally {
       setLoadingSample(false);
     }
@@ -47,7 +51,11 @@ export const DataImportPage: React.FC = () => {
       });
       setResult(res.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'CSV file upload failed.');
+      if (err.response?.data?.errors || err.response?.data?.totalRowsProcessed !== undefined) {
+        setResult(err.response.data);
+      } else {
+        setError(err.response?.data?.message || 'CSV file upload failed.');
+      }
     } finally {
       setLoadingFile(false);
     }

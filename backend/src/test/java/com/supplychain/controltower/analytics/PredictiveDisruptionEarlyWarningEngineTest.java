@@ -105,4 +105,22 @@ class PredictiveDisruptionEarlyWarningEngineTest {
         assertTrue(report.isProactiveProposalsGenerated());
         assertTrue(report.getGeneratedRecommendationIds().contains(205L));
     }
+
+    @Test
+    void testScanAndPredictEarlyWarningsWithNoAnomaliesReturnsZero() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        when(supplierRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(inventoryRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+
+        PredictiveDisruptionEarlyWarningEngine.EarlyWarningRadarReport report =
+                engine.scanAndPredictEarlyWarnings(false);
+
+        assertNotNull(report);
+        assertEquals(0, report.getTotalAnomaliesDetected());
+        assertEquals(0, report.getCriticalWarningsCount());
+        assertEquals(0.0, report.getHighestFailureProbability());
+        assertTrue(report.getEarlyWarnings().isEmpty());
+        verify(telemetryPublisher, never()).publish(any());
+    }
 }

@@ -63,14 +63,19 @@ public class SupplyChainIntelligenceService {
         List<RiskAnalysisEngine.ExplainableRiskItem> recommendations = new ArrayList<>(riskReport.getRiskItems());
 
         // 5. Construct Executive AI Briefing text
-        String briefing = String.format(
-                "Operational Status: System Risk Score is %.1f (%s RISK). Detected %d Critical Risks, %d High Risks, and %d Medium Risks. " +
-                "Primary operational focus required on %d low-stock SKUs and %d delayed logistics shipments. " +
-                "All telemetry grounded directly in live 12-month historical dataset.",
-                riskReport.getOverallRiskScore(), riskReport.getRiskLevel(),
-                riskReport.getCriticalRisksCount(), riskReport.getHighRisksCount(), riskReport.getMediumRisksCount(),
-                kpis.getLowStockProductsCount(), kpis.getDelayedShipmentsCount()
-        );
+        String briefing;
+        if (kpis.getTotalProducts() == 0 && kpis.getLowStockProductsCount() == 0 && kpis.getDelayedShipmentsCount() == 0) {
+            briefing = "Operational Status: No operational data available. Products, inventory, and supplier network are currently unpopulated for this company. Import sample data or add records to activate real-time telemetry.";
+        } else {
+            briefing = String.format(
+                    "Operational Status: System Risk Score is %.1f (%s RISK). Detected %d Critical Risks, %d High Risks, and %d Medium Risks. " +
+                    "Primary operational focus required on %d low-stock SKUs and %d delayed logistics shipments. " +
+                    "All telemetry grounded directly in active operational database records.",
+                    riskReport.getOverallRiskScore(), riskReport.getRiskLevel(),
+                    riskReport.getCriticalRisksCount(), riskReport.getHighRisksCount(), riskReport.getMediumRisksCount(),
+                    kpis.getLowStockProductsCount(), kpis.getDelayedShipmentsCount()
+            );
+        }
 
         return IntelligenceSummaryDto.builder()
                 .summaryKpis(kpis)
