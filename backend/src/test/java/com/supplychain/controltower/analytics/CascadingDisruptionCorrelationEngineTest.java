@@ -36,6 +36,9 @@ class CascadingDisruptionCorrelationEngineTest {
     private WarehouseRepository warehouseRepository;
 
     @Mock
+    private ShipmentRepository shipmentRepository;
+
+    @Mock
     private DisruptionMitigationPolicyEngine policyEngine;
 
     @Mock
@@ -43,6 +46,16 @@ class CascadingDisruptionCorrelationEngineTest {
 
     @InjectMocks
     private CascadingDisruptionCorrelationEngine engine;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.supplychain.controltower.security.TenantContext.clear();
+    }
 
     @Test
     void testAnalyzeCascadingDisruptionSupplierDisruption() {

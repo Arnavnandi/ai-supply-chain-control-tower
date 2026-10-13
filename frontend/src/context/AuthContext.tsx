@@ -11,11 +11,22 @@ interface User {
   companyName?: string;
 }
 
+export interface LoginInitiationResult {
+  mfaRequired: boolean;
+  mfaToken: string;
+  maskedEmail: string;
+  expiresInSeconds: number;
+  resendCooldownSeconds: number;
+  message?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (usernameOrEmail: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string, companyCode?: string, companyName?: string) => Promise<void>;
+  login: (usernameOrEmail: string, password: string) => Promise<LoginInitiationResult>;
+  verifyOtp: (mfaToken: string, otp: string) => Promise<void>;
+  resendOtp: (mfaToken: string) => Promise<LoginInitiationResult>;
+  register: (username: string, email: string, password: string, companyCode?: string, companyName?: string) => Promise<LoginInitiationResult>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -59,17 +70,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [token]);
 
-  const login = async (usernameOrEmail: string, password: string) => {
+  const login = async (usernameOrEmail: string, password: string): Promise<LoginInitiationResult> => {
     const res = await axiosInstance.post('/auth/login', { usernameOrEmail, password });
+    return res.data;
+  };
+
+  const verifyOtp = async (mfaToken: string, otp: string): Promise<void> => {
+    const res = await axiosInstance.post('/auth/verify-otp', { mfaToken, otp });
     const { token: jwtToken, id, username, email, role, companyId, companyCode, companyName } = res.data;
     localStorage.setItem('control_tower_token', jwtToken);
     setToken(jwtToken);
     setUser({ id, username, email, role, companyId, companyCode, companyName });
   };
 
-  const register = async (username: string, email: string, password: string, companyCode?: string, companyName?: string) => {
+  const resendOtp = async (mfaToken: string): Promise<LoginInitiationResult> => {
+    const res = await axiosInstance.post('/auth/resend-otp', { mfaToken });
+    return res.data;
+  };
+
+  const register = async (username: string, email: string, password: string, companyCode?: string, companyName?: string): Promise<LoginInitiationResult> => {
     await axiosInstance.post('/auth/register', { username, email, password, companyCode, companyName });
-    await login(username, password);
+    return await login(username, password);
   };
 
   const logout = () => {
@@ -79,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, verifyOtp, resendOtp, register, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -26,6 +26,7 @@ class AuthControllerTest {
     private com.supplychain.controltower.repository.CompanyRepository companyRepository;
     private PasswordEncoder passwordEncoder;
     private JwtTokenProvider tokenProvider;
+    private com.supplychain.controltower.service.EmailOtpService emailOtpService;
     private AuthController authController;
 
     @BeforeEach
@@ -35,6 +36,7 @@ class AuthControllerTest {
         companyRepository = mock(com.supplychain.controltower.repository.CompanyRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         tokenProvider = mock(JwtTokenProvider.class);
+        emailOtpService = mock(com.supplychain.controltower.service.EmailOtpService.class);
 
         when(passwordEncoder.encode(anyString())).thenReturn("hashed_password");
         com.supplychain.controltower.entity.Company demoCompany = new com.supplychain.controltower.entity.Company();
@@ -48,7 +50,8 @@ class AuthControllerTest {
                 userRepository,
                 companyRepository,
                 passwordEncoder,
-                tokenProvider
+                tokenProvider,
+                emailOtpService
         );
     }
 
@@ -196,5 +199,84 @@ class AuthControllerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(((Map<?, ?>) response.getBody()).get("message").toString().contains("suspended"));
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void testLoginValidCredentialsReturnsMfaChallengeWithoutJwt() {
+        com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
+        loginReq.setUsernameOrEmail("user@company.com");
+        loginReq.setPassword("Secret123!");
+
+        User mockUser = User.builder()
+                .id(42L)
+                .username("user")
+                .email("user@company.com")
+                .role(Role.ROLE_ADMIN)
+                .build();
+
+        com.supplychain.controltower.security.UserPrincipal principal =
+                com.supplychain.controltower.security.UserPrincipal.create(mockUser);
+
+        org.springframework.security.core.Authentication auth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities());
+
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userRepository.findById(42L)).thenReturn(java.util.Optional.of(mockUser));
+
+        com.supplychain.controltower.dto.auth.LoginInitiationResponse initiation =
+                com.supplychain.controltower.dto.auth.LoginInitiationResponse.builder()
+                        .mfaRequired(true)
+                        .mfaToken("test-mfa-token-uuid")
+                        .maskedEmail("u***r@company.com")
+                        .expiresInSeconds(300)
+                        .resendCooldownSeconds(60)
+                        .build();
+
+        when(emailOtpService.initiateOtpChallenge(mockUser)).thenReturn(initiation);
+
+        ResponseEntity<com.supplychain.controltower.dto.auth.LoginInitiationResponse> response =
+                authController.authenticateUser(loginReq);
+
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().isMfaRequired());
+        assertEquals("test-mfa-token-uuid", response.getBody().getMfaToken());
+        assertEquals("u***r@company.com", response.getBody().getMaskedEmail());
+        verify(tokenProvider, never()).generateToken(any());
+    }
+
+    @Test
+    void testVerifyOtpValidCodeIssuesJwtWithPreservedTenantAndRoleClaims() {
+        com.supplychain.controltower.dto.auth.VerifyOtpRequest verifyReq =
+                new com.supplychain.controltower.dto.auth.VerifyOtpRequest("test-mfa-token-uuid", "123456");
+
+        com.supplychain.controltower.entity.Company tenantComp = com.supplychain.controltower.entity.Company.builder()
+                .id(88L)
+                .name("Acme Logistics")
+                .code("COMP-ACME")
+                .status("ACTIVE")
+                .build();
+
+        User mockUser = User.builder()
+                .id(42L)
+                .username("acme_admin")
+                .email("admin@acme.com")
+                .role(Role.ROLE_ADMIN)
+                .company(tenantComp)
+                .build();
+
+        when(emailOtpService.verifyOtp("test-mfa-token-uuid", "123456")).thenReturn(mockUser);
+        when(tokenProvider.generateToken(any())).thenReturn("signed.jwt.token");
+
+        ResponseEntity<com.supplychain.controltower.dto.auth.AuthResponse> response =
+                authController.verifyOtp(verifyReq);
+
+        assertNotNull(response.getBody());
+        assertEquals("signed.jwt.token", response.getBody().getToken());
+        assertEquals(42L, response.getBody().getId());
+        assertEquals("ROLE_ADMIN", response.getBody().getRole());
+        assertEquals(88L, response.getBody().getCompanyId());
+        assertEquals("COMP-ACME", response.getBody().getCompanyCode());
+        assertEquals("Acme Logistics", response.getBody().getCompanyName());
     }
 }

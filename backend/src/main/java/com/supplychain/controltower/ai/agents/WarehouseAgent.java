@@ -27,8 +27,7 @@ public class WarehouseAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
@@ -37,7 +36,9 @@ public class WarehouseAgent {
                             .system("""
                                     You are the Specialized Warehouse Facilities Agent.
                                     Your responsibility is evaluating distribution hub storage capacity, space utilization %, and multi-facility balancing.
-                                    Always ground your analysis in PostgreSQL database data via getWarehouseUtilization.
+                                    Always ground your analysis in PostgreSQL database data via tool getWarehouseUtilization.
+                                    If no warehouse records exist, state clearly that no facilities are registered.
+                                    Never invent warehouses, capacities, or utilization figures.
                                     """)
                             .user(prompt)
                             .functions("getWarehouseUtilization")
@@ -69,6 +70,12 @@ public class WarehouseAgent {
 
         StringBuilder sb = new StringBuilder();
         sb.append("### 🏬 Warehouse Facilities Agent Analysis\n");
+        if (whs.isEmpty()) {
+            sb.append("No warehouse facilities found in database for this company. Please upload warehouse CSV data to monitor storage capacity and space utilization.\n\n");
+            sb.append("**Recommendation**: Import warehouse facilities dataset to activate storage telemetry.");
+            return sb.toString();
+        }
+
         sb.append("Storage capacity and utilization metrics across regional hubs:\n\n");
         for (var w : whs) {
             sb.append("- **").append(w.name()).append("** (Code: `").append(w.code()).append("`, ").append(w.location()).append(")\n");

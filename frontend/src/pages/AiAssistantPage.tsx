@@ -34,7 +34,7 @@ export const AiAssistantPage: React.FC = () => {
 
   const presets = [
     'Which products are at high risk of stockout in the next 7 days?',
-    'Which supplier should we choose for SKU-ELEC-001?',
+    'Which suppliers have the highest on-time delivery (OTIF) performance?',
     'Which shipments are currently delayed in transit?',
     'Which warehouse distribution center has highest utilization?'
   ];

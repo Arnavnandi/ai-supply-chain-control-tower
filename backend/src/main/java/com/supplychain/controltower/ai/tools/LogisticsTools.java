@@ -37,6 +37,12 @@ public class LogisticsTools {
         return results;
     }
 
+    @Description("Retrieves the total count of shipments for this company.")
+    public long getTotalShipmentsCount() {
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        return shipmentRepository.findByCompanyId(companyId).size();
+    }
+
     public record DelayedShipmentRecord(
             Long id,
             String trackingCode,

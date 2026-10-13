@@ -20,8 +20,14 @@ class ResilienceCircuitBreakerTest {
 
     private CircuitBreaker circuitBreaker;
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.supplychain.controltower.security.TenantContext.clear();
+    }
+
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         circuitBreaker = circuitBreakerRegistry.circuitBreaker("llmService");
         if (circuitBreaker != null) {
             circuitBreaker.reset();

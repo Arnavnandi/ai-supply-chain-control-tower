@@ -59,8 +59,7 @@ public class SupervisorAgent {
 
         List<CompletableFuture<DomainFinding>> futures = new ArrayList<>();
 
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
 
         for (String domain : selectedDomains) {
             futures.add(CompletableFuture.supplyAsync(() -> {
@@ -94,7 +93,7 @@ public class SupervisorAgent {
         double overallRiskScore = calculateOverallRiskScore(findings);
         String consensusDecision = determineConsensusDecision(overallRiskScore, findings);
         List<String> prioritizedActions = generatePrioritizedMitigationActions(findings);
-        String supervisorSynthesis = generateSupervisorSynthesis(prompt, selectedDomains, findings, offlineFallback);
+        String supervisorSynthesis = generateSupervisorSynthesis(prompt, selectedDomains, findings, offlineFallback, prioritizedActions);
 
         return SupervisorConsensusResponse.builder()
                 .originalQuery(prompt)
@@ -147,51 +146,56 @@ public class SupervisorAgent {
             switch (domain) {
                 case "INVENTORY":
                     String invResp = inventoryAgent.processQuery(prompt);
+                    boolean invNoData = invResp.contains("No operational inventory records found");
                     return DomainFinding.builder()
                             .domainAgent("INVENTORY")
                             .findingSummary(invResp)
-                            .riskImpactScore(invResp.contains("Stockout Risk Items: `0`") ? 15.0 : 75.0)
-                            .recommendedAction("Expedite purchase orders for low-stock SKUs below safety thresholds.")
+                            .riskImpactScore(invNoData ? 0.0 : (invResp.contains("Stockout Risk Items: `0`") ? 10.0 : 75.0))
+                            .recommendedAction(invNoData ? "Upload inventory CSV to enable stock monitoring." : (invResp.contains("Stockout Risk Items: `0`") ? null : "Expedite purchase orders for low-stock SKUs."))
                             .fallbackUsed(invResp.contains("FALLBACK") || invResp.contains("Analyzed live inventory"))
                             .build();
 
                 case "SUPPLIER":
                     String supResp = supplierAgent.processQuery(prompt);
+                    boolean supNoData = supResp.contains("No supplier records found");
                     return DomainFinding.builder()
                             .domainAgent("SUPPLIER")
                             .findingSummary(supResp)
-                            .riskImpactScore(supResp.contains("HIGH_RISK") ? 80.0 : 30.0)
-                            .recommendedAction("Negotiate lead time SLA guarantees or switch to backup vendor contracts.")
+                            .riskImpactScore(supNoData ? 0.0 : (supResp.contains("HIGH_RISK") ? 80.0 : 25.0))
+                            .recommendedAction(supNoData ? "Upload supplier CSV to monitor vendor performance." : "Negotiate SLA guarantees or review backup vendor contracts.")
                             .fallbackUsed(supResp.contains("FALLBACK") || supResp.contains("Evaluated live supplier"))
                             .build();
 
                 case "LOGISTICS":
                     String logResp = logisticsAgent.processQuery(prompt);
+                    boolean logNoData = logResp.contains("No shipment records found");
                     return DomainFinding.builder()
                             .domainAgent("LOGISTICS")
                             .findingSummary(logResp)
-                            .riskImpactScore(logResp.contains("Delayed Transit Shipments: `0`") ? 10.0 : 70.0)
-                            .recommendedAction("Reroute delayed transit shipments to priority air cargo carriers.")
+                            .riskImpactScore(logNoData ? 0.0 : (logResp.contains("Delayed Transit Shipments: `0`") || logResp.contains("operating on-schedule") ? 10.0 : 70.0))
+                            .recommendedAction(logNoData ? "Upload shipment CSV to track logistics." : (logResp.contains("Delayed Transit Shipments: `0`") || logResp.contains("operating on-schedule") ? null : "Reroute delayed transit shipments to priority air cargo."))
                             .fallbackUsed(logResp.contains("FALLBACK") || logResp.contains("Tracked active shipments"))
                             .build();
 
                 case "WAREHOUSE":
                     String whResp = warehouseAgent.processQuery(prompt);
+                    boolean whNoData = whResp.contains("No warehouse records found");
                     return DomainFinding.builder()
                             .domainAgent("WAREHOUSE")
                             .findingSummary(whResp)
-                            .riskImpactScore(25.0)
-                            .recommendedAction("Rebalance regional stock distribution across secondary warehouse hubs.")
-                            .fallbackUsed(whResp.contains("FALLBACK") || whResp.contains("Monitored regional distribution"))
+                            .riskImpactScore(whNoData ? 0.0 : 20.0)
+                            .recommendedAction(whNoData ? "Upload warehouse CSV to monitor storage utilization." : null)
+                            .fallbackUsed(whResp.contains("FALLBACK") || whResp.contains("Storage capacity"))
                             .build();
 
                 case "RISK":
                     String riskResp = riskAgent.processQuery(prompt);
+                    boolean riskNoData = riskResp.contains("No active risk alerts recorded. Operational records are unpopulated");
                     return DomainFinding.builder()
                             .domainAgent("RISK")
                             .findingSummary(riskResp)
-                            .riskImpactScore(65.0)
-                            .recommendedAction("Execute immediate multi-factor risk mitigation workflow.")
+                            .riskImpactScore(riskNoData ? 0.0 : 50.0)
+                            .recommendedAction(riskNoData ? "Upload operational datasets to activate risk detection." : "Review active risk alerts and initiate mitigation workflows.")
                             .fallbackUsed(riskResp.contains("FALLBACK") || riskResp.contains("Operational Risk Analysis"))
                             .build();
 
@@ -200,8 +204,8 @@ public class SupervisorAgent {
                     return DomainFinding.builder()
                             .domainAgent("RAG")
                             .findingSummary("Retrieved Grounded Project Knowledge: " + ragResult.getAnswer())
-                            .riskImpactScore(10.0)
-                            .recommendedAction("Verify operational procedures against grounded technical documentation.")
+                            .riskImpactScore(0.0)
+                            .recommendedAction(null)
                             .fallbackUsed(false)
                             .build();
 
@@ -209,8 +213,8 @@ public class SupervisorAgent {
                     return DomainFinding.builder()
                             .domainAgent(domain)
                             .findingSummary("Generic domain evaluation completed.")
-                            .riskImpactScore(20.0)
-                            .recommendedAction("Monitor domain metrics.")
+                            .riskImpactScore(0.0)
+                            .recommendedAction(null)
                             .fallbackUsed(true)
                             .build();
             }
@@ -219,7 +223,7 @@ public class SupervisorAgent {
             return DomainFinding.builder()
                     .domainAgent(domain)
                     .findingSummary("Domain telemetry execution error: " + ex.getMessage())
-                    .riskImpactScore(50.0)
+                    .riskImpactScore(0.0)
                     .recommendedAction("Review service health for " + domain)
                     .fallbackUsed(true)
                     .build();
@@ -256,7 +260,7 @@ public class SupervisorAgent {
         return actions;
     }
 
-    private String generateSupervisorSynthesis(String prompt, List<String> domains, List<DomainFinding> findings, boolean fallbackActive) {
+    private String generateSupervisorSynthesis(String prompt, List<String> domains, List<DomainFinding> findings, boolean fallbackActive, List<String> prioritizedActions) {
         String apiKey = System.getenv("GEMINI_API_KEY");
         boolean validKey = apiKey != null && !apiKey.isBlank() && !"unconfigured".equalsIgnoreCase(apiKey) && !apiKey.contains("your-api-key");
         try {
@@ -271,7 +275,8 @@ public class SupervisorAgent {
                         .system("""
                                 You are the Chief Supply Chain Supervisor Agent.
                                 Your job is synthesizing multi-agent findings from Inventory, Supplier, Logistics, Warehouse, and Risk agents into a unified Executive Consensus Briefing.
-                                Highlight cross-domain risk correlations and give clear prioritized mitigation steps.
+                                Ground all statements strictly in the provided multi-agent telemetry and database records.
+                                Never invent numbers, suppliers, or products.
                                 """)
                         .user("User Query: " + prompt + "\n\nMulti-Agent Telemetry:\n" + context.toString())
                         .call()
@@ -293,9 +298,13 @@ public class SupervisorAgent {
         }
 
         sb.append("#### ⚡ Cross-Domain Consensus & Action Plan\n");
-        sb.append("1. **Priority 1**: Immediate replenishment order execution for critical stockout items.\n");
-        sb.append("2. **Priority 2**: Carrier rerouting for delayed logistics shipments.\n");
-        sb.append("3. **Priority 3**: Vendor OTIF performance review for high-risk suppliers.\n");
+        if (prioritizedActions.isEmpty()) {
+            sb.append("No immediate intervention required. Supply chain operations are within normal parameters or awaiting operational data upload.\n");
+        } else {
+            for (int i = 0; i < prioritizedActions.size(); i++) {
+                sb.append(i + 1).append(". ").append(prioritizedActions.get(i)).append("\n");
+            }
+        }
 
         return sb.toString();
     }

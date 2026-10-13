@@ -25,4 +25,8 @@ public class DashboardSummaryDto {
     private List<Map<String, Object>> demandTrends;
     private List<Map<String, Object>> supplierPerformance;
     private List<Map<String, Object>> warehouseUtilization;
+
+    private Boolean hasOperationalData;
+    private String dataStatus; // ACTIVE or UNPOPULATED
+    private String lastUpdated;
 }

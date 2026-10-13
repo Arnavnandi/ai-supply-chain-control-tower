@@ -8,7 +8,14 @@ import {
   HelpCircle,
   TrendingUp,
   Radar,
-  RefreshCw
+  RefreshCw,
+  UploadCloud,
+  Building2,
+  Boxes,
+  Users,
+  Truck,
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 import {
   AreaChart,
@@ -51,12 +58,12 @@ interface EarlyWarningRadarReport {
 
 interface ExecutiveScorecardReport {
   reportId: string;
-  overallResiliencyIndex: number;
+  overallResiliencyIndex?: number;
   resiliencyStatusBand: string;
-  supplierOtifComponentScore: number;
-  inventoryBufferComponentScore: number;
-  warehouseCapacityComponentScore: number;
-  historicalEfficacyComponentScore: number;
+  supplierOtifComponentScore?: number;
+  inventoryBufferComponentScore?: number;
+  warehouseCapacityComponentScore?: number;
+  historicalEfficacyComponentScore?: number;
   overallPortfolioStatus: string;
   majorRiskHighlights: string[];
   recommendedExecutiveAttentionAreas: string[];
@@ -109,11 +116,147 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
+  const isUnpopulated = !summary?.hasOperationalData || summary?.dataStatus === 'UNPOPULATED';
   const riskReport = intelligence?.riskReport;
   const recommendations: ExplainableRiskItem[] = intelligence?.prioritizedRecommendations || [];
 
   return (
     <div className="space-y-6 pb-12">
+      {/* ONBOARDING STATE: DISPLAYED WHEN NO OPERATIONAL DATA EXISTS */}
+      {isUnpopulated && (
+        <div className="space-y-6">
+          <div className="glass-panel p-8 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/30 via-slate-900 to-slate-900 shadow-2xl relative overflow-hidden">
+            <div className="max-w-3xl space-y-4">
+              <div className="flex items-center space-x-2.5">
+                <span className="px-2.5 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-semibold uppercase tracking-wider">
+                  Company Workspace Initialized
+                </span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-400 text-xs">Zero Fabricated Business Records</span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Welcome to your AI Supply Chain Control Tower
+              </h2>
+
+              <p className="text-sm text-slate-300 leading-relaxed">
+                This enterprise control tower is strictly grounded in authenticated company operational records.
+                Resilience scores, supplier OTIF, inventory safety buffers, disruption predictions, and AI recommendations
+                are calculated directly from your database and are never fabricated.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Link
+                  to="/import"
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 flex items-center space-x-2 transition-all"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Upload Your Operational Data (CSV)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Supported CSV Pipeline Overview */}
+          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+              Supported CSV Onboarding Pipeline
+            </h3>
+            <p className="text-xs text-slate-400">
+              Upload your company records in the recommended sequence to activate live calculations across all operational modules:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center space-x-2 text-cyan-400">
+                  <Package className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">1. Products</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">products.csv</p>
+                <p className="text-[11px] text-slate-300">SKU catalog, unit prices, reorder thresholds & safety stocks.</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center space-x-2 text-indigo-400">
+                  <Building2 className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">2. Warehouses</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">warehouses.csv</p>
+                <p className="text-[11px] text-slate-300">Logistics hubs, storage capacities & regional locations.</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center space-x-2 text-purple-400">
+                  <Users className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">3. Suppliers</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">suppliers.csv</p>
+                <p className="text-[11px] text-slate-300">Vendor profiles, baseline lead times & contract terms.</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center space-x-2 text-emerald-400">
+                  <Boxes className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">4. Inventory</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">inventories.csv</p>
+                <p className="text-[11px] text-slate-300">Live quantity available, reserved quantities per facility.</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center space-x-2 text-amber-400">
+                  <Truck className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase">5. Shipments</span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono">shipments.csv</p>
+                <p className="text-[11px] text-slate-300">In-transit tracking, carrier performance & delay logs.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPULATED DASHBOARD: HEADER BAR WITH REFRESH & LAST UPDATED */}
+      {!isUnpopulated && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <div className="flex items-center space-x-3">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            <div>
+              <h2 className="text-sm font-bold text-white">Live Enterprise Control Tower</h2>
+              <p className="text-xs text-slate-400 flex items-center space-x-1.5 mt-0.5">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>
+                  Last Database Telemetry Update:{' '}
+                  <span className="text-slate-300 font-medium">
+                    {summary?.lastUpdated ? new Date(summary.lastUpdated).toLocaleString() : 'Active Session'}
+                  </span>
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => fetchDashboardData(true)}
+              disabled={refreshing}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition-all border border-slate-700/80 disabled:opacity-50 cursor-pointer"
+              title="Recalculate and refresh dashboard metrics from database"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'}`} />
+              <span>{refreshing ? 'Recalculating...' : 'Refresh Telemetry'}</span>
+            </button>
+            <Link
+              to="/ai-assistant"
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-md shadow-indigo-600/20"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Ask AI Assistant</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 0. Executive Command Center Resiliency Scorecard Banner */}
       {executiveScorecard && (
         <div className="bg-slate-900/90 border border-purple-500/30 p-6 rounded-2xl shadow-2xl space-y-4 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900">
@@ -121,7 +264,9 @@ export const DashboardPage: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-black text-white">
-                  {executiveScorecard.overallResiliencyIndex > 0 ? executiveScorecard.overallResiliencyIndex.toFixed(1) : 'N/A'}
+                  {executiveScorecard.overallResiliencyIndex != null && executiveScorecard.overallResiliencyIndex > 0
+                    ? executiveScorecard.overallResiliencyIndex.toFixed(1)
+                    : 'N/A'}
                 </span>
                 <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">/ 100</span>
                 <span className={`px-3 py-1 text-xs font-extrabold uppercase rounded-lg border ${
@@ -147,34 +292,43 @@ export const DashboardPage: React.FC = () => {
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Supplier OTIF (30%)</span>
                 <span className="text-base font-black text-purple-300">
-                  {executiveScorecard.supplierOtifComponentScore > 0 ? `${executiveScorecard.supplierOtifComponentScore.toFixed(0)}%` : 'N/A'}
+                  {executiveScorecard.supplierOtifComponentScore != null
+                    ? `${executiveScorecard.supplierOtifComponentScore.toFixed(0)}%`
+                    : 'N/A'}
                 </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Inventory Safety (25%)</span>
                 <span className="text-base font-black text-cyan-300">
-                  {executiveScorecard.inventoryBufferComponentScore > 0 ? `${executiveScorecard.inventoryBufferComponentScore.toFixed(0)}%` : 'N/A'}
+                  {executiveScorecard.inventoryBufferComponentScore != null
+                    ? `${executiveScorecard.inventoryBufferComponentScore.toFixed(0)}%`
+                    : 'N/A'}
                 </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Warehouse Health (25%)</span>
                 <span className="text-base font-black text-amber-300">
-                  {executiveScorecard.warehouseCapacityComponentScore > 0 ? `${executiveScorecard.warehouseCapacityComponentScore.toFixed(0)}%` : 'N/A'}
+                  {executiveScorecard.warehouseCapacityComponentScore != null
+                    ? `${executiveScorecard.warehouseCapacityComponentScore.toFixed(0)}%`
+                    : 'N/A'}
                 </span>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase">Efficacy Rating (20%)</span>
                 <span className="text-base font-black text-emerald-300">
-                  {executiveScorecard.historicalEfficacyComponentScore > 0 ? `${executiveScorecard.historicalEfficacyComponentScore.toFixed(0)}%` : 'N/A'}
+                  {executiveScorecard.historicalEfficacyComponentScore != null
+                    ? `${executiveScorecard.historicalEfficacyComponentScore.toFixed(0)}%`
+                    : 'N/A'}
                 </span>
               </div>
             </div>
           </div>
         </div>
       )}
+
       {/* 1. AI Executive Briefing Banner */}
       <div className="glass-panel p-5 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start space-x-4">
@@ -193,30 +347,12 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2 shrink-0">
-          <button
-            onClick={() => fetchDashboardData(true)}
-            disabled={refreshing}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition-all border border-slate-700/80 disabled:opacity-50 cursor-pointer"
-            title="Recalculate and refresh dashboard metrics from database"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'}`} />
-            <span>{refreshing ? 'Recalculating...' : 'Refresh Telemetry'}</span>
-          </button>
-          <Link
-            to="/ai-assistant"
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center space-x-2 transition-all shadow-lg shadow-indigo-600/20 shrink-0"
-          >
-            <Bot className="w-4 h-4" />
-            <span>Ask AI Assistant</span>
-          </Link>
-        </div>
       </div>
 
       {/* 1.5. Predictive Early-Warning Radar Widget */}
       {radarReport && (
         <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`p-2.5 rounded-xl border ${
                 radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0
@@ -233,10 +369,10 @@ export const DashboardPage: React.FC = () => {
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                       : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                   }`}>
-                    {radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0 ? 'Autonomous Intelligence' : 'Nominal Status'}
+                    {radarReport.earlyWarnings && radarReport.earlyWarnings.length > 0 ? 'Active Anomaly Signals' : 'Nominal Status'}
                   </span>
                 </h3>
-                <p className="text-xs text-slate-400">Continuous anomaly detection scanning lead times, burn velocity & warehouse capacity</p>
+                <p className="text-xs text-slate-400">Dynamic anomaly scan evaluating inventory deficits & warehouse overflow</p>
               </div>
             </div>
 
@@ -283,7 +419,9 @@ export const DashboardPage: React.FC = () => {
             </div>
           ) : (
             <div className="p-4 bg-slate-950/40 border border-slate-800/60 rounded-xl text-center text-xs text-slate-400">
-              No predictive disruption anomalies detected. Operational parameters within normal tolerances across active network.
+              {isUnpopulated
+                ? 'No operational data recorded yet. Upload company records to activate predictive early-warning scan.'
+                : 'No predictive disruption anomalies detected. Operational parameters within normal tolerances across active network.'}
             </div>
           )}
         </div>
@@ -292,70 +430,117 @@ export const DashboardPage: React.FC = () => {
       {/* 2. Control Tower Risk Matrix Radar & KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Risk Score */}
-        <div className="glass-card p-5 rounded-xl border border-slate-800 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Control Tower Risk Score</span>
-            <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
-              <ShieldAlert className="w-4 h-4" />
+        <div className="glass-card p-5 rounded-xl border border-slate-800 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Control Tower Risk Score</span>
+              <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline space-x-2 mt-2">
+              <p className="text-3xl font-bold text-rose-400">
+                {summary?.supplyChainRiskScore != null ? summary.supplyChainRiskScore : 'N/A'}
+              </p>
+              <span className="text-xs text-slate-400 font-semibold uppercase">
+                {summary?.supplyChainRiskScore != null ? `/ 100 (${riskReport?.riskLevel || 'LOW'})` : '(Awaiting Data)'}
+              </span>
             </div>
           </div>
-          <div className="flex items-baseline space-x-2 mt-2">
-            <p className="text-3xl font-bold text-rose-400">{riskReport?.overallRiskScore || 0}</p>
-            <span className="text-xs text-slate-400 font-semibold uppercase">/ 100 ({riskReport?.riskLevel || 'LOW'})</span>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-[11px]">
-            <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-semibold">
-              {riskReport?.criticalRisksCount || 0} Critical
-            </span>
-            <span className="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 font-semibold">
-              {riskReport?.highRisksCount || 0} High
-            </span>
-            <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30 font-semibold">
-              {riskReport?.mediumRisksCount || 0} Med
-            </span>
+          <div className="mt-3">
+            {summary?.supplyChainRiskScore == null ? (
+              <span className="inline-block text-[10px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                Insufficient data: upload inventories & shipments
+              </span>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-semibold">
+                  {riskReport?.criticalRisksCount || 0} Critical
+                </span>
+                <span className="bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 font-semibold">
+                  {riskReport?.highRisksCount || 0} High
+                </span>
+                <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30 font-semibold">
+                  {riskReport?.mediumRisksCount || 0} Med
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Total SKUs */}
-        <div className="glass-card p-5 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Catalog & Inventory</span>
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-              <Package className="w-4 h-4" />
+        <div className="glass-card p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Catalog & Inventory</span>
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                <Package className="w-4 h-4" />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-white mt-2">{summary?.totalProducts || 0} Products</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Total Available Stock: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString() || 0} units</span>
+            </p>
           </div>
-          <p className="text-2xl font-bold text-white mt-2">{summary?.totalProducts || 0} Products</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Total Available Stock: <span className="text-cyan-400 font-semibold">{summary?.totalInventoryUnits?.toLocaleString() || 0} units</span>
-          </p>
+          <div className="mt-3">
+            {!summary?.totalProducts ? (
+              <span className="inline-block text-[10px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                Insufficient data: upload products.csv
+              </span>
+            ) : summary?.totalInventoryUnits === 0 ? (
+              <span className="inline-block text-[10px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                Insufficient data: upload inventories.csv
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Asset Valuation */}
-        <div className="glass-card p-5 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Asset Valuation</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <DollarSign className="w-4 h-4" />
+        <div className="glass-card p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Asset Valuation</span>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <DollarSign className="w-4 h-4" />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-emerald-400 mt-2">
+              ${summary?.totalInventoryValue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Across {summary?.warehouseUtilization?.length || 0} regional logistics hubs</p>
           </div>
-          <p className="text-2xl font-bold text-emerald-400 mt-2">
-            ${summary?.totalInventoryValue?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Across {summary?.warehouseUtilization?.length || 0} regional logistics hubs</p>
+          <div className="mt-3">
+            {(summary?.warehouseUtilization?.length || 0) === 0 ? (
+              <span className="inline-block text-[10px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                Insufficient data: upload warehouses.csv
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Supplier Reliability */}
-        <div className="glass-card p-5 rounded-xl border border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Supplier Performance</span>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-              <TrendingUp className="w-4 h-4" />
+        <div className="glass-card p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Supplier Performance</span>
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                <TrendingUp className="w-4 h-4" />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-purple-300 mt-2">
+              {summary?.overallSupplierReliabilityPct != null ? `${summary.overallSupplierReliabilityPct}%` : 'N/A'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Delayed Cargo Transit: <span className="text-rose-400 font-semibold">{summary?.delayedShipmentsCount || 0} shipments</span>
+            </p>
           </div>
-          <p className="text-2xl font-bold text-purple-300 mt-2">
-            {summary?.overallSupplierReliabilityPct != null ? `${summary.overallSupplierReliabilityPct}%` : 'N/A'}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Delayed Cargo Transit: <span className="text-rose-400 font-semibold">{summary?.delayedShipmentsCount || 0} shipments</span></p>
+          <div className="mt-3">
+            {summary?.overallSupplierReliabilityPct == null ? (
+              <span className="inline-block text-[10px] bg-slate-800/90 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                Insufficient data: upload shipments.csv
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -410,7 +595,9 @@ export const DashboardPage: React.FC = () => {
           </div>
         ) : (
           <div className="p-8 text-center text-slate-400 text-xs border border-slate-800/80 rounded-xl bg-slate-950/40">
-            No active risk alerts or mitigation proposals detected for this company. Operational state is nominal.
+            {isUnpopulated
+              ? 'No active risk alerts detected for this company. Upload operational data to trigger real-time risk monitoring.'
+              : 'No active risk alerts or mitigation proposals detected for this company. Operational state is nominal.'}
           </div>
         )}
       </div>
@@ -424,7 +611,9 @@ export const DashboardPage: React.FC = () => {
               <h3 className="text-base font-bold text-white">Multi-Warehouse Inventory Stock Trend</h3>
               <p className="text-xs text-slate-400">Available vs Reserved vs Safety Stock Buffer</p>
             </div>
-            <span className="text-xs text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2.5 py-1 rounded-full font-medium">Live Telemetry</span>
+            <span className="text-xs text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2.5 py-1 rounded-full font-medium">
+              {summary?.inventoryTrends && summary.inventoryTrends.length > 0 ? 'Live Telemetry' : 'Awaiting Data'}
+            </span>
           </div>
 
           <div className="h-64">
@@ -460,7 +649,9 @@ export const DashboardPage: React.FC = () => {
               <h3 className="text-base font-bold text-white">Demand Forecasting vs Actual Orders</h3>
               <p className="text-xs text-slate-400">Deterministic Weighted Moving Average + Exponential Smoothing</p>
             </div>
-            <span className="text-xs text-indigo-400 bg-indigo-950/60 border border-indigo-800/40 px-2.5 py-1 rounded-full font-medium">Predictive Engine</span>
+            <span className="text-xs text-indigo-400 bg-indigo-950/60 border border-indigo-800/40 px-2.5 py-1 rounded-full font-medium">
+              {summary?.demandTrends && summary.demandTrends.length > 0 ? 'Predictive Engine' : 'Awaiting Orders'}
+            </span>
           </div>
 
           <div className="h-64">
@@ -492,4 +683,4 @@ export const DashboardPage: React.FC = () => {
     </div>
   );
 };
-
+export default DashboardPage;

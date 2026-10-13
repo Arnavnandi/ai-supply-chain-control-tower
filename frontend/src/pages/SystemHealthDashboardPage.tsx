@@ -87,7 +87,7 @@ export const SystemHealthDashboardPage: React.FC = () => {
 
       // Recent Persistent Telemetry Events
       try {
-        const eventsRes = await axiosInstance.get('/api/telemetry/events?limit=15');
+        const eventsRes = await axiosInstance.get('/telemetry/events?limit=15');
         if (Array.isArray(eventsRes.data)) {
           setRecentEvents(eventsRes.data);
         }
@@ -97,7 +97,7 @@ export const SystemHealthDashboardPage: React.FC = () => {
 
       // Active Telemetry Alerts
       try {
-        const alertsRes = await axiosInstance.get('/api/telemetry/alerts?limit=10');
+        const alertsRes = await axiosInstance.get('/telemetry/alerts?limit=10');
         if (Array.isArray(alertsRes.data)) {
           setAlerts(alertsRes.data);
         }

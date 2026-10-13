@@ -82,7 +82,26 @@ export const ProductsPage: React.FC = () => {
               ))}
               {products.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-500">No products found matching query.</td>
+                  <td colSpan={7} className="text-center py-12 px-4">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <p className="text-sm font-semibold text-slate-300">
+                        {query ? 'No products found matching your search.' : 'No operational products in catalog yet.'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {query
+                          ? 'Try clearing the search query or verifying the SKU.'
+                          : 'Upload products.csv to establish your company SKU catalog, safety stock thresholds, and unit pricing.'}
+                      </p>
+                      {!query && (
+                        <a
+                          href="/import"
+                          className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
+                        >
+                          Upload products.csv
+                        </a>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               )}
             </tbody>

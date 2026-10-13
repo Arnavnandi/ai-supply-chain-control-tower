@@ -83,9 +83,11 @@ class AutoContainmentFailoverEngineTest {
                 engine.computeFailoverContainmentPlan("SUP-TECH-001", "WH-NORTH");
 
         assertNotNull(report);
-        assertEquals("CONTAINED", report.getContainmentStatus());
-        assertEquals(60.0, report.getPrimaryAllocationPct());
-        assertEquals(40.0, report.getFallbackAllocationPct());
+        assertEquals("INSUFFICIENT_DATA", report.getContainmentStatus());
+        assertEquals(0.0, report.getPrimaryAllocationPct());
+        assertEquals(0.0, report.getFallbackAllocationPct());
+        assertTrue(report.getAllocations().isEmpty());
         assertNotNull(report.getStrategyExplanation());
+        assertTrue(report.getStrategyExplanation().contains("Insufficient operational records"));
     }
 }

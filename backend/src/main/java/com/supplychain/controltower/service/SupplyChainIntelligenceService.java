@@ -64,8 +64,8 @@ public class SupplyChainIntelligenceService {
 
         // 5. Construct Executive AI Briefing text
         String briefing;
-        if (kpis.getTotalProducts() == 0 && kpis.getLowStockProductsCount() == 0 && kpis.getDelayedShipmentsCount() == 0) {
-            briefing = "Operational Status: No operational data available. Products, inventory, and supplier network are currently unpopulated for this company. Import sample data or add records to activate real-time telemetry.";
+        if (Boolean.FALSE.equals(kpis.getHasOperationalData()) || kpis.getTotalProducts() == 0) {
+            briefing = "Operational Status: No operational data available. Products, inventory, and supplier network are currently unpopulated for this company. Import sample data or upload operational CSVs to activate real-time telemetry.";
         } else {
             briefing = String.format(
                     "Operational Status: System Risk Score is %.1f (%s RISK). Detected %d Critical Risks, %d High Risks, and %d Medium Risks. " +

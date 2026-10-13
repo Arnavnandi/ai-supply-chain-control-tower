@@ -66,6 +66,24 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
 
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
+
+app:
+  email:
+    from: ${APP_EMAIL_FROM:no-reply@controltower.supplychain.com}
+    enabled: ${APP_EMAIL_ENABLED:true}
+    dev-mode: ${APP_EMAIL_DEV_MODE:false}
+
 jwt:
   secret: ${JWT_SECRET:change_me_in_production_jwt_secret_key_32_bytes_minimum_length_required}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours

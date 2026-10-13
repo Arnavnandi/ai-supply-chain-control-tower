@@ -138,8 +138,8 @@ public class LogisticsAnalyticsEngine {
         routeMetrics.sort(Comparator.comparing(RouteCongestionMetric::getDelayedCount).reversed());
         List<RouteCongestionMetric> topRoutes = routeMetrics.stream().limit(5).collect(Collectors.toList());
 
-        BigDecimal avgDelaySystem = delayed > 0 ?
-                BigDecimal.valueOf((double) totalDelayDays / delayed).setScale(1, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        BigDecimal avgDelaySystem = total == 0 ? null : (delayed > 0 ?
+                BigDecimal.valueOf((double) totalDelayDays / delayed).setScale(1, RoundingMode.HALF_UP) : BigDecimal.ZERO);
 
         return LogisticsAnalyticsSummary.builder()
                 .totalShipments(total)

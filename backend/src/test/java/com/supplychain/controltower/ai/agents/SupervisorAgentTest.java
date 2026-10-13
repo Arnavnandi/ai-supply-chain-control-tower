@@ -39,11 +39,17 @@ class SupervisorAgentTest {
 
     @BeforeEach
     void setUp() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         when(inventoryAgent.processQuery(anyString())).thenReturn("Inventory Analysis: 2 low stock SKUs.");
         when(supplierAgent.processQuery(anyString())).thenReturn("Supplier Analysis: High risk supplier detected.");
         when(logisticsAgent.processQuery(anyString())).thenReturn("Logistics Analysis: 1 shipment delayed.");
         when(warehouseAgent.processQuery(anyString())).thenReturn("Warehouse Analysis: Utilization at 82%.");
         when(riskAgent.processQuery(anyString())).thenReturn("Risk Analysis: Overall risk moderate.");
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.supplychain.controltower.security.TenantContext.clear();
     }
 
     @Test

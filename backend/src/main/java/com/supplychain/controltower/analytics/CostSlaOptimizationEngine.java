@@ -17,6 +17,9 @@ import java.util.*;
 @Slf4j
 public class CostSlaOptimizationEngine {
 
+    private final com.supplychain.controltower.repository.ProductRepository productRepository;
+    private final com.supplychain.controltower.repository.SupplierRepository supplierRepository;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -57,7 +60,24 @@ public class CostSlaOptimizationEngine {
     }
 
     public CostSlaTradeoffReport evaluateCostSlaTradeoff(String disruptionTypeStr, String targetEntity) {
-        String entity = (targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "SKU-ELEC-001";
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        String entity = (targetEntity != null && !targetEntity.isBlank())
+                ? targetEntity.trim()
+                : null;
+        if (entity == null) {
+            var suppliers = supplierRepository != null ? supplierRepository.findByCompanyId(companyId) : Collections.emptyList();
+            var products = productRepository != null ? productRepository.findByCompanyId(companyId) : Collections.emptyList();
+            if (!suppliers.isEmpty() && "SUPPLIER_DISRUPTION".equalsIgnoreCase(disruptionTypeStr)) {
+                entity = ((com.supplychain.controltower.entity.Supplier) suppliers.get(0)).getCode();
+            } else if (!products.isEmpty()) {
+                entity = ((com.supplychain.controltower.entity.Product) products.get(0)).getSku();
+            } else if (!suppliers.isEmpty()) {
+                entity = ((com.supplychain.controltower.entity.Supplier) suppliers.get(0)).getCode();
+            } else {
+                entity = "N/A";
+            }
+        }
+
         String analysisId = "TRADE-OFF-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         log.info("[COST-SLA ENGINE] Evaluating cost vs SLA recovery tradeoffs for disruption: {} | Target: {}",

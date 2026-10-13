@@ -27,8 +27,7 @@ public class InventoryAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
@@ -38,6 +37,8 @@ public class InventoryAgent {
                                     You are the Specialized Inventory Control Agent.
                                     Your sole responsibility is analyzing SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
                                     Always ground your analysis in PostgreSQL database data via tools getLowStockProducts and getOverstockedProducts.
+                                    If no items are returned or data is empty, state clearly that no inventory records exist or no stockout issues are present.
+                                    Never invent SKUs, quantities, or warehouses.
                                     """)
                             .user(prompt)
                             .functions("getLowStockProducts", "getOverstockedProducts")
@@ -70,6 +71,12 @@ public class InventoryAgent {
 
         StringBuilder sb = new StringBuilder();
         sb.append("### 📦 Inventory Control Agent Analysis\n");
+        if (lowStock.isEmpty() && overstock.isEmpty()) {
+            sb.append("No stockout risks or extreme overstock conditions detected in PostgreSQL inventory records. All monitored SKUs are operating within normal buffer tolerances, or operational inventory data has not yet been imported.\n\n");
+            sb.append("**Recommendation**: Ensure inventory CSV records are up-to-date to maintain real-time safety stock buffers.");
+            return sb.toString();
+        }
+
         sb.append("Analyzed live inventory records from PostgreSQL database:\n\n");
         sb.append("- **Stockout Risk Items**: `").append(lowStock.size()).append("` SKU(s) below reorder/safety thresholds.\n");
         for (var item : lowStock) {
@@ -81,7 +88,9 @@ public class InventoryAgent {
             sb.append("  - **").append(item.name()).append("** (SKU: ").append(item.sku()).append(") at ").append(item.warehouse())
                     .append(" | Available: `").append(item.availableQty()).append("`\n");
         }
-        sb.append("\n**Recommendation**: Create expedited purchase orders for low-stock SKUs before safety buffer depletion.");
+        if (!lowStock.isEmpty()) {
+            sb.append("\n**Recommendation**: Create expedited purchase orders for low-stock SKUs before safety buffer depletion.");
+        }
         return sb.toString();
     }
 }

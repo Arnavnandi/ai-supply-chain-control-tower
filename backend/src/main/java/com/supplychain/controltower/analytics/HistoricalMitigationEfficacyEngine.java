@@ -91,12 +91,13 @@ public class HistoricalMitigationEfficacyEngine {
             double successRate = (catExecuted * 100.0) / list.size();
             String rating = successRate >= 90.0 ? "EXCELLENT" : (successRate >= 75.0 ? "HIGH" : "MODERATE");
 
+            double catDelta = catExecuted > 0 ? -1.0 * Math.round((successRate * 0.5) * 10.0) / 10.0 : 0.0;
             String categoryName = entry.getKey().name();
             breakdowns.add(CategoryEfficacyMetric.builder()
                     .disruptionCategory(categoryName)
                     .totalExecutedCount((int) catExecuted)
                     .historicalSuccessRatePct(Math.round(successRate * 10.0) / 10.0)
-                    .averageRiskReductionDelta(-50.0)
+                    .averageRiskReductionDelta(catDelta)
                     .topRankedActionType(entry.getKey().name())
                     .efficacyRating(rating)
                     .build());
@@ -104,7 +105,7 @@ public class HistoricalMitigationEfficacyEngine {
 
         double overallSuccess = (totalExecuted * 100.0) / recommendations.size();
         overallSuccess = Math.round(overallSuccess * 10.0) / 10.0;
-        double overallDelta = -50.0;
+        double overallDelta = totalExecuted > 0 ? -1.0 * Math.round((overallSuccess * 0.5) * 10.0) / 10.0 : 0.0;
 
         String summary = String.format("Historical recovery analysis: %d of %d recommendations executed (%.1f%% execution and mitigation success rate).",
                 totalExecuted, recommendations.size(), overallSuccess);

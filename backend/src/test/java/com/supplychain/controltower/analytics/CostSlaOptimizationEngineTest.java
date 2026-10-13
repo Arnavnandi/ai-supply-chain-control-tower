@@ -1,17 +1,41 @@
 package com.supplychain.controltower.analytics;
 
+import com.supplychain.controltower.repository.ProductRepository;
+import com.supplychain.controltower.repository.SupplierRepository;
+import com.supplychain.controltower.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class CostSlaOptimizationEngineTest {
 
+    @Mock
+    private ProductRepository productRepository;
+
+    @Mock
+    private SupplierRepository supplierRepository;
+
     @InjectMocks
     private CostSlaOptimizationEngine engine;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCompanyId(1L);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     @Test
     void testEvaluateCostSlaTradeoff() {

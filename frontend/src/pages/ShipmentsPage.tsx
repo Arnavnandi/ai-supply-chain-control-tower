@@ -38,7 +38,7 @@ export const ShipmentsPage: React.FC = () => {
               Active Delayed: <span className="font-bold">{analytics.activeDelayedShipments}</span>
             </div>
             <div className="px-3 py-1.5 rounded-lg bg-amber-950/50 border border-amber-800 text-amber-300">
-              System Avg Delay: <span className="font-bold">{analytics.averageDelayDaysSystem} days</span>
+              System Avg Delay: <span className="font-bold">{analytics.averageDelayDaysSystem != null ? `${analytics.averageDelayDaysSystem} days` : 'N/A'}</span>
             </div>
           </div>
         )}
@@ -130,6 +130,24 @@ export const ShipmentsPage: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {shipments.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center py-12 px-4">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <p className="text-sm font-semibold text-slate-300">No active shipment freight records found.</p>
+                    <p className="text-xs text-slate-500">
+                      Upload shipments.csv via the Ingestion Pipeline to track freight carrier performance, transit routes, and delay congestion.
+                    </p>
+                    <a
+                      href="/import"
+                      className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
+                    >
+                      Upload shipments.csv
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

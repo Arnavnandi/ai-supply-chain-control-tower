@@ -1,32 +1,13 @@
 import React, { useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { UploadCloud, Database, CheckCircle2, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
 
 export const DataImportPage: React.FC = () => {
   const [entityType, setEntityType] = useState('products');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [loadingSample, setLoadingSample] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const handleSampleImport = async () => {
-    setLoadingSample(true);
-    setResult(null);
-    setError(null);
-    try {
-      const res = await axiosInstance.post('/data/import/sample-dataset');
-      setResult(res.data);
-    } catch (err: any) {
-      if (err.response?.data?.errors || err.response?.data?.totalRowsProcessed !== undefined) {
-        setResult(err.response.data);
-      } else {
-        setError(err.response?.data?.message || 'Sample dataset import failed.');
-      }
-    } finally {
-      setLoadingSample(false);
-    }
-  };
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,121 +45,125 @@ export const DataImportPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h2 className="text-xl font-bold text-white">Dataset Ingestion & Data Pipeline</h2>
+        <h2 className="text-xl font-bold text-white">Dataset Ingestion &amp; Data Pipeline</h2>
         <p className="text-xs text-slate-400">
-          Import 12-month historical supply-chain datasets or upload custom CSV entity records into PostgreSQL
+          Upload company operational CSV records with transactional integrity and atomic rollback. All calculations and AI insights are derived exclusively from your persisted data.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Option 1: 1-Click Sample Dataset Import */}
-        <div className="glass-panel p-6 rounded-2xl border border-cyan-500/30 bg-slate-900/60 flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <Database className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">1-Click Synthetic Sample Dataset (Demo Dataset)</h3>
-                <p className="text-xs text-amber-400 font-medium">12-Month Synthetic Demonstration Data</p>
-              </div>
-            </div>
+      {/* CSV Ingestion Sequence & Foreign Key Dependency Guide */}
+      <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3 bg-slate-900/50">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
+            <ShieldCheck className="w-4 h-4 text-cyan-400" />
+            <span>Recommended CSV Upload Sequence &amp; Dependencies</span>
+          </h3>
+          <span className="text-[10px] text-cyan-400 font-mono">Atomic Database Transactions</span>
+        </div>
+        <p className="text-xs text-slate-400 leading-relaxed">
+          To satisfy foreign-key dependencies, please upload your entity CSV files in the following order:
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1 text-xs">
+          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-cyan-400 uppercase block">Phase 1: Base Catalogs</span>
+            <p className="font-semibold text-white">products.csv</p>
+            <p className="font-semibold text-white">warehouses.csv</p>
+            <p className="font-semibold text-white">suppliers.csv</p>
+            <p className="text-[11px] text-slate-500 pt-1">Defines SKUs, facility codes &amp; vendor profiles.</p>
+          </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              Ingests 9 synthetic CSV files containing 25 products, 10 global suppliers, 4 logistics hubs, inventory thresholds, 300+ historical customer orders, and 250+ shipment tracking records for demo testing.
+          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-indigo-400 uppercase block">Phase 2: Inventories &amp; Contracts</span>
+            <p className="font-semibold text-white">inventories.csv</p>
+            <p className="font-semibold text-white">supplier_products.csv</p>
+            <p className="text-[11px] text-slate-500 pt-1">Maps SKUs to warehouses and suppliers.</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-purple-400 uppercase block">Phase 3: Orders &amp; Demand</span>
+            <p className="font-semibold text-white">orders.csv</p>
+            <p className="font-semibold text-white">order_items.csv</p>
+            <p className="text-[11px] text-slate-500 pt-1">Sales demand for forecasting &amp; backtesting.</p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-emerald-400 uppercase block">Phase 4: Logistics</span>
+            <p className="font-semibold text-white">shipments.csv</p>
+            <p className="text-[11px] text-slate-500 pt-1">Transit tracking for carrier OTIF &amp; delay analysis.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Custom Entity CSV - Full Width Interface */}
+      <div className="glass-panel p-6 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-5">
+        <div className="flex items-center space-x-3 pb-3 border-b border-slate-800/80">
+          <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <UploadCloud className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">Upload Company Entity CSV</h3>
+            <p className="text-xs text-slate-400">
+              Select target entity type, choose your CSV file, and ingest into your isolated company workspace
             </p>
-
-            <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-xs text-slate-400 space-y-1 font-mono">
-              <p>✔ Connects to DemandForecastingEngine (12-month sales data)</p>
-              <p>✔ Triggers low stock & shipment delay risk alerts</p>
-              <p>✔ Fully compatible with Spring AI database tools</p>
-            </div>
           </div>
-
-          <button
-            onClick={handleSampleImport}
-            disabled={loadingSample || loadingFile}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-cyan-500/20 flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
-          >
-            {loadingSample ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Ingesting 12-Month Dataset...</span>
-              </>
-            ) : (
-              <>
-                <Database className="w-4 h-4" />
-                <span>Import Packaged 12-Month Dataset</span>
-              </>
-            )}
-          </button>
         </div>
 
-        {/* Option 2: Upload Custom Entity CSV */}
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                <UploadCloud className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Upload Custom Entity CSV</h3>
-                <p className="text-xs text-indigo-400 font-medium">Single Entity Import</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleFileUpload} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Target Entity</label>
-                <select
-                  value={entityType}
-                  onChange={(e) => setEntityType(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="products">Products (SKU Catalog)</option>
-                  <option value="suppliers">Suppliers</option>
-                  <option value="supplier_products">Supplier Product Contracts</option>
-                  <option value="warehouses">Warehouses</option>
-                  <option value="inventories">Inventory Stock</option>
-                  <option value="orders">Customer Orders</option>
-                  <option value="order_items">Order Items</option>
-                  <option value="shipments">Shipments & Logistics</option>
-                  <option value="categories">Categories</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Select CSV File</label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                    className="w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-cyan-400 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loadingSample || loadingFile || !selectedFile}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
+        <form onSubmit={handleFileUpload} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Target Entity Type
+              </label>
+              <select
+                value={entityType}
+                onChange={(e) => setEntityType(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-cyan-500"
               >
-                {loadingFile ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Validating & Importing...</span>
-                  </>
-                ) : (
-                  <>
-                    <UploadCloud className="w-4 h-4" />
-                    <span>Upload & Ingest CSV</span>
-                  </>
-                )}
-              </button>
-            </form>
+                <option value="products">1. Products (SKU Catalog: sku, name, price, reorder_level, safety_stock)</option>
+                <option value="warehouses">2. Warehouses (Hubs: code, name, location, total_capacity_units)</option>
+                <option value="suppliers">3. Suppliers (Vendors: code, name, reliability_score, delivery_performance_pct)</option>
+                <option value="inventories">4. Inventories (Stock Levels: product_sku, warehouse_code, quantity_available)</option>
+                <option value="supplier_products">5. Supplier Contracts (Contracts: supplier_code, product_sku, contract_price)</option>
+                <option value="orders">6. Customer Orders (Orders: order_number, customer_name, order_date, total_amount)</option>
+                <option value="order_items">7. Order Items (Lines: order_number, product_sku, quantity, unit_price)</option>
+                <option value="shipments">8. Shipments (Logistics: tracking_code, supplier_code, warehouse_code, status)</option>
+                <option value="categories">Categories (Product taxonomy)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Select CSV File
+              </label>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                className="w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-cyan-400 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"
+              />
+            </div>
           </div>
-        </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={loadingFile || !selectedFile}
+              className="py-3 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {loadingFile ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Validating &amp; Ingesting CSV...</span>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Upload &amp; Ingest Records</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Error Output */}
@@ -244,3 +229,5 @@ export const DataImportPage: React.FC = () => {
     </div>
   );
 };
+
+export default DataImportPage;

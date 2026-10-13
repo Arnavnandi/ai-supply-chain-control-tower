@@ -69,6 +69,7 @@ public class SupplierAnalyticsEngine {
         int modRisk = 0;
         int highRisk = 0;
         double sumOtif = 0.0;
+        int otifCount = 0;
 
         for (Supplier supplier : suppliers) {
             List<Shipment> supplierShipments = allShipments.stream()
@@ -80,7 +81,7 @@ public class SupplierAnalyticsEngine {
                     .filter(s -> s.getDelayDays() != null && s.getDelayDays() > 0)
                     .count();
 
-            double otifPct = 100.0;
+            Double otifPct = null;
             if (totalShipments > 0) {
                 otifPct = Math.max(0.0, ((double) (totalShipments - delayedCount) / totalShipments) * 100.0);
             } else if (supplier.getDeliveryPerformancePct() != null) {
@@ -89,17 +90,32 @@ public class SupplierAnalyticsEngine {
 
             // Risk Tier Classification
             String riskTier;
-            double reliability = supplier.getReliabilityScore() != null ? supplier.getReliabilityScore().doubleValue() : 80.0;
+            Double reliability = supplier.getReliabilityScore() != null ? supplier.getReliabilityScore().doubleValue() : null;
 
-            if (reliability >= 90.0 && otifPct >= 88.0) {
-                riskTier = "PREFERRED_LOW_RISK";
-                lowRisk++;
-            } else if (reliability >= 75.0 && otifPct >= 70.0) {
-                riskTier = "MODERATE_RISK";
-                modRisk++;
+            if (reliability != null && otifPct != null) {
+                if (reliability >= 90.0 && otifPct >= 88.0) {
+                    riskTier = "PREFERRED_LOW_RISK";
+                    lowRisk++;
+                } else if (reliability >= 75.0 && otifPct >= 70.0) {
+                    riskTier = "MODERATE_RISK";
+                    modRisk++;
+                } else {
+                    riskTier = "HIGH_RISK_CRITICAL";
+                    highRisk++;
+                }
+            } else if (reliability != null) {
+                if (reliability >= 90.0) {
+                    riskTier = "PREFERRED_LOW_RISK";
+                    lowRisk++;
+                } else if (reliability >= 75.0) {
+                    riskTier = "MODERATE_RISK";
+                    modRisk++;
+                } else {
+                    riskTier = "HIGH_RISK_CRITICAL";
+                    highRisk++;
+                }
             } else {
-                riskTier = "HIGH_RISK_CRITICAL";
-                highRisk++;
+                riskTier = "UNRATED";
             }
 
             List<String> contractedSkus = allContracts.stream()
@@ -108,8 +124,11 @@ public class SupplierAnalyticsEngine {
                     .distinct()
                     .toList();
 
-            BigDecimal otifBd = BigDecimal.valueOf(otifPct).setScale(1, RoundingMode.HALF_UP);
-            sumOtif += otifBd.doubleValue();
+            BigDecimal otifBd = otifPct != null ? BigDecimal.valueOf(otifPct).setScale(1, RoundingMode.HALF_UP) : null;
+            if (otifBd != null) {
+                sumOtif += otifBd.doubleValue();
+                otifCount++;
+            }
 
             metrics.add(SupplierPerformanceMetric.builder()
                     .supplierId(supplier.getId())
@@ -128,8 +147,8 @@ public class SupplierAnalyticsEngine {
                     .build());
         }
 
-        BigDecimal avgOtif = suppliers.isEmpty() ? BigDecimal.ZERO :
-                BigDecimal.valueOf(sumOtif / suppliers.size()).setScale(1, RoundingMode.HALF_UP);
+        BigDecimal avgOtif = otifCount > 0 ?
+                BigDecimal.valueOf(sumOtif / otifCount).setScale(1, RoundingMode.HALF_UP) : null;
 
         return SupplierAnalyticsSummary.builder()
                 .totalSuppliers(suppliers.size())

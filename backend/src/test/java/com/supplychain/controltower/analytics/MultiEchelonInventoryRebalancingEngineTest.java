@@ -26,6 +26,9 @@ class MultiEchelonInventoryRebalancingEngineTest {
     @Mock
     private WarehouseRepository warehouseRepository;
 
+    @Mock
+    private com.supplychain.controltower.repository.ProductRepository productRepository;
+
     @InjectMocks
     private MultiEchelonInventoryRebalancingEngine engine;
 
@@ -49,6 +52,7 @@ class MultiEchelonInventoryRebalancingEngineTest {
         w3.setUtilizationPercentage(new BigDecimal("30.0"));
 
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(w1, w2, w3));
+        when(productRepository.findByCompanyId(1L)).thenReturn(List.of(com.supplychain.controltower.entity.Product.builder().id(1L).sku("SKU-ELEC-001").name("Microcontroller").build()));
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 engine.computeMultiEchelonRebalancePlan("WH-NORTH", "SKU-ELEC-001");
@@ -66,19 +70,22 @@ class MultiEchelonInventoryRebalancingEngineTest {
         assertEquals("WH-NORTH", transfer.getTargetWarehouseCode());
         assertEquals(250, transfer.getTransferQuantityUnits());
         assertNotNull(report.getExecutiveSummary());
+        com.supplychain.controltower.security.TenantContext.clear();
     }
 
     @Test
     void testComputeMultiEchelonRebalancePlanWithEmptyDatabase() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(productRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 engine.computeMultiEchelonRebalancePlan("WH-NORTH", "SKU-ELEC-001");
 
         assertNotNull(report);
-        assertEquals("BALANCED", report.getRebalancingStatus());
-        assertEquals(350, report.getTotalRebalancedUnits());
-        assertFalse(report.getTransferOptions().isEmpty());
+        assertEquals("INSUFFICIENT_DATA", report.getRebalancingStatus());
+        assertEquals(0, report.getTotalRebalancedUnits());
+        assertTrue(report.getTransferOptions().isEmpty());
+        com.supplychain.controltower.security.TenantContext.clear();
     }
 }

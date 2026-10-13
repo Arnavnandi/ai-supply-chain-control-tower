@@ -119,6 +119,32 @@ export const InventoryPage: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {inventory.length === 0 && (
+              <tr>
+                <td colSpan={7} className="text-center py-12 px-4">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <p className="text-sm font-semibold text-slate-300">
+                      {filter === 'ALL'
+                        ? 'No multi-warehouse inventory stock records found.'
+                        : `No items matching filter "${filter}".`}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {filter === 'ALL'
+                        ? 'Upload inventories.csv to associate product SKUs with regional warehouse facilities and track live stock buffers.'
+                        : 'Operational stock is nominal with no items currently in this status.'}
+                    </p>
+                    {filter === 'ALL' && (
+                      <a
+                        href="/import"
+                        className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
+                      >
+                        Upload inventories.csv
+                      </a>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

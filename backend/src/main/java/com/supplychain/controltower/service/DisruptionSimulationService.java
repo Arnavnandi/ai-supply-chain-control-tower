@@ -39,12 +39,10 @@ public class DisruptionSimulationService {
     }
 
     public DisruptionSimulationResult simulateDisruption(DisruptionType type, String targetEntity) {
-        if (TenantContext.getCompanyId() == null) {
-            TenantContext.setCompanyId(1L);
-        }
+        Long companyId = TenantContext.getRequiredCompanyId();
         String simulationId = "SIM-" + UUID.randomUUID().toString().substring(0, 8);
-        log.info("[DISRUPTION SIMULATION] Initiating simulationId: {} | Type: {} | Target: {}",
-                simulationId, type, targetEntity);
+        log.info("[DISRUPTION SIMULATION] Initiating simulationId: {} for companyId: {} | Type: {} | Target: {}",
+                simulationId, companyId, type, targetEntity);
 
         String prompt = buildPromptForDisruption(type, targetEntity);
 
@@ -72,13 +70,13 @@ public class DisruptionSimulationService {
     private String buildPromptForDisruption(DisruptionType type, String targetEntity) {
         return switch (type) {
             case SUPPLIER_DISRUPTION -> "Analyze supplier reliability risks and OTIF delivery performance for vendor " +
-                    (targetEntity != null ? targetEntity : "SUP-ELEC-001");
+                    ((targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "the designated supplier");
             case INVENTORY_SHORTAGE -> "Evaluate stockout risk, safety stock depletion, and PO replenishment for SKU " +
-                    (targetEntity != null ? targetEntity : "SKU-ELEC-001");
+                    ((targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "the designated item");
             case LOGISTICS_DELAY -> "Track delayed transit shipments and carrier delivery bottlenecks on route " +
-                    (targetEntity != null ? targetEntity : "Stuttgart to Oakland");
+                    ((targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "the designated logistics corridor");
             case WAREHOUSE_CAPACITY_OVERRUN -> "Inspect storage capacity utilization and hub overruns across regional warehouses " +
-                    (targetEntity != null ? targetEntity : "WH-WEST");
+                    ((targetEntity != null && !targetEntity.isBlank()) ? targetEntity : "the designated regional warehouse hub");
         };
     }
 }

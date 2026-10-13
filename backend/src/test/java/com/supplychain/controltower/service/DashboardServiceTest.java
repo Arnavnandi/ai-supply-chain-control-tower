@@ -99,8 +99,9 @@ class DashboardServiceTest {
         assertTrue(summary.getDemandTrends().isEmpty());
         assertTrue(summary.getInventoryTrends().isEmpty());
         assertNull(summary.getOverallSupplierReliabilityPct());
-        assertNull(summary.getAverageWarehouseUtilizationPct());
-        assertEquals(BigDecimal.ZERO.setScale(2), summary.getSupplyChainRiskScore());
+        assertNull(summary.getSupplyChainRiskScore());
+        assertFalse(summary.getHasOperationalData());
+        assertEquals("UNPOPULATED", summary.getDataStatus());
         assertTrue(summary.getSupplierPerformance().isEmpty());
         assertTrue(summary.getWarehouseUtilization().isEmpty());
     }

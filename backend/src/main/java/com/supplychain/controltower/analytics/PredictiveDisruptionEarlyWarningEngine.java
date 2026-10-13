@@ -114,17 +114,21 @@ public class PredictiveDisruptionEarlyWarningEngine {
         // 2. Scan Inventory Deficit Anomalies
         List<Inventory> inventories = inventoryRepository.findByCompanyId(companyId);
         for (Inventory inv : inventories) {
-            if (inv.getQuantityAvailable() != null && inv.getQuantityAvailable() < inv.getSafetyStock()) {
-                double score = 75.0;
+            if (inv.getQuantityAvailable() != null && inv.getSafetyStock() != null && inv.getQuantityAvailable() < inv.getSafetyStock()) {
+                double deficitUnits = inv.getSafetyStock() - inv.getQuantityAvailable();
+                double deficitRatio = inv.getSafetyStock() > 0 ? (deficitUnits / inv.getSafetyStock()) : 0.5;
+                double prob = Math.min(0.99, Math.max(0.20, Math.round((0.50 + 0.45 * deficitRatio) * 100.0) / 100.0));
+                double score = Math.min(100.0, Math.max(20.0, Math.round((50.0 + 50.0 * deficitRatio) * 10.0) / 10.0));
+                String target = inv.getProduct() != null ? inv.getProduct().getSku() : ("INV-" + inv.getId());
                 PredictiveEarlyWarningNode node = PredictiveEarlyWarningNode.builder()
                         .warningId("WARN-INV-" + inv.getId())
                         .domain("INVENTORY")
                         .predictedDisruptionType(DisruptionSimulationService.DisruptionType.INVENTORY_SHORTAGE)
-                        .targetEntity(inv.getProduct() != null ? inv.getProduct().getSku() : "SKU-ELEC-001")
+                        .targetEntity(target)
                         .anomalySeverityScore(score)
-                        .predictiveRiskBand("HIGH")
-                        .failureProbability(0.88)
-                        .estimatedDaysToImpact(2)
+                        .predictiveRiskBand(score >= 70.0 ? "CRITICAL" : "HIGH")
+                        .failureProbability(prob)
+                        .estimatedDaysToImpact(Math.max(1, (int) Math.round(5.0 * (1.0 - deficitRatio))))
                         .anomalyExplanation(String.format("Inventory level (%d units) dropped below safety threshold (%d units) at warehouse %s.",
                                 inv.getQuantityAvailable(), inv.getSafetyStock(), inv.getWarehouse() != null ? inv.getWarehouse().getName() : "Hub"))
                         .proactiveMitigationStrategy("Issue expedited safety stock replenishment and reorder point adjustment.")
@@ -151,19 +155,22 @@ public class PredictiveDisruptionEarlyWarningEngine {
         List<Warehouse> warehouses = warehouseRepository.findByCompanyId(companyId);
         for (Warehouse wh : warehouses) {
             if (wh.getUtilizationPercentage() != null && wh.getUtilizationPercentage().doubleValue() > 75.0) {
-                double score = wh.getUtilizationPercentage().doubleValue() * 0.9;
+                double util = wh.getUtilizationPercentage().doubleValue();
+                double overrunRatio = (util - 75.0) / 25.0;
+                double score = Math.min(100.0, Math.round(util * 0.9 * 10.0) / 10.0);
+                double prob = Math.min(0.99, Math.max(0.30, Math.round((0.60 + 0.35 * Math.min(1.0, overrunRatio)) * 100.0) / 100.0));
                 PredictiveEarlyWarningNode node = PredictiveEarlyWarningNode.builder()
                         .warningId("WARN-WH-" + wh.getId())
                         .domain("WAREHOUSE")
                         .predictedDisruptionType(DisruptionSimulationService.DisruptionType.WAREHOUSE_CAPACITY_OVERRUN)
-                        .targetEntity(wh.getCode())
+                        .targetEntity(wh.getCode() != null ? wh.getCode() : ("WH-" + wh.getId()))
                         .anomalySeverityScore(score)
-                        .predictiveRiskBand("MEDIUM")
-                        .failureProbability(0.76)
-                        .estimatedDaysToImpact(5)
+                        .predictiveRiskBand(score >= 85.0 ? "CRITICAL" : "MEDIUM")
+                        .failureProbability(prob)
+                        .estimatedDaysToImpact(Math.max(1, 5 - (int) Math.round(3.0 * overrunRatio)))
                         .anomalyExplanation(String.format("Warehouse %s storage capacity utilization reached %.1f%% (Overrun warning).",
-                                wh.getName(), wh.getUtilizationPercentage().doubleValue()))
-                        .proactiveMitigationStrategy(String.format("Initiate inter-hub stock rebalancing from %s to regional overflow hub.", wh.getCode()))
+                                wh.getName(), util))
+                        .proactiveMitigationStrategy(String.format("Initiate inter-hub stock rebalancing from %s to regional overflow hub.", wh.getCode() != null ? wh.getCode() : "hub"))
                         .build();
 
                 if (convertToActionProposals) {

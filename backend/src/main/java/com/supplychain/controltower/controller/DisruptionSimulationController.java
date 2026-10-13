@@ -137,8 +137,8 @@ public class DisruptionSimulationController {
 
     @GetMapping("/analytics/failover-containment")
     public ResponseEntity<AutoContainmentFailoverEngine.ContainmentFailoverReport> getFailoverContainment(
-            @RequestParam(name = "failedSupplierCode", required = false, defaultValue = "SUP-TECH-001") String failedSupplierCode,
-            @RequestParam(name = "primaryWarehouseCode", required = false, defaultValue = "WH-NORTH") String primaryWarehouseCode) {
+            @RequestParam(name = "failedSupplierCode", required = false) String failedSupplierCode,
+            @RequestParam(name = "primaryWarehouseCode", required = false) String primaryWarehouseCode) {
 
         log.info("[SIMULATION CONTROLLER] Computing failover containment: failedSupplier={} primaryWarehouse={}",
                 failedSupplierCode, primaryWarehouseCode);
@@ -150,8 +150,8 @@ public class DisruptionSimulationController {
 
     @GetMapping("/analytics/multi-echelon-rebalance")
     public ResponseEntity<MultiEchelonInventoryRebalancingEngine.RebalancingReport> getMultiEchelonRebalance(
-            @RequestParam(name = "targetWarehouseCode", required = false, defaultValue = "WH-NORTH") String targetWarehouseCode,
-            @RequestParam(name = "skuCode", required = false, defaultValue = "SKU-ELEC-001") String skuCode) {
+            @RequestParam(name = "targetWarehouseCode", required = false) String targetWarehouseCode,
+            @RequestParam(name = "skuCode", required = false) String skuCode) {
 
         log.info("[SIMULATION CONTROLLER] Computing multi-echelon rebalancing: targetWarehouse={} sku={}",
                 targetWarehouseCode, skuCode);
@@ -163,8 +163,8 @@ public class DisruptionSimulationController {
 
     @GetMapping("/analytics/unified-orchestration")
     public ResponseEntity<UnifiedDisruptionOrchestratorEngine.MasterOrchestrationReport> getUnifiedOrchestration(
-            @RequestParam(name = "targetEntity", required = false, defaultValue = "SUP-TECH-001") String targetEntity,
-            @RequestParam(name = "warehouseCode", required = false, defaultValue = "WH-NORTH") String warehouseCode) {
+            @RequestParam(name = "targetEntity", required = false) String targetEntity,
+            @RequestParam(name = "warehouseCode", required = false) String warehouseCode) {
 
         log.info("[SIMULATION CONTROLLER] Generating Master Disruption Containment & Recovery Blueprint: targetEntity={} warehouse={}",
                 targetEntity, warehouseCode);

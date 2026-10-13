@@ -25,6 +25,7 @@ public class CascadingDisruptionCorrelationEngine {
     private final InventoryRepository inventoryRepository;
     private final SupplierRepository supplierRepository;
     private final WarehouseRepository warehouseRepository;
+    private final ShipmentRepository shipmentRepository;
     private final DisruptionMitigationPolicyEngine policyEngine;
     private final TelemetryEventPublisher telemetryPublisher;
 
@@ -64,7 +65,24 @@ public class CascadingDisruptionCorrelationEngine {
     public CascadingDisruptionResult analyzeCascadingDisruption(
             String primaryDisruptionStr, String primaryTarget, boolean convertToActionProposals) {
 
-        String target = (primaryTarget != null && !primaryTarget.isBlank()) ? primaryTarget : "SKU-ELEC-001";
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        String target = (primaryTarget != null && !primaryTarget.isBlank())
+                ? primaryTarget.trim()
+                : null;
+        if (target == null) {
+            var suppliers = supplierRepository.findByCompanyId(companyId);
+            var products = productRepository.findByCompanyId(companyId);
+            if (!suppliers.isEmpty() && "SUPPLIER_DISRUPTION".equalsIgnoreCase(primaryDisruptionStr)) {
+                target = suppliers.get(0).getCode();
+            } else if (!products.isEmpty()) {
+                target = products.get(0).getSku();
+            } else if (!suppliers.isEmpty()) {
+                target = suppliers.get(0).getCode();
+            } else {
+                target = "N/A";
+            }
+        }
+
         String simulationId = "SIM-CASCADE-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         log.info("[CASCADE CORRELATION ENGINE] Analyzing multi-disruption cascade. Primary: {} | Target: {} | ConvertToProposals: {}",
@@ -253,19 +271,30 @@ public class CascadingDisruptionCorrelationEngine {
     }
 
     private String resolveCascadingTarget(DisruptionSimulationService.DisruptionType primary, String primaryTarget, int hop) {
+        Long companyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
+        var products = productRepository.findByCompanyId(companyId);
+        var warehouses = warehouseRepository.findByCompanyId(companyId);
+        var suppliers = supplierRepository.findByCompanyId(companyId);
+        var shipments = shipmentRepository != null ? shipmentRepository.findByCompanyId(companyId) : java.util.Collections.<com.supplychain.controltower.entity.Shipment>emptyList();
+
+        String firstSku = !products.isEmpty() && products.get(0).getSku() != null ? products.get(0).getSku() : null;
+        String firstWh = !warehouses.isEmpty() && warehouses.get(0).getCode() != null ? warehouses.get(0).getCode() : null;
+        String firstTrk = !shipments.isEmpty() && shipments.get(0).getTrackingCode() != null ? shipments.get(0).getTrackingCode() : null;
+        String firstSup = !suppliers.isEmpty() && suppliers.get(0).getCode() != null ? suppliers.get(0).getCode() : null;
+
         if (hop == 1) {
             if (primary == DisruptionSimulationService.DisruptionType.SUPPLIER_DISRUPTION) {
-                return "SKU-ELEC-001";
+                return firstSku != null ? firstSku : (firstWh != null ? firstWh : "N/A");
             } else if (primary == DisruptionSimulationService.DisruptionType.INVENTORY_SHORTAGE) {
-                return "TRK-ROUTE-009";
+                return firstTrk != null ? firstTrk : (firstWh != null ? firstWh : "N/A");
             } else {
-                return "WH-NORTH-01";
+                return firstWh != null ? firstWh : (firstSku != null ? firstSku : "N/A");
             }
         } else {
             if (primary == DisruptionSimulationService.DisruptionType.SUPPLIER_DISRUPTION) {
-                return "TRK-ROUTE-009";
+                return firstTrk != null ? firstTrk : (firstWh != null ? firstWh : "N/A");
             } else {
-                return "WH-NORTH-01";
+                return firstWh != null ? firstWh : (firstSup != null ? firstSup : "N/A");
             }
         }
     }

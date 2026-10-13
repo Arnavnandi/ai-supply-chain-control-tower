@@ -4,6 +4,7 @@ import com.supplychain.controltower.analytics.AutoContainmentFailoverEngine;
 import com.supplychain.controltower.analytics.ExecutiveCommandCenterEngine;
 import com.supplychain.controltower.analytics.MultiEchelonInventoryRebalancingEngine;
 import com.supplychain.controltower.analytics.UnifiedDisruptionOrchestratorEngine;
+import com.supplychain.controltower.repository.ProductRepository;
 import com.supplychain.controltower.repository.SupplierRepository;
 import com.supplychain.controltower.repository.WarehouseRepository;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,9 @@ class ProductionResilienceIntegrationTest {
     @Mock
     private WarehouseRepository warehouseRepository;
 
+    @Mock
+    private ProductRepository productRepository;
+
     @InjectMocks
     private AutoContainmentFailoverEngine failoverEngine;
 
@@ -42,9 +46,10 @@ class ProductionResilienceIntegrationTest {
                 failoverEngine.computeFailoverContainmentPlan(null, null);
 
         assertNotNull(report);
-        assertEquals("CONTAINED", report.getContainmentStatus());
-        assertEquals(60.0, report.getPrimaryAllocationPct());
-        assertEquals(40.0, report.getFallbackAllocationPct());
+        assertEquals("INSUFFICIENT_DATA", report.getContainmentStatus());
+        assertEquals(0.0, report.getPrimaryAllocationPct());
+        assertEquals(0.0, report.getFallbackAllocationPct());
+        assertTrue(report.getAllocations().isEmpty());
         assertFalse(Double.isNaN(report.getAlternateWarehouseAvailableCapacityUnits()));
         assertFalse(Double.isInfinite(report.getAlternateWarehouseAvailableCapacityUnits()));
     }
@@ -53,13 +58,15 @@ class ProductionResilienceIntegrationTest {
     void testMultiEchelonRebalanceResilienceWithBlankInputs() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(productRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         MultiEchelonInventoryRebalancingEngine.RebalancingReport report =
                 rebalanceEngine.computeMultiEchelonRebalancePlan("   ", "");
 
         assertNotNull(report);
-        assertEquals("BALANCED", report.getRebalancingStatus());
-        assertEquals(350, report.getTotalRebalancedUnits());
+        assertEquals("INSUFFICIENT_DATA", report.getRebalancingStatus());
+        assertEquals(0, report.getTotalRebalancedUnits());
+        assertTrue(report.getTransferOptions().isEmpty());
         assertFalse(Double.isNaN(report.getTotalCostSavingsVsNewPurchase()));
         assertFalse(Double.isInfinite(report.getTotalCostSavingsVsNewPurchase()));
     }

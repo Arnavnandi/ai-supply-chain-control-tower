@@ -64,11 +64,14 @@ public class DashboardService {
                 ? BigDecimal.valueOf(avgUtilOpt.getAsDouble()).setScale(2, RoundingMode.HALF_UP)
                 : null;
 
+        boolean hasOperationalData = totalProducts > 0 || totalUnits > 0 || !companySuppliers.isEmpty() || !companyWarehouses.isEmpty();
+
         // Calculate overall Supply Chain Risk Score (0-100) based on stockouts, delays, and overutilization
-        double riskScore = 0.0;
-        if (totalProducts > 0 || !allInventory.isEmpty() || !companySuppliers.isEmpty() || !companyWarehouses.isEmpty()) {
+        BigDecimal calculatedRiskScore = null;
+        if (hasOperationalData) {
             double warehousePenalty = (avgUtilOpt.isPresent() && avgUtilOpt.getAsDouble() > 90.0) ? 25.0 : 0.0;
-            riskScore = Math.min(100.0, (lowStockCount * 15.0) + (delayedShipmentsCount * 20.0) + warehousePenalty);
+            double rawScore = Math.min(100.0, (lowStockCount * 15.0) + (delayedShipmentsCount * 20.0) + warehousePenalty);
+            calculatedRiskScore = BigDecimal.valueOf(rawScore).setScale(2, RoundingMode.HALF_UP);
         }
 
         // Calculate real demand trends from PostgreSQL Customer Orders & Order Items
@@ -157,12 +160,16 @@ public class DashboardService {
                 .delayedShipmentsCount(delayedShipmentsCount)
                 .overallSupplierReliabilityPct(avgRel)
                 .averageWarehouseUtilizationPct(avgUtil)
-                .supplyChainRiskScore(BigDecimal.valueOf(riskScore).setScale(2, RoundingMode.HALF_UP))
+                .supplyChainRiskScore(calculatedRiskScore)
                 .inventoryTrends(inventoryTrends)
                 .demandTrends(demandTrends)
                 .supplierPerformance(supplierPerformance)
                 .warehouseUtilization(warehouseUtilization)
+                .hasOperationalData(hasOperationalData)
+                .dataStatus(hasOperationalData ? "ACTIVE" : "UNPOPULATED")
+                .lastUpdated(java.time.LocalDateTime.now().toString())
                 .build();
     }
 }
+
 

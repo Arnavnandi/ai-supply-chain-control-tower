@@ -4,6 +4,7 @@ import com.supplychain.controltower.entity.Inventory;
 import com.supplychain.controltower.entity.Supplier;
 import com.supplychain.controltower.entity.Warehouse;
 import com.supplychain.controltower.repository.InventoryRepository;
+import com.supplychain.controltower.repository.ShipmentRepository;
 import com.supplychain.controltower.repository.SupplierRepository;
 import com.supplychain.controltower.repository.WarehouseRepository;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class ExecutiveCommandCenterEngineTest {
     private WarehouseRepository warehouseRepository;
 
     @Mock
+    private ShipmentRepository shipmentRepository;
+
+    @Mock
     private HistoricalMitigationEfficacyEngine efficacyEngine;
 
     @InjectMocks
@@ -44,6 +48,7 @@ class ExecutiveCommandCenterEngineTest {
         Supplier supplier = new Supplier();
         supplier.setReliabilityScore(new BigDecimal("90.0"));
         when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         Inventory inventory = new Inventory();
         inventory.setQuantityAvailable(100);
@@ -57,6 +62,7 @@ class ExecutiveCommandCenterEngineTest {
         HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport effReport =
                 HistoricalMitigationEfficacyEngine.HistoricalEfficacyReport.builder()
                         .overallSuccessRatePct(95.0)
+                        .totalHistoricalExecutions(10)
                         .build();
         when(efficacyEngine.calculateHistoricalEfficacy()).thenReturn(effReport);
 
@@ -64,8 +70,10 @@ class ExecutiveCommandCenterEngineTest {
                 commandCenterEngine.generateExecutiveCommandCenterReport();
 
         assertNotNull(report);
+        assertNotNull(report.getOverallResiliencyIndex());
         assertTrue(report.getOverallResiliencyIndex() >= 85.0);
         assertEquals("OPTIMAL", report.getResiliencyStatusBand());
+        assertTrue(report.getHasSufficientData());
         assertNotNull(report.getExecutiveBriefingSummary());
     }
 
@@ -73,6 +81,7 @@ class ExecutiveCommandCenterEngineTest {
     void testGenerateExecutiveCommandCenterReportWithEmptyDataHandling() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
         when(supplierRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
         when(inventoryRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
         when(efficacyEngine.calculateHistoricalEfficacy()).thenReturn(null);
@@ -81,8 +90,9 @@ class ExecutiveCommandCenterEngineTest {
                 commandCenterEngine.generateExecutiveCommandCenterReport();
 
         assertNotNull(report);
-        assertEquals(0.0, report.getOverallResiliencyIndex());
+        assertNull(report.getOverallResiliencyIndex());
         assertEquals("INSUFFICIENT_DATA", report.getResiliencyStatusBand());
+        assertFalse(report.getHasSufficientData());
         assertTrue(report.getExecutiveBriefingSummary().contains("Insufficient operational telemetry"));
     }
 
@@ -92,6 +102,7 @@ class ExecutiveCommandCenterEngineTest {
         Supplier supplier = new Supplier();
         supplier.setReliabilityScore(new BigDecimal("90.0"));
         when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(supplier));
+        when(shipmentRepository.findByCompanyId(1L)).thenReturn(Collections.emptyList());
 
         Inventory inventory = new Inventory();
         inventory.setQuantityAvailable(100);
@@ -105,9 +116,11 @@ class ExecutiveCommandCenterEngineTest {
                 commandCenterEngine.generateExecutiveCommandCenterReport();
 
         assertNotNull(report);
+        assertNotNull(report.getOverallResiliencyIndex());
         assertTrue(report.getOverallResiliencyIndex() >= 85.0);
         assertNotEquals("INSUFFICIENT_DATA", report.getResiliencyStatusBand());
-        assertEquals(0.0, report.getWarehouseCapacityComponentScore());
-        assertEquals(0.0, report.getHistoricalEfficacyComponentScore());
+        assertTrue(report.getHasSufficientData());
+        assertNull(report.getWarehouseCapacityComponentScore());
+        assertNull(report.getHistoricalEfficacyComponentScore());
     }
 }

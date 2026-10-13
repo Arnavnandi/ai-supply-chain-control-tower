@@ -1,9 +1,11 @@
 package com.supplychain.controltower.analytics;
 
 import com.supplychain.controltower.entity.Inventory;
+import com.supplychain.controltower.entity.Shipment;
 import com.supplychain.controltower.entity.Supplier;
 import com.supplychain.controltower.entity.Warehouse;
 import com.supplychain.controltower.repository.InventoryRepository;
+import com.supplychain.controltower.repository.ShipmentRepository;
 import com.supplychain.controltower.repository.SupplierRepository;
 import com.supplychain.controltower.repository.WarehouseRepository;
 import lombok.AllArgsConstructor;
@@ -26,6 +28,7 @@ public class ExecutiveCommandCenterEngine {
     private final SupplierRepository supplierRepository;
     private final InventoryRepository inventoryRepository;
     private final WarehouseRepository warehouseRepository;
+    private final ShipmentRepository shipmentRepository;
     private final HistoricalMitigationEfficacyEngine efficacyEngine;
 
     @Data
@@ -34,12 +37,13 @@ public class ExecutiveCommandCenterEngine {
     @AllArgsConstructor
     public static class ExecutiveScorecardReport {
         private String reportId;
-        private double overallResiliencyIndex; // 0.0 - 100.0
-        private String resiliencyStatusBand; // OPTIMAL, HEALTHY, WARNING, CRITICAL
-        private double supplierOtifComponentScore;
-        private double inventoryBufferComponentScore;
-        private double warehouseCapacityComponentScore;
-        private double historicalEfficacyComponentScore;
+        private Double overallResiliencyIndex; // null when INSUFFICIENT_DATA
+        private String resiliencyStatusBand; // OPTIMAL, HEALTHY, WARNING, CRITICAL, INSUFFICIENT_DATA
+        private Boolean hasSufficientData;
+        private Double supplierOtifComponentScore;
+        private Double inventoryBufferComponentScore;
+        private Double warehouseCapacityComponentScore;
+        private Double historicalEfficacyComponentScore;
         private String overallPortfolioStatus;
         private List<String> majorRiskHighlights;
         private List<String> recommendedExecutiveAttentionAreas;
@@ -55,8 +59,21 @@ public class ExecutiveCommandCenterEngine {
 
         // 1. Component 1: Supplier OTIF Health (30% weight)
         List<Supplier> suppliers = supplierRepository.findByCompanyId(companyId);
+        List<Shipment> shipments = shipmentRepository.findByCompanyId(companyId);
         Double supplierOtif = null;
-        if (!suppliers.isEmpty()) {
+        if (!shipments.isEmpty()) {
+            long evaluated = shipments.stream()
+                    .filter(s -> s.getStatus() == Shipment.ShipmentStatus.DELIVERED || s.getDelayDays() != null)
+                    .count();
+            if (evaluated > 0) {
+                long onTime = shipments.stream()
+                        .filter(s -> (s.getStatus() == Shipment.ShipmentStatus.DELIVERED || s.getDelayDays() != null)
+                                && (s.getDelayDays() == null || s.getDelayDays() <= 0))
+                        .count();
+                supplierOtif = Math.min(100.0, Math.max(0.0, (onTime * 100.0) / evaluated));
+            }
+        }
+        if (supplierOtif == null && !suppliers.isEmpty()) {
             OptionalDouble avgRel = suppliers.stream()
                     .map(Supplier::getReliabilityScore)
                     .filter(Objects::nonNull)
@@ -124,8 +141,7 @@ public class ExecutiveCommandCenterEngine {
             totalWeight += 0.20;
         }
 
-        double totalResiliencyIndex = totalWeight > 0 ? (weightedSum / totalWeight) : 0.0;
-        totalResiliencyIndex = Math.min(100.0, Math.max(0.0, totalResiliencyIndex));
+        Double totalResiliencyIndex = totalWeight > 0 ? Math.min(100.0, Math.max(0.0, weightedSum / totalWeight)) : null;
 
         String band;
         if (totalWeight == 0.0) {
@@ -151,7 +167,7 @@ public class ExecutiveCommandCenterEngine {
                 riskHighlights.add("Warehouse utilization spike: storage capacity at primary distribution hubs is approaching threshold limits.");
             }
             if (supplierOtif != null && supplierOtif < 85.0) {
-                riskHighlights.add("Supplier OTIF degradation: key tier-1 chip/component vendors show delivery delays.");
+                riskHighlights.add("Supplier OTIF degradation: delivery delays or reliability issues detected in supplier network.");
             }
             if (riskHighlights.isEmpty()) {
                 riskHighlights.add(String.format("Operational parameters within nominal tolerances across %d regional facilities.", warehouses.size()));
@@ -159,9 +175,9 @@ public class ExecutiveCommandCenterEngine {
         }
 
         List<String> attentionAreas = List.of(
-                "Review pending action proposals in Action Center requiring human manager JWT authorization.",
-                "Inspect predictive early-warning radar for impending 2-to-5 day stockout signals.",
-                "Evaluate Cost vs SLA speed tradeoffs for expedited air freight options."
+                "Review pending action proposals in Action Center requiring human manager authorization.",
+                "Inspect predictive early-warning radar for impending stockout signals.",
+                "Evaluate Cost vs SLA speed tradeoffs for logistics options."
         );
 
         String briefing;
@@ -180,10 +196,11 @@ public class ExecutiveCommandCenterEngine {
                 .reportId(reportId)
                 .overallResiliencyIndex(totalResiliencyIndex)
                 .resiliencyStatusBand(band)
-                .supplierOtifComponentScore(supplierOtif != null ? supplierOtif : 0.0)
-                .inventoryBufferComponentScore(inventoryScore != null ? inventoryScore : 0.0)
-                .warehouseCapacityComponentScore(warehouseScore != null ? warehouseScore : 0.0)
-                .historicalEfficacyComponentScore(efficacyScore != null ? efficacyScore : 0.0)
+                .hasSufficientData(totalWeight > 0)
+                .supplierOtifComponentScore(supplierOtif)
+                .inventoryBufferComponentScore(inventoryScore)
+                .warehouseCapacityComponentScore(warehouseScore)
+                .historicalEfficacyComponentScore(efficacyScore)
                 .overallPortfolioStatus(totalWeight == 0.0
                         ? "Control Tower operational state is uninitialized (Insufficient Data)."
                         : String.format("Control Tower operational state is %s with an overall Resiliency Index of %.1f/100.", band, totalResiliencyIndex))
@@ -192,7 +209,7 @@ public class ExecutiveCommandCenterEngine {
                 .executiveBriefingSummary(briefing)
                 .build();
 
-        log.info("[EXECUTIVE CC COMPLETE] ReportId: {} | ResiliencyIndex: %.1f (%s)", reportId, totalResiliencyIndex, band);
+        log.info("[EXECUTIVE CC COMPLETE] ReportId: {} | ResiliencyIndex: {} ({})", reportId, totalResiliencyIndex != null ? String.format("%.1f", totalResiliencyIndex) : "N/A", band);
         return report;
     }
 }

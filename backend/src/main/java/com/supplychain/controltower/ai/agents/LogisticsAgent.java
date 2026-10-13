@@ -27,8 +27,7 @@ public class LogisticsAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
@@ -37,10 +36,12 @@ public class LogisticsAgent {
                             .system("""
                                     You are the Specialized Logistics & Transit Tracking Agent.
                                     Your responsibility is monitoring in-transit shipments, carrier delays, shipment routes, and delivery estimates.
-                                    Always ground your analysis in PostgreSQL database data via getDelayedShipments.
+                                    Always ground your analysis in PostgreSQL database data via tools getDelayedShipments and getTotalShipmentsCount.
+                                    If no shipments exist in the company, state clearly that no shipment records are available.
+                                    Never invent carriers, tracking numbers, or routes.
                                     """)
                             .user(prompt)
-                            .functions("getDelayedShipments")
+                            .functions("getDelayedShipments", "getTotalShipmentsCount")
                             .call()
                             .content();
                 } finally {
@@ -65,18 +66,25 @@ public class LogisticsAgent {
     }
 
     public String generateFallbackAnalysis(String prompt) {
+        long totalShipments = logisticsTools.getTotalShipmentsCount();
         List<LogisticsTools.DelayedShipmentRecord> delays = logisticsTools.getDelayedShipments();
 
         StringBuilder sb = new StringBuilder();
         sb.append("### 🚚 Logistics & Shipment Tracking Agent Analysis\n");
-        sb.append("Identified **").append(delays.size()).append(" active delayed shipment(s)** in transit:\n\n");
+        if (totalShipments == 0) {
+            sb.append("No shipment records found in database for this company. Please upload shipment CSV records to monitor logistics routes and carrier transit performance.\n\n");
+            sb.append("**Recommendation**: Import logistics shipment dataset to activate transit monitoring.");
+            return sb.toString();
+        }
+
+        sb.append("Identified **").append(delays.size()).append(" active delayed shipment(s)** in transit (Total tracked: `").append(totalShipments).append("`):\n\n");
         for (var d : delays) {
             sb.append("- Tracking Code: `").append(d.trackingCode()).append("`\n");
             sb.append("  - Carrier: **").append(d.carrier()).append("** | Delay: `").append(d.delayDays()).append(" day(s)`\n");
             sb.append("  - Route: ").append(d.origin()).append(" ➔ ").append(d.destination()).append("\n\n");
         }
         if (delays.isEmpty()) {
-            sb.append("All shipments are currently operating on-schedule without transit delays.\n");
+            sb.append("All ").append(totalShipments).append(" active shipments are currently operating on-schedule without transit delays.\n");
         } else {
             sb.append("**Recommendation**: Contact carriers for updated ETA and alert destination distribution centers.");
         }

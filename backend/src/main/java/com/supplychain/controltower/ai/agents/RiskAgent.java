@@ -33,8 +33,7 @@ public class RiskAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
@@ -45,6 +44,8 @@ public class RiskAgent {
                                     Your responsibility is synthesizing risk alerts across stockouts, shipment delays, supplier disruptions, and capacity overruns.
                                     Always ground your analysis in PostgreSQL database data via getActiveSupplyChainRisks, getDemandForecasts, getLowStockProducts, and getDelayedShipments.
                                     Provide clear explainability: problem detected, raw metrics cause, and recommended action.
+                                    If no risk alerts exist, state clearly that no active risks are detected or that operational records are unpopulated.
+                                    Never fabricate risks, suppliers, or products.
                                     """)
                             .user(prompt)
                             .functions("getActiveSupplyChainRisks", "getDemandForecasts", "getLowStockProducts", "getDelayedShipments")
@@ -78,6 +79,12 @@ public class RiskAgent {
 
         StringBuilder sb = new StringBuilder();
         sb.append("### 🛡️ Operational Risk Analysis Agent Briefing\n");
+        if (risks.isEmpty() && lowStock.isEmpty() && delays.isEmpty()) {
+            sb.append("No active risk alerts recorded. Operational records are unpopulated or all monitored operations are operating within safe tolerances.\n\n");
+            sb.append("**Recommendation**: Upload operational datasets to enable continuous real-time risk surveillance.");
+            return sb.toString();
+        }
+
         sb.append("Active supply chain risk alerts synthesized from PostgreSQL database:\n\n");
         for (var r : risks) {
             sb.append("- **[").append(r.severity()).append("] ").append(r.category()).append("** (Entity: ").append(r.entityType()).append(")\n");

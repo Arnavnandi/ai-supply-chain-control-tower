@@ -27,8 +27,7 @@ public class SupplierAgent {
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
         }
-        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getCompanyId() != null
-                ? com.supplychain.controltower.security.TenantContext.getCompanyId() : 1L;
+        Long callerCompanyId = com.supplychain.controltower.security.TenantContext.getRequiredCompanyId();
         try {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
@@ -38,6 +37,8 @@ public class SupplierAgent {
                                     You are the Specialized Supplier Intelligence Agent.
                                     Your responsibility is evaluating vendor reliability ratings, lead times, delivery performance %, and contract pricing.
                                     Always ground your analysis in PostgreSQL database data via tools getSupplierPerformance and getSuppliersForProduct.
+                                    If no suppliers are found, state clearly that no vendor records exist.
+                                    Never invent suppliers, ratings, or lead times.
                                     """)
                             .user(prompt)
                             .functions("getSupplierPerformance", "getSuppliersForProduct")
@@ -69,12 +70,18 @@ public class SupplierAgent {
 
         StringBuilder sb = new StringBuilder();
         sb.append("### 🏭 Supplier Intelligence Agent Analysis\n");
+        if (suppliers.isEmpty()) {
+            sb.append("No supplier records found in database for this company. Please upload supplier CSV data to evaluate vendor reliability and lead time performance.\n\n");
+            sb.append("**Recommendation**: Import supplier and contract datasets to activate vendor intelligence.");
+            return sb.toString();
+        }
+
         sb.append("Evaluated **").append(suppliers.size()).append(" active vendor partner(s)** in PostgreSQL:\n\n");
         for (var s : suppliers) {
             sb.append("- **").append(s.name()).append("** (Code: `").append(s.code()).append("`)\n");
-            sb.append("  - Reliability Index: `").append(s.reliabilityScore()).append("%`\n");
-            sb.append("  - On-Time Delivery Rate: `").append(s.deliveryPerformancePct()).append("%`\n");
-            sb.append("  - Avg Lead Time: `").append(s.averageLeadTimeDays()).append(" days`\n\n");
+            sb.append("  - Reliability Index: `").append(s.reliabilityScore() != null ? s.reliabilityScore() + "%" : "N/A").append("`\n");
+            sb.append("  - On-Time Delivery Rate: `").append(s.deliveryPerformancePct() != null ? s.deliveryPerformancePct() + "%" : "N/A").append("`\n");
+            sb.append("  - Avg Lead Time: `").append(s.averageLeadTimeDays() != null ? s.averageLeadTimeDays() + " days" : "N/A").append("`\n\n");
         }
         sb.append("**Recommendation**: Prioritize orders with preferred vendors maintaining >90% reliability scores.");
         return sb.toString();

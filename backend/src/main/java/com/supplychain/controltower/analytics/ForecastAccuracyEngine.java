@@ -96,10 +96,10 @@ public class ForecastAccuracyEngine {
                     .build());
         }
 
-        double mape = validPoints > 0 ? Math.round((sumAbsolutePercentageError / validPoints) * 10.0) / 10.0 : 12.0;
-        double rmse = validPoints > 0 ? Math.round(Math.sqrt(sumSquaredError / validPoints) * 10.0) / 10.0 : 15.0;
+        Double mape = validPoints > 0 ? Math.round((sumAbsolutePercentageError / validPoints) * 10.0) / 10.0 : null;
+        Double rmse = validPoints > 0 ? Math.round(Math.sqrt(sumSquaredError / validPoints) * 10.0) / 10.0 : null;
 
-        String rating = mape < 15.0 ? "EXCELLENT" : (mape < 25.0 ? "GOOD" : (mape < 35.0 ? "MODERATE" : "POOR"));
+        String rating = mape == null ? "INSUFFICIENT_DATA" : (mape < 15.0 ? "EXCELLENT" : (mape < 25.0 ? "GOOD" : (mape < 35.0 ? "MODERATE" : "POOR")));
 
         return AccuracyMetrics.builder()
                 .productId(product.getId())

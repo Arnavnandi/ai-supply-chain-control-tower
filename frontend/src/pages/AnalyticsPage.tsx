@@ -9,7 +9,9 @@ import {
   Layers,
   FileText,
   CheckCircle2,
-  X
+  X,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 
 interface AccuracyMetrics {
@@ -203,11 +205,17 @@ interface MasterOrchestrationReport {
 }
 
 export const AnalyticsPage: React.FC = () => {
+  const [selectedCategory, setSelectedCategory] = useState<'disruption' | 'inventory' | 'resilience'>('disruption');
   const [activeTab, setActiveTab] = useState<'masterOrchestrator' | 'cascade' | 'rebalance' | 'failover' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('masterOrchestrator');
+
+  // Tenant Entities
+  const [productList, setProductList] = useState<any[]>([]);
+  const [supplierList, setSupplierList] = useState<any[]>([]);
+  const [warehouseList, setWarehouseList] = useState<any[]>([]);
 
   // Accuracy State
   const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<number>(1);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   // Optimization State
   const [optimizationReport, setOptimizationReport] = useState<OptimizationReport | null>(null);
@@ -219,7 +227,7 @@ export const AnalyticsPage: React.FC = () => {
 
   // Cascade State
   const [cascadePrimaryType, setCascadePrimaryType] = useState<string>('SUPPLIER_DISRUPTION');
-  const [cascadeTargetEntity, setCascadeTargetEntity] = useState<string>('SUP-TECH-001');
+  const [cascadeTargetEntity, setCascadeTargetEntity] = useState<string>('');
   const [cascadeResult, setCascadeResult] = useState<CascadeResult | null>(null);
   const [cascadeLoading, setCascadeLoading] = useState<boolean>(false);
 
@@ -241,16 +249,69 @@ export const AnalyticsPage: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchAccuracy(selectedProductId);
-    fetchOptimization();
-    runSimulation(demandSurge, leadTimeDelay);
-    runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity);
-    fetchCostSlaTradeoff();
-    fetchHistoricalEfficacy();
-    fetchFailoverContainment();
-    fetchMultiEchelonRebalance();
-    fetchMasterOrchestration();
+    const initData = async () => {
+      try {
+        const [prodRes, suppRes, whRes] = await Promise.allSettled([
+          axiosInstance.get('/products'),
+          axiosInstance.get('/suppliers'),
+          axiosInstance.get('/warehouses')
+        ]);
+
+        const prods = prodRes.status === 'fulfilled' ? prodRes.value.data || [] : [];
+        const supps = suppRes.status === 'fulfilled' ? suppRes.value.data || [] : [];
+        const whs = whRes.status === 'fulfilled' ? whRes.value.data || [] : [];
+
+        setProductList(prods);
+        setSupplierList(supps);
+        setWarehouseList(whs);
+
+        if (prods.length > 0) {
+          const firstId = prods[0].id;
+          setSelectedProductId(firstId);
+          fetchAccuracy(firstId);
+        }
+
+        // Dynamically resolve target entity for cascade simulation
+        let initialTarget = '';
+        if (supps.length > 0) {
+          initialTarget = supps[0].supplierCode || '';
+        } else if (whs.length > 0) {
+          initialTarget = whs[0].code || '';
+        } else if (prods.length > 0) {
+          initialTarget = prods[0].sku || '';
+        }
+        setCascadeTargetEntity(initialTarget);
+
+        if (initialTarget) {
+          runCascadeSimulation('SUPPLIER_DISRUPTION', initialTarget);
+        }
+      } catch (e) {
+        console.error('Failed to load initial tenant records for analytics:', e);
+      }
+
+      fetchOptimization();
+      runSimulation(demandSurge, leadTimeDelay);
+      fetchCostSlaTradeoff();
+      fetchHistoricalEfficacy();
+      fetchFailoverContainment();
+      fetchMultiEchelonRebalance();
+      fetchMasterOrchestration();
+    };
+    initData();
   }, []);
+
+  const handleCascadeTypeChange = (newType: string) => {
+    setCascadePrimaryType(newType);
+    if (newType === 'SUPPLIER_DISRUPTION') {
+      setCascadeTargetEntity(supplierList[0]?.supplierCode || '');
+    } else if (newType === 'WAREHOUSE_CAPACITY_OVERRUN') {
+      setCascadeTargetEntity(warehouseList[0]?.code || '');
+    } else if (newType === 'INVENTORY_SHORTAGE') {
+      setCascadeTargetEntity(productList[0]?.sku || '');
+    } else if (newType === 'LOGISTICS_DELAY') {
+      setCascadeTargetEntity(supplierList[0]?.supplierCode || warehouseList[0]?.code || '');
+    }
+  };
 
   const fetchAccuracy = async (productId: number) => {
     try {
@@ -258,6 +319,17 @@ export const AnalyticsPage: React.FC = () => {
       setAccuracyData(res.data);
     } catch (err) {
       console.error('Failed to load accuracy metrics:', err);
+      const prod = productList.find(p => p.id === productId);
+      setAccuracyData({
+        productId,
+        productSku: prod?.sku || 'UNKNOWN',
+        productName: prod?.name || 'Unknown SKU',
+        mapePercentage: null as any,
+        rmseValue: null as any,
+        accuracyRating: 'INSUFFICIENT_DATA',
+        sampleSizeMonths: 0,
+        comparisons: []
+      });
     }
   };
 
@@ -378,193 +450,271 @@ export const AnalyticsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Workspace Tabs */}
-      <div className="flex flex-wrap items-center gap-4 border-b border-slate-800 pb-4">
+      {/* 3 Primary Analytics Domain Category Selectors */}
+      <div className="flex flex-wrap items-center gap-3 bg-slate-900/60 p-2 rounded-2xl border border-slate-800">
         <button
-          onClick={() => setActiveTab('masterOrchestrator')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'masterOrchestrator'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <Layers className="h-4 w-4 text-cyan-400" />
-          Master Disruption Containment & Recovery Blueprint
-        </button>
-
-        <button
-          onClick={() => setActiveTab('cascade')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'cascade'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          onClick={() => {
+            setSelectedCategory('disruption');
+            if (!['masterOrchestrator', 'cascade', 'simulation'].includes(activeTab)) {
+              setActiveTab('masterOrchestrator');
+            }
+          }}
+          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            selectedCategory === 'disruption'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
           <Zap className="h-4 w-4 text-amber-400" />
-          Cascading Disruption Correlation
+          <span>Disruption & Risk</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('rebalance')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'rebalance'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          onClick={() => {
+            setSelectedCategory('inventory');
+            if (!['accuracy', 'optimization', 'rebalance'].includes(activeTab)) {
+              setActiveTab('accuracy');
+            }
+          }}
+          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            selectedCategory === 'inventory'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
           <TrendingUp className="h-4 w-4 text-emerald-400" />
-          Multi-Echelon Inventory Rebalancing
+          <span>Inventory & Forecasting</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('failover')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'failover'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <Sliders className="h-4 w-4 text-cyan-400" />
-          Multi-Supplier Failover Split Router
-        </button>
-
-        <button
-          onClick={() => setActiveTab('costSla')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'costSla'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <BarChart3 className="h-4 w-4 text-emerald-400" />
-          Cost-SLA Optimization Tradeoff Matrix
-        </button>
-
-        <button
-          onClick={() => setActiveTab('historicalEfficacy')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'historicalEfficacy'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
+          onClick={() => {
+            setSelectedCategory('resilience');
+            if (!['failover', 'costSla', 'historicalEfficacy'].includes(activeTab)) {
+              setActiveTab('failover');
+            }
+          }}
+          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            selectedCategory === 'resilience'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
           <CheckCircle2 className="h-4 w-4 text-cyan-400" />
-          Historical Mitigation Efficacy
-        </button>
-
-        <button
-          onClick={() => setActiveTab('simulation')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'simulation'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <Sliders className="h-4 w-4" />
-          What-If Stress Testing Simulator
-        </button>
-
-        <button
-          onClick={() => setActiveTab('accuracy')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'accuracy'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <Target className="h-4 w-4" />
-          Forecast Backtesting (MAPE & RMSE)
-        </button>
-
-        <button
-          onClick={() => setActiveTab('optimization')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'optimization'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-900 border border-slate-800'
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          Dynamic Safety Stock Optimization
+          <span>Resilience & Efficacy</span>
         </button>
       </div>
 
+      {/* Sub-tabs under selected category */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-800 pb-4">
+        {selectedCategory === 'disruption' && (
+          <>
+            <button
+              onClick={() => setActiveTab('masterOrchestrator')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'masterOrchestrator'
+                  ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5 text-cyan-400" />
+              Master Disruption Containment & Recovery Blueprint
+            </button>
+            <button
+              onClick={() => setActiveTab('cascade')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'cascade'
+                  ? 'bg-slate-800 text-amber-300 border border-amber-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Zap className="h-3.5 w-3.5 text-amber-400" />
+              Cascading Disruption Correlation
+            </button>
+            <button
+              onClick={() => setActiveTab('simulation')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'simulation'
+                  ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Sliders className="h-3.5 w-3.5 text-purple-400" />
+              Deterministic What-If Simulator
+            </button>
+          </>
+        )}
+
+        {selectedCategory === 'inventory' && (
+          <>
+            <button
+              onClick={() => setActiveTab('accuracy')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'accuracy'
+                  ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Target className="h-3.5 w-3.5 text-cyan-400" />
+              Forecast Backtesting (MAPE & RMSE)
+            </button>
+            <button
+              onClick={() => setActiveTab('optimization')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'optimization'
+                  ? 'bg-slate-800 text-emerald-300 border border-emerald-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5 text-emerald-400" />
+              Dynamic Safety Stock Optimization
+            </button>
+            <button
+              onClick={() => setActiveTab('rebalance')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'rebalance'
+                  ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <TrendingUp className="h-3.5 w-3.5 text-purple-400" />
+              Multi-Echelon Inventory Rebalancing
+            </button>
+          </>
+        )}
+
+        {selectedCategory === 'resilience' && (
+          <>
+            <button
+              onClick={() => setActiveTab('failover')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'failover'
+                  ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <Sliders className="h-3.5 w-3.5 text-cyan-400" />
+              Multi-Supplier Failover Split Router
+            </button>
+            <button
+              onClick={() => setActiveTab('costSla')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'costSla'
+                  ? 'bg-slate-800 text-emerald-300 border border-emerald-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
+              Cost-SLA Optimization Tradeoff Matrix
+            </button>
+            <button
+              onClick={() => setActiveTab('historicalEfficacy')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'historicalEfficacy'
+                  ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
+                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 text-purple-400" />
+              Historical Mitigation Efficacy
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Tab: Master Disruption Containment & Recovery Blueprint */}
-      {activeTab === 'masterOrchestrator' && masterReport && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-cyan-400" />
-                  <span>Master Disruption Containment & Recovery Blueprint</span>
-                </h3>
-                <p className="text-xs text-slate-400">Target Disruption: {masterReport.disruptionType} on {masterReport.primaryTargetEntity} | Status: {masterReport.orchestrationStatus}</p>
+      {activeTab === 'masterOrchestrator' && (
+        masterReport && masterReport.orchestrationStatus !== 'INSUFFICIENT_DATA' ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-cyan-400" />
+                    <span>Master Disruption Containment & Recovery Blueprint</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Target Disruption: {masterReport.disruptionType} on {masterReport.primaryTargetEntity} | Status: {masterReport.orchestrationStatus}</p>
+                </div>
+
+                <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
+                  {masterReport.orchestrationPlanId}
+                </span>
               </div>
 
-              <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
-                {masterReport.orchestrationPlanId}
-              </span>
-            </div>
+              {/* Master Executive Summary Banner */}
+              <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start gap-3 text-xs text-cyan-300">
+                <Layers className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed font-medium">{masterReport.masterExecutiveSummary}</p>
+              </div>
 
-            {/* Master Executive Summary Banner */}
-            <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start gap-3 text-xs text-cyan-300">
-              <Layers className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed font-medium">{masterReport.masterExecutiveSummary}</p>
-            </div>
+              {/* Executive Metric Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Overall Systemic Risk Score</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-black text-amber-400">{masterReport.overallSystemicRiskScore.toFixed(1)}</span>
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-xs font-bold rounded border border-amber-500/20">MODERATE</span>
+                  </div>
+                </div>
 
-            {/* Executive Metric Highlights */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Overall Systemic Risk Score</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black text-amber-400">{masterReport.overallSystemicRiskScore.toFixed(1)}</span>
-                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-xs font-bold rounded border border-amber-500/20">MODERATE</span>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Estimated Recovery Time</span>
+                  <span className="text-2xl font-black text-emerald-400">{masterReport.estimatedRecoveryTimeDays} Days</span>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Total Estimated Recovery Cost</span>
+                  <span className="text-2xl font-black text-cyan-400">${masterReport.totalEstimatedCost.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Estimated Recovery Time</span>
-                <span className="text-2xl font-black text-emerald-400">{masterReport.estimatedRecoveryTimeDays} Days</span>
-              </div>
-
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Total Estimated Recovery Cost</span>
-                <span className="text-2xl font-black text-cyan-400">${masterReport.totalEstimatedCost.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Combined Strategy Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Failover Routing Component */}
-              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">1. Multi-Supplier Failover Allocation</span>
-                <p className="text-xs text-slate-300">
-                  Primary Path: 60% allocation on {masterReport.failoverContainment?.failedSupplierCode || 'SUP-TECH-001'} | Fallback Path: 40% re-allocated to secondary vendor routed to {masterReport.failoverContainment?.alternateWarehouseCode || 'WH-SOUTH'}.
-                </p>
-                <div className="pt-2 border-t border-slate-800 text-xs flex justify-between text-slate-400">
-                  <span>Containment Status: <strong className="text-emerald-400">{masterReport.failoverContainment?.containmentStatus || 'CONTAINED'}</strong></span>
-                  <span>Safety Buffer: <strong className="text-purple-300">+{masterReport.failoverContainment?.recommendedSafetyBufferUnits || 120} units</strong></span>
+              {/* Combined Strategy Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Failover Routing Component */}
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                  <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider block">1. Multi-Supplier Failover Allocation</span>
+                  <p className="text-xs text-slate-300">
+                    Primary Path: 60% allocation on {masterReport.failoverContainment?.failedSupplierCode || 'N/A'} | Fallback Path: 40% re-allocated to secondary vendor routed to {masterReport.failoverContainment?.alternateWarehouseCode || 'N/A'}.
+                  </p>
+                  <div className="pt-2 border-t border-slate-800 text-xs flex justify-between text-slate-400">
+                    <span>Containment Status: <strong className="text-emerald-400">{masterReport.failoverContainment?.containmentStatus || 'PENDING'}</strong></span>
+                    <span>Safety Buffer: <strong className="text-purple-300">+{masterReport.failoverContainment?.recommendedSafetyBufferUnits ?? 0} units</strong></span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Multi-Echelon Stock Transfer Component */}
-              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">2. Multi-Echelon Stock Redistribution</span>
-                <p className="text-xs text-slate-300">
-                  Transfers {masterReport.multiEchelonRebalance?.totalRebalancedUnits || 350} units of stock from surplus regional hubs, saving ${masterReport.multiEchelonRebalance?.totalCostSavingsVsNewPurchase?.toLocaleString() || '14,500'} vs new purchase.
-                </p>
-                <div className="pt-2 border-t border-slate-800 text-xs flex justify-between text-slate-400">
-                  <span>Rebalance Status: <strong className="text-emerald-400">{masterReport.multiEchelonRebalance?.rebalancingStatus || 'BALANCED'}</strong></span>
-                  <span>Lead Time Saved: <strong className="text-purple-300">-{masterReport.multiEchelonRebalance?.leadTimeReductionDays || 5} Days</strong></span>
+                {/* Multi-Echelon Stock Transfer Component */}
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">2. Multi-Echelon Stock Redistribution</span>
+                  <p className="text-xs text-slate-300">
+                    Transfers {masterReport.multiEchelonRebalance?.totalRebalancedUnits ?? 0} units of stock from surplus regional hubs, saving ${masterReport.multiEchelonRebalance?.totalCostSavingsVsNewPurchase?.toLocaleString() || '0'} vs new purchase.
+                  </p>
+                  <div className="pt-2 border-t border-slate-800 text-xs flex justify-between text-slate-400">
+                    <span>Rebalance Status: <strong className="text-emerald-400">{masterReport.multiEchelonRebalance?.rebalancingStatus || 'PENDING'}</strong></span>
+                    <span>Lead Time Saved: <strong className="text-purple-300">-{masterReport.multiEchelonRebalance?.leadTimeReductionDays ?? 0} Days</strong></span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-cyan-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">Insufficient Data for Master Orchestration Blueprint</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                The Master Orchestration Blueprint requires active suppliers, inventory items, and warehouses in your company catalog to model multi-domain failover and rebalancing.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
+            </div>
+          </div>
+        )
       )}
 
-      {/* Tab 0: Cascading Multi-Disruption Correlation Matrix */}
+      {/* Tab: Cascading Multi-Disruption Correlation Matrix */}
       {activeTab === 'cascade' && (
         <div className="space-y-6">
           {/* Controls Card */}
@@ -580,10 +730,10 @@ export const AnalyticsPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <select
                   value={cascadePrimaryType}
-                  onChange={(e) => setCascadePrimaryType(e.target.value)}
+                  onChange={(e) => handleCascadeTypeChange(e.target.value)}
                   className="bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
                 >
                   <option value="SUPPLIER_DISRUPTION">Supplier Failover (SUPPLIER_DISRUPTION)</option>
@@ -592,17 +742,78 @@ export const AnalyticsPage: React.FC = () => {
                   <option value="WAREHOUSE_CAPACITY_OVERRUN">Warehouse Overrun (WAREHOUSE_CAPACITY_OVERRUN)</option>
                 </select>
 
-                <input
-                  type="text"
-                  value={cascadeTargetEntity}
-                  onChange={(e) => setCascadeTargetEntity(e.target.value)}
-                  placeholder="Target Entity (e.g. SUP-TECH-001)"
-                  className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
-                />
+                {cascadePrimaryType === 'SUPPLIER_DISRUPTION' ? (
+                  supplierList.length > 0 ? (
+                    <select
+                      value={cascadeTargetEntity}
+                      onChange={(e) => setCascadeTargetEntity(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                    >
+                      {supplierList.map((s) => (
+                        <option key={s.id} value={s.supplierCode}>{s.name} ({s.supplierCode})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                      No suppliers registered
+                    </span>
+                  )
+                ) : cascadePrimaryType === 'WAREHOUSE_CAPACITY_OVERRUN' ? (
+                  warehouseList.length > 0 ? (
+                    <select
+                      value={cascadeTargetEntity}
+                      onChange={(e) => setCascadeTargetEntity(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                    >
+                      {warehouseList.map((w) => (
+                        <option key={w.id} value={w.code}>{w.name} ({w.code})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                      No warehouses registered
+                    </span>
+                  )
+                ) : cascadePrimaryType === 'INVENTORY_SHORTAGE' ? (
+                  productList.length > 0 ? (
+                    <select
+                      value={cascadeTargetEntity}
+                      onChange={(e) => setCascadeTargetEntity(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                    >
+                      {productList.map((p) => (
+                        <option key={p.id} value={p.sku}>{p.name} ({p.sku})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                      No products registered
+                    </span>
+                  )
+                ) : (
+                  (supplierList.length > 0 || warehouseList.length > 0) ? (
+                    <select
+                      value={cascadeTargetEntity}
+                      onChange={(e) => setCascadeTargetEntity(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-xl focus:outline-none focus:border-purple-500"
+                    >
+                      {supplierList.map((s) => (
+                        <option key={`sup-${s.id}`} value={s.supplierCode}>Vendor: {s.name} ({s.supplierCode})</option>
+                      ))}
+                      {warehouseList.map((w) => (
+                        <option key={`wh-${w.id}`} value={w.code}>Hub: {w.name} ({w.code})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                      No logistics nodes
+                    </span>
+                  )
+                )}
 
                 <button
                   onClick={() => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity)}
-                  disabled={cascadeLoading}
+                  disabled={cascadeLoading || !cascadeTargetEntity}
                   className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
                 >
                   {cascadeLoading ? 'Analyzing...' : 'Run Cascade Analysis'}
@@ -612,146 +823,363 @@ export const AnalyticsPage: React.FC = () => {
           </div>
 
           {/* Cascade Results */}
-          {cascadeResult && (
-            <div className="space-y-6">
-              {/* Metric Overview Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-                  <span className="text-xs text-slate-400 font-semibold block">Primary Originating Node</span>
-                  <span className="text-base font-bold text-white mt-1 block uppercase">{cascadeResult.primaryDisruption}</span>
-                  <span className="text-xs text-purple-400 font-medium">Target: {cascadeResult.primaryTarget}</span>
-                </div>
+          {cascadeResult ? (
+            cascadeResult.cumulativeRiskBand === 'INSUFFICIENT_DATA' || cascadeResult.cascadeNodes.length === 0 ? (
+              <div className="glass-panel p-10 text-center rounded-2xl border border-slate-800 space-y-3">
+                <AlertCircle className="h-8 w-8 text-amber-400 mx-auto" />
+                <h4 className="text-sm font-bold text-white">Insufficient Operational Data for Cascade Propagation</h4>
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Cascading multi-hop correlation models the propagation of failures across suppliers, warehouses, and inventory. Please upload suppliers.csv, warehouses.csv, and inventory.csv to trace impact chains.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Metric Overview Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span className="text-xs text-slate-400 font-semibold block">Primary Originating Node</span>
+                    <span className="text-base font-bold text-white mt-1 block uppercase">{cascadeResult.primaryDisruption}</span>
+                    <span className="text-xs text-purple-400 font-medium">Target: {cascadeResult.primaryTarget}</span>
+                  </div>
 
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-                  <span className="text-xs text-slate-400 font-semibold block">Impacted Domains Count</span>
-                  <span className="text-2xl font-black text-amber-400 mt-1 block">{cascadeResult.impactedDomainsCount} Domains</span>
-                  <span className="text-xs text-slate-400">Multi-Hop Failure Chain</span>
-                </div>
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span className="text-xs text-slate-400 font-semibold block">Impacted Domains Count</span>
+                    <span className="text-2xl font-black text-amber-400 mt-1 block">{cascadeResult.impactedDomainsCount} Domains</span>
+                    <span className="text-xs text-slate-400">Multi-Hop Failure Chain</span>
+                  </div>
 
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-                  <span className="text-xs text-slate-400 font-semibold block">Cumulative Systemic Risk</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-2xl font-black text-red-400">{cascadeResult.cumulativeRiskScore.toFixed(1)}</span>
-                    <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold rounded-md">
-                      {cascadeResult.cumulativeRiskBand}
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span className="text-xs text-slate-400 font-semibold block">Cumulative Systemic Risk</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-2xl font-black text-red-400">{cascadeResult.cumulativeRiskScore.toFixed(1)}</span>
+                      <span className="px-2.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold rounded-md">
+                        {cascadeResult.cumulativeRiskBand}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                    <span className="text-xs text-slate-400 font-semibold block">Chained Policy Proposals</span>
+                    <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                      {cascadeResult.generatedRecommendationIds.length} Created
                     </span>
+                    <span className="text-xs text-slate-400">Status: PENDING_APPROVAL</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-                  <span className="text-xs text-slate-400 font-semibold block">Chained Policy Proposals</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    {cascadeResult.generatedRecommendationIds.length} Created
-                  </span>
-                  <span className="text-xs text-slate-400">Status: PENDING_APPROVAL</span>
+                {/* Propagation Topology Flow */}
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">Multi-Hop Risk Propagation Topology Flow</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {cascadeResult.cascadeNodes.map((node) => (
+                      <div key={node.hopLevel} className="bg-slate-950/80 border border-slate-800 p-5 rounded-xl space-y-3 relative">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg">
+                            Hop #{node.hopLevel} • {node.domain}
+                          </span>
+                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold rounded">
+                            Risk: {node.nodeRiskScore.toFixed(1)}
+                          </span>
+                        </div>
+
+                        <h5 className="text-sm font-bold text-white">{node.targetEntity}</h5>
+                        <p className="text-xs text-slate-400 leading-relaxed">{node.propagationReasoning}</p>
+
+                        <div className="pt-2 border-t border-slate-800/80 text-xs">
+                          <span className="text-slate-500 block">Recommended Containment:</span>
+                          <span className="text-emerald-400 font-semibold">{node.recommendedMitigation}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              {/* Propagation Topology Flow */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Multi-Hop Risk Propagation Topology Flow</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {cascadeResult.cascadeNodes.map((node) => (
-                    <div key={node.hopLevel} className="bg-slate-950/80 border border-slate-800 p-5 rounded-xl space-y-3 relative">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg">
-                          Hop #{node.hopLevel} • {node.domain}
-                        </span>
-                        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold rounded">
-                          Risk: {node.nodeRiskScore.toFixed(1)}
-                        </span>
-                      </div>
-
-                      <h5 className="text-sm font-bold text-white">{node.targetEntity}</h5>
-                      <p className="text-xs text-slate-400 leading-relaxed">{node.propagationReasoning}</p>
-
-                      <div className="pt-2 border-t border-slate-800/80 text-xs">
-                        <span className="text-slate-500 block">Recommended Containment:</span>
-                        <span className="text-emerald-400 font-semibold">{node.recommendedMitigation}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            )
+          ) : (
+            <div className="glass-panel p-10 text-center rounded-2xl border border-slate-800 space-y-3">
+              <AlertCircle className="h-8 w-8 text-slate-500 mx-auto" />
+              <h4 className="text-sm font-bold text-white">No Cascade Simulation Executed</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                Select a primary disruption type and entity above, then click &ldquo;Run Cascade Analysis&rdquo; to simulate systemic propagation.
+              </p>
             </div>
           )}
         </div>
       )}
 
       {/* Tab: Multi-Echelon Inventory Rebalancing */}
-      {activeTab === 'rebalance' && rebalanceReport && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                  <span>Multi-Echelon Inventory Rebalancing & Cross-Dock Redistribution</span>
-                </h3>
-                <p className="text-xs text-slate-400">Target Deficit Hub: {rebalanceReport.targetWarehouseCode} | SKU: {rebalanceReport.skuCode} | Shortage: {rebalanceReport.deficitUnits} units</p>
+      {activeTab === 'rebalance' && (
+        rebalanceReport && rebalanceReport.rebalancingStatus !== 'INSUFFICIENT_DATA' ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    <span>Multi-Echelon Inventory Rebalancing & Cross-Dock Redistribution</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Target Deficit Hub: {rebalanceReport.targetWarehouseCode} | SKU: {rebalanceReport.skuCode} | Shortage: {rebalanceReport.deficitUnits} units</p>
+                </div>
+
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold rounded-lg font-mono">
+                  {rebalanceReport.rebalancePlanId}
+                </span>
               </div>
 
-              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold rounded-lg font-mono">
-                {rebalanceReport.rebalancePlanId}
-              </span>
-            </div>
-
-            {/* Executive Summary Banner */}
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
-              <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed font-medium">{rebalanceReport.executiveSummary}</p>
-            </div>
-
-            {/* Metric Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Total Rebalanced Stock</span>
-                <span className="text-2xl font-black text-emerald-400">{rebalanceReport.totalRebalancedUnits} / {rebalanceReport.deficitUnits} units</span>
+              {/* Executive Summary Banner */}
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
+                <TrendingUp className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed font-medium">{rebalanceReport.executiveSummary}</p>
               </div>
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Procurement Cost Savings</span>
-                <span className="text-2xl font-black text-cyan-400">${rebalanceReport.totalCostSavingsVsNewPurchase.toLocaleString()}</span>
+              {/* Metric Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Total Rebalanced Stock</span>
+                  <span className="text-2xl font-black text-emerald-400">{rebalanceReport.totalRebalancedUnits} / {rebalanceReport.deficitUnits} units</span>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Procurement Cost Savings</span>
+                  <span className="text-2xl font-black text-cyan-400">${rebalanceReport.totalCostSavingsVsNewPurchase.toLocaleString()}</span>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Lead Time Reduction</span>
+                  <span className="text-2xl font-black text-purple-400">-{rebalanceReport.leadTimeReductionDays} Days vs Vendor Order</span>
+                </div>
               </div>
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Lead Time Reduction</span>
-                <span className="text-2xl font-black text-purple-400">-{rebalanceReport.leadTimeReductionDays} Days vs Vendor Order</span>
-              </div>
-            </div>
-
-            {/* Transfer Options Table */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Inter-Hub Transfer Routes</h4>
-              <div className="grid grid-cols-1 gap-3">
-                {rebalanceReport.transferOptions.map((opt, idx) => (
-                  <div key={idx} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold rounded">
-                          {opt.sourceWarehouseCode}
-                        </span>
-                        <span className="text-slate-400 text-xs font-bold">➔</span>
-                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold rounded">
-                          {opt.targetWarehouseCode}
-                        </span>
-                        <span className="text-xs text-slate-300 font-semibold pl-2">{opt.sourceWarehouseName}</span>
+              {/* Transfer Options Table */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Inter-Hub Transfer Routes</h4>
+                <div className="grid grid-cols-1 gap-3">
+                  {rebalanceReport.transferOptions.map((opt, idx) => (
+                    <div key={idx} className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-mono font-bold rounded">
+                            {opt.sourceWarehouseCode}
+                          </span>
+                          <span className="text-slate-400 text-xs font-bold">➔</span>
+                          <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-bold rounded">
+                            {opt.targetWarehouseCode}
+                          </span>
+                          <span className="text-xs text-slate-300 font-semibold pl-2">{opt.sourceWarehouseName}</span>
+                        </div>
+                        <p className="text-xs text-slate-400">{opt.logisticsCorridor}</p>
                       </div>
-                      <p className="text-xs text-slate-400">{opt.logisticsCorridor}</p>
+
+                      <div className="flex items-center gap-6 text-xs">
+                        <div>
+                          <span className="text-slate-400 block">Transfer Quantity</span>
+                          <span className="font-bold text-white text-sm">{opt.transferQuantityUnits} units</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Transit Time</span>
+                          <span className="font-bold text-emerald-400 text-sm">{opt.transitLeadTimeDays} day(s)</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Est. Cost</span>
+                          <span className="font-bold text-cyan-400 text-sm">${opt.transferCostEstimate.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-emerald-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">Insufficient Data for Inventory Rebalancing</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Multi-echelon rebalancing requires multiple registered warehouses and active inventory records to model cross-dock stock transfers.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Tab: Multi-Supplier Failover Split Router */}
+      {activeTab === 'failover' && (
+        failoverReport && failoverReport.containmentStatus !== 'INSUFFICIENT_DATA' ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-cyan-400" />
+                    <span>Automated Disruption Containment & Multi-Supplier Failover Split</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Primary Failed Supplier: {failoverReport.failedSupplierCode} ({failoverReport.failedSupplierName}) | Hub: {failoverReport.primaryWarehouseCode}</p>
+                </div>
+
+                <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
+                  {failoverReport.containmentPlanId}
+                </span>
+              </div>
+
+              {/* Explanation Banner */}
+              <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start gap-3 text-xs text-cyan-300">
+                <Sliders className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed font-medium">{failoverReport.strategyExplanation}</p>
+              </div>
+
+              {/* 60 / 40 Split Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {failoverReport.allocations.map((alloc) => (
+                  <div
+                    key={alloc.pathType}
+                    className={`p-6 rounded-2xl border space-y-4 ${
+                      alloc.pathType === 'PRIMARY_DEGRADED'
+                        ? 'bg-slate-900 border-amber-500/40'
+                        : 'bg-slate-900 border-cyan-500/40 shadow-xl'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`px-2.5 py-1 text-xs font-black uppercase rounded-lg border ${
+                        alloc.pathType === 'PRIMARY_DEGRADED'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                      }`}>
+                        {alloc.allocationPercentage}% Order Volume Allocation
+                      </span>
+                      <span className="text-xs font-mono font-bold text-slate-400">{alloc.supplierCode}</span>
                     </div>
 
-                    <div className="flex items-center gap-6 text-xs">
-                      <div>
-                        <span className="text-slate-400 block">Transfer Quantity</span>
-                        <span className="font-bold text-white text-sm">{opt.transferQuantityUnits} units</span>
+                    <h4 className="text-base font-bold text-white">{alloc.supplierName}</h4>
+
+                    <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Reliability Score:</span>
+                        <span className="font-bold text-purple-300">{alloc.reliabilityScore}%</span>
                       </div>
-                      <div>
-                        <span className="text-slate-400 block">Transit Time</span>
-                        <span className="font-bold text-emerald-400 text-sm">{opt.transitLeadTimeDays} day(s)</span>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Logistics Corridor:</span>
+                        <span className="font-bold text-slate-200">{alloc.logisticsRoute}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-400 block">Est. Cost</span>
-                        <span className="font-bold text-cyan-400 text-sm">${opt.transferCostEstimate.toLocaleString()}</span>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Target Hub:</span>
+                        <span className="font-bold text-cyan-400">{alloc.targetWarehouseCode}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hub Capacity & Safety Stock Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Alternate Warehouse Available Capacity</span>
+                  <span className="text-xl font-bold text-emerald-400">{failoverReport.alternateWarehouseCode}: {failoverReport.alternateWarehouseAvailableCapacityUnits.toLocaleString()} units</span>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-xs text-slate-400 font-semibold block">Recommended Emergency Safety Stock Adjustment</span>
+                  <span className="text-xl font-bold text-purple-400">+{failoverReport.recommendedSafetyBufferUnits} units buffer</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-cyan-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">Insufficient Data for Supplier Failover Routing</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Failover routing requires at least two registered suppliers and warehouse facilities to model alternate split routing.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Tab: Cost-SLA Optimization Tradeoff Matrix */}
+      {activeTab === 'costSla' && (
+        costSlaReport && costSlaReport.initialRiskBand !== 'INSUFFICIENT_DATA' ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-emerald-400" />
+                    <span>Cost vs. SLA Recovery Speed Tradeoff Matrix</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Target Disruption: {costSlaReport.targetDisruptionType} | Entity: {costSlaReport.targetEntity}</p>
+                </div>
+
+                <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold rounded-lg font-mono">
+                  {costSlaReport.analysisId}
+                </span>
+              </div>
+
+              {/* Executive Recommendation Banner */}
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed font-medium">{costSlaReport.executiveRecommendationSummary}</p>
+              </div>
+
+              {/* Comparative Tradeoff Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                {costSlaReport.tradeoffs.map((opt) => (
+                  <div
+                    key={opt.optionId}
+                    className={`p-5 rounded-2xl border transition-all space-y-4 flex flex-col justify-between ${
+                      opt.recommendedChoice
+                        ? 'bg-slate-900 border-emerald-500/50 shadow-xl ring-1 ring-emerald-500/30'
+                        : 'bg-slate-950/80 border-slate-800'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg font-mono">
+                          {opt.optionId}
+                        </span>
+                        {opt.recommendedChoice && (
+                          <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase rounded">
+                            Optimal Strategy
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm font-bold text-white">{opt.strategyName}</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">{opt.tradeoffReasoning}</p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-800/80 space-y-3 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Estimated Cost:</span>
+                        <span className="font-bold text-white font-mono">${opt.estimatedCostUsd.toLocaleString()}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Expected Lead Time:</span>
+                        <span className="font-bold text-amber-400">{opt.expectedLeadTimeDays} Days</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Customer SLA Protection:</span>
+                        <span className="font-bold text-emerald-400">{opt.slaCustomerProtectionPct}%</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Residual Risk Score:</span>
+                        <span className="font-bold text-cyan-400">{opt.residualRiskScore} ({opt.residualRiskBand})</span>
                       </div>
                     </div>
                   </div>
@@ -759,238 +1187,118 @@ export const AnalyticsPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tab: Multi-Supplier Failover Split Router */}
-      {activeTab === 'failover' && failoverReport && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-cyan-400" />
-                  <span>Automated Disruption Containment & Multi-Supplier Failover Split</span>
-                </h3>
-                <p className="text-xs text-slate-400">Primary Failed Supplier: {failoverReport.failedSupplierCode} ({failoverReport.failedSupplierName}) | Hub: {failoverReport.primaryWarehouseCode}</p>
-              </div>
-
-              <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
-                {failoverReport.containmentPlanId}
-              </span>
-            </div>
-
-            {/* Explanation Banner */}
-            <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-start gap-3 text-xs text-cyan-300">
-              <Sliders className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed font-medium">{failoverReport.strategyExplanation}</p>
-            </div>
-
-            {/* 60 / 40 Split Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {failoverReport.allocations.map((alloc) => (
-                <div
-                  key={alloc.pathType}
-                  className={`p-6 rounded-2xl border space-y-4 ${
-                    alloc.pathType === 'PRIMARY_DEGRADED'
-                      ? 'bg-slate-900 border-amber-500/40'
-                      : 'bg-slate-900 border-cyan-500/40 shadow-xl'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2.5 py-1 text-xs font-black uppercase rounded-lg border ${
-                      alloc.pathType === 'PRIMARY_DEGRADED'
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                        : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                    }`}>
-                      {alloc.allocationPercentage}% Order Volume Allocation
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-400">{alloc.supplierCode}</span>
-                  </div>
-
-                  <h4 className="text-base font-bold text-white">{alloc.supplierName}</h4>
-
-                  <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Reliability Score:</span>
-                      <span className="font-bold text-purple-300">{alloc.reliabilityScore}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Logistics Corridor:</span>
-                      <span className="font-bold text-slate-200">{alloc.logisticsRoute}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Target Hub:</span>
-                      <span className="font-bold text-cyan-400">{alloc.targetWarehouseCode}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Hub Capacity & Safety Stock Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Alternate Warehouse Available Capacity</span>
-                <span className="text-xl font-bold text-emerald-400">{failoverReport.alternateWarehouseCode}: {failoverReport.alternateWarehouseAvailableCapacityUnits.toLocaleString()} units</span>
-              </div>
-
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Recommended Emergency Safety Stock Adjustment</span>
-                <span className="text-xl font-bold text-purple-400">+{failoverReport.recommendedSafetyBufferUnits} units buffer</span>
-              </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-indigo-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">Insufficient Data for Cost-SLA Tradeoff Matrix</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Evaluating logistics costs versus customer SLA preservation requires registered products and suppliers.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tab: Cost-SLA Optimization Tradeoff Matrix */}
-      {activeTab === 'costSla' && costSlaReport && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-emerald-400" />
-                  <span>Cost vs. SLA Recovery Speed Tradeoff Matrix</span>
-                </h3>
-                <p className="text-xs text-slate-400">Target Disruption: {costSlaReport.targetDisruptionType} | Entity: {costSlaReport.targetEntity}</p>
-              </div>
-
-              <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold rounded-lg font-mono">
-                {costSlaReport.analysisId}
-              </span>
-            </div>
-
-            {/* Executive Recommendation Banner */}
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-start gap-3 text-xs text-emerald-300">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed font-medium">{costSlaReport.executiveRecommendationSummary}</p>
-            </div>
-
-            {/* Comparative Tradeoff Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-              {costSlaReport.tradeoffs.map((opt) => (
-                <div
-                  key={opt.optionId}
-                  className={`p-5 rounded-2xl border transition-all space-y-4 flex flex-col justify-between ${
-                    opt.recommendedChoice
-                      ? 'bg-slate-900 border-emerald-500/50 shadow-xl ring-1 ring-emerald-500/30'
-                      : 'bg-slate-950/80 border-slate-800'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-lg font-mono">
-                        {opt.optionId}
-                      </span>
-                      {opt.recommendedChoice && (
-                        <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase rounded">
-                          Optimal Strategy
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="text-sm font-bold text-white">{opt.strategyName}</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed">{opt.tradeoffReasoning}</p>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-800/80 space-y-3 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Estimated Cost:</span>
-                      <span className="font-bold text-white font-mono">${opt.estimatedCostUsd.toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Expected Lead Time:</span>
-                      <span className="font-bold text-amber-400">{opt.expectedLeadTimeDays} Days</span>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Customer SLA Protection:</span>
-                      <span className="font-bold text-emerald-400">{opt.slaCustomerProtectionPct}%</span>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Residual Risk Score:</span>
-                      <span className="font-bold text-cyan-400">{opt.residualRiskScore} ({opt.residualRiskBand})</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        )
       )}
 
       {/* Tab: Historical Mitigation Efficacy */}
-      {activeTab === 'historicalEfficacy' && historicalEfficacyReport && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-cyan-400" />
-                  <span>Historical Mitigation Effectiveness Analytics</span>
-                </h3>
-                <p className="text-xs text-slate-400">PostgreSQL Audit & Execution Data Analytics ({historicalEfficacyReport.totalHistoricalExecutions} Executed Disruption Recoveries)</p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">Overall Success Rate:</span>
-                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold rounded-lg">
-                  {historicalEfficacyReport.overallSuccessRatePct.toFixed(1)}% Efficacy
-                </span>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 leading-relaxed">
-              {historicalEfficacyReport.historicalInsightsSummary}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {historicalEfficacyReport.categoryBreakdowns.map((cat) => (
-                <div key={cat.disruptionCategory} className="bg-slate-950/80 border border-slate-800 p-5 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
-                      {cat.disruptionCategory}
-                    </span>
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded">
-                      {cat.efficacyRating}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-2xl font-black text-white">{cat.historicalSuccessRatePct}%</span>
-                    <span className="text-xs text-slate-400 block">Success Rate ({cat.totalExecutedCount} Events)</span>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-800/80 text-xs space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Avg Risk Delta:</span>
-                      <span className="font-bold text-emerald-400">{cat.averageRiskReductionDelta}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Top Strategy:</span>
-                      <span className="font-bold text-cyan-300 font-mono">{cat.topRankedActionType}</span>
-                    </div>
-                  </div>
+      {activeTab === 'historicalEfficacy' && (
+        historicalEfficacyReport && historicalEfficacyReport.totalHistoricalExecutions > 0 ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-cyan-400" />
+                    <span>Historical Mitigation Effectiveness Analytics</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">PostgreSQL Audit & Execution Data Analytics ({historicalEfficacyReport.totalHistoricalExecutions} Executed Disruption Recoveries)</p>
                 </div>
-              ))}
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-400">Overall Success Rate:</span>
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold rounded-lg">
+                    {historicalEfficacyReport.overallSuccessRatePct.toFixed(1)}% Efficacy
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 leading-relaxed">
+                {historicalEfficacyReport.historicalInsightsSummary}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {historicalEfficacyReport.categoryBreakdowns.map((cat) => (
+                  <div key={cat.disruptionCategory} className="bg-slate-950/80 border border-slate-800 p-5 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded uppercase">
+                        {cat.disruptionCategory}
+                      </span>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold rounded">
+                        {cat.efficacyRating}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-2xl font-black text-white">{cat.historicalSuccessRatePct}%</span>
+                      <span className="text-xs text-slate-400 block">Success Rate ({cat.totalExecutedCount} Events)</span>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800/80 text-xs space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Avg Risk Delta:</span>
+                        <span className="font-bold text-emerald-400">{cat.averageRiskReductionDelta}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Top Strategy:</span>
+                        <span className="font-bold text-cyan-300 font-mono">{cat.topRankedActionType}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-cyan-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">No Historical Mitigation Actions Recorded</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Historical mitigation effectiveness analytics are computed from executed incident response actions in the Action Center. As disruptions are approved and resolved, efficacy statistics will accumulate here.
+              </p>
+            </div>
+          </div>
+        )
       )}
 
       {/* Tab 1: What-If Stress Testing Simulator */}
       {activeTab === 'simulation' && (
         <div className="space-y-6">
+          {/* Deterministic Simulation Disclaimer */}
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-xs text-amber-300">
+            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold uppercase tracking-wider block text-amber-200">
+                Deterministic Simulation Model (What-If Stress Testing)
+              </span>
+              <p className="mt-0.5 text-amber-300/90 leading-relaxed">
+                This simulator performs mathematical stress testing against baseline telemetry. It evaluates hypothetical disruptions under theoretical demand surge and lead-time shock parameters. <strong>Simulations are strictly hypothetical and do NOT mutate or alter live operational inventory, supplier, or shipment records.</strong>
+              </p>
+            </div>
+          </div>
+
           {/* Controls Card */}
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Zap className="h-5 w-5 text-amber-400" />
-              Supply Chain Stress-Test Simulation Controls
+              Deterministic Supply Chain Stress-Test Simulation Controls
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1117,31 +1425,31 @@ export const AnalyticsPage: React.FC = () => {
       )}
 
       {/* Tab 2: Forecast Accuracy & Backtesting */}
-      {activeTab === 'accuracy' && accuracyData && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs text-slate-500 uppercase font-bold block">Selected SKU Evaluation</span>
-              <h3 className="text-xl font-bold text-white mt-1">{accuracyData.productName} ({accuracyData.productSku})</h3>
+      {activeTab === 'accuracy' && (
+        accuracyData ? (
+          <div className="space-y-6">
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs text-slate-500 uppercase font-bold block">Selected SKU Evaluation</span>
+                <h3 className="text-xl font-bold text-white mt-1">{accuracyData.productName} ({accuracyData.productSku})</h3>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {productList.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setSelectedProductId(p.id); fetchAccuracy(p.id); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      selectedProductId === p.id ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {p.sku}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => { setSelectedProductId(1); fetchAccuracy(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold ${selectedProductId === 1 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}
-              >
-                SKU-ELEC-001
-              </button>
-              <button
-                onClick={() => { setSelectedProductId(2); fetchAccuracy(2); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold ${selectedProductId === 2 ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400'}`}
-              >
-                SKU-ELEC-002
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
               <span className="text-xs text-slate-400 uppercase font-bold block">MAPE Accuracy Index</span>
               <span className="text-3xl font-black text-emerald-400 mt-2 block">
@@ -1202,68 +1510,103 @@ export const AnalyticsPage: React.FC = () => {
             </table>
           </div>
         </div>
+      ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <h3 className="text-base font-bold text-white">No Forecast Accuracy Data Available</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Backtesting evaluation requires catalog products and at least 4 months of historical order demand.
+                Upload products.csv and orders.csv to compute deterministic MAPE and RMSE accuracy ratings.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
+            </div>
+          </div>
+        )
       )}
 
       {/* Tab 3: Dynamic Safety Stock Optimization */}
-      {activeTab === 'optimization' && optimizationReport && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <span className="text-xs text-slate-400 uppercase font-bold block">Evaluated Inventory Items</span>
-              <span className="text-3xl font-black text-white mt-2 block">{optimizationReport.totalItemsEvaluated} SKUs</span>
+      {activeTab === 'optimization' && (
+        optimizationReport && optimizationReport.totalItemsEvaluated > 0 ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <span className="text-xs text-slate-400 uppercase font-bold block">Evaluated Inventory Items</span>
+                <span className="text-3xl font-black text-white mt-2 block">{optimizationReport.totalItemsEvaluated} SKUs</span>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <span className="text-xs text-slate-400 uppercase font-bold block">Stock Deficit Risks</span>
+                <span className="text-3xl font-black text-rose-400 mt-2 block">{optimizationReport.itemsWithDeficitCount} SKUs</span>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <span className="text-xs text-slate-400 uppercase font-bold block">Capital Optimization Potential</span>
+                <span className="text-3xl font-black text-emerald-400 mt-2 block">${optimizationReport.totalCapitalOptimizationPotential.toLocaleString()}</span>
+              </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <span className="text-xs text-slate-400 uppercase font-bold block">Stock Deficit Risks</span>
-              <span className="text-3xl font-black text-rose-400 mt-2 block">{optimizationReport.itemsWithDeficitCount} SKUs</span>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-              <span className="text-xs text-slate-400 uppercase font-bold block">Capital Optimization Potential</span>
-              <span className="text-3xl font-black text-emerald-400 mt-2 block">${optimizationReport.totalCapitalOptimizationPotential.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 bg-slate-950 border-b border-slate-800 font-bold text-sm text-white">
-              Dynamic Safety Stock Formula Optimization (SS = Z • σ_d • √L)
-            </div>
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
-                <tr>
-                  <th className="p-4">SKU</th>
-                  <th className="p-4">Name</th>
-                  <th className="p-4">Warehouse</th>
-                  <th className="p-4">Current Stock</th>
-                  <th className="p-4">Current SS</th>
-                  <th className="p-4">Calculated Dynamic SS</th>
-                  <th className="p-4">Optimization Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                {optimizationReport.optimizedItems.map(item => (
-                  <tr key={item.inventoryId} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-4 font-mono font-bold text-blue-400">{item.productSku}</td>
-                    <td className="p-4 font-semibold text-white">{item.productName}</td>
-                    <td className="p-4 text-slate-400">{item.warehouseName}</td>
-                    <td className="p-4 font-bold text-slate-200">{item.currentStock}</td>
-                    <td className="p-4 text-slate-400">{item.currentSafetyStock}</td>
-                    <td className="p-4 font-bold text-purple-400">{item.calculatedDynamicSafetyStock}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${
-                        item.optimizationStatus === 'DEFICIT_RISK'
-                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {item.optimizationStatus}
-                      </span>
-                    </td>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="p-4 bg-slate-950 border-b border-slate-800 font-bold text-sm text-white">
+                Dynamic Safety Stock Formula Optimization (SS = Z • σ_d • √L)
+              </div>
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="p-4">SKU</th>
+                    <th className="p-4">Name</th>
+                    <th className="p-4">Warehouse</th>
+                    <th className="p-4">Current Stock</th>
+                    <th className="p-4">Current SS</th>
+                    <th className="p-4">Calculated Dynamic SS</th>
+                    <th className="p-4">Optimization Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800 text-slate-300">
+                  {optimizationReport.optimizedItems.map(item => (
+                    <tr key={item.inventoryId} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="p-4 font-mono font-bold text-blue-400">{item.productSku}</td>
+                      <td className="p-4 font-semibold text-white">{item.productName}</td>
+                      <td className="p-4 text-slate-400">{item.warehouseName}</td>
+                      <td className="p-4 font-bold text-slate-200">{item.currentStock}</td>
+                      <td className="p-4 text-slate-400">{item.currentSafetyStock}</td>
+                      <td className="p-4 font-bold text-purple-400">{item.calculatedDynamicSafetyStock}</td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${
+                          item.optimizationStatus === 'DEFICIT_RISK'
+                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {item.optimizationStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+            <div className="max-w-md mx-auto space-y-3">
+              <AlertCircle className="h-8 w-8 text-emerald-400 mx-auto" />
+              <h3 className="text-base font-bold text-white">No Inventory Items Available for Optimization</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Dynamic safety stock calculation requires active inventory records. Upload products.csv and inventory.csv to evaluate dynamic safety buffers and reorder points.
+              </p>
+              <a
+                href="/import"
+                className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
+              >
+                Upload Ingestion Data
+              </a>
+            </div>
+          </div>
+        )
       )}
       {/* Executive Control Report Modal */}
       {showReportModal && executiveReport && (

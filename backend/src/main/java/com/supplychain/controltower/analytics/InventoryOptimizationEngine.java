@@ -66,7 +66,7 @@ public class InventoryOptimizationEngine {
 
             List<Integer> salesHistory = forecastService.calculateMonthlySalesFromDatabase(companyId, product.getId());
 
-            double stdDevDemand = 15.0;
+            double stdDevDemand = 0.0;
             if (salesHistory != null && salesHistory.size() > 1) {
                 double mean = salesHistory.stream().mapToInt(Integer::intValue).average().orElse(0.0);
                 double variance = salesHistory.stream().mapToDouble(q -> Math.pow(q - mean, 2)).sum() / (salesHistory.size() - 1);
@@ -76,26 +76,31 @@ public class InventoryOptimizationEngine {
             int leadTimeDays = product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 7;
             double leadTimeMonths = Math.max(0.2, leadTimeDays / 30.0);
 
-            // Industrial Engineering Dynamic Safety Stock Formula: SS = Z * sigma_d * sqrt(L)
-            int dynamicSafetyStock = (int) Math.max(10, Math.round(zFactor * stdDevDemand * Math.sqrt(leadTimeMonths)));
-            int optimalReorderPoint = (int) Math.round(dynamicSafetyStock + (stdDevDemand * leadTimeMonths * 1.5));
+            int currentSS = inv.getSafetyStock() != null ? inv.getSafetyStock() : (product.getSafetyStock() != null ? product.getSafetyStock() : 0);
+
+            // Dynamic Safety Stock Formula: SS = Z * sigma_d * sqrt(L). If insufficient sales history (stdDev == 0), retain configured safety stock.
+            int dynamicSafetyStock = stdDevDemand > 0
+                    ? (int) Math.max(1, Math.round(zFactor * stdDevDemand * Math.sqrt(leadTimeMonths)))
+                    : currentSS;
+            int optimalReorderPoint = stdDevDemand > 0
+                    ? (int) Math.round(dynamicSafetyStock + (stdDevDemand * leadTimeMonths * 1.5))
+                    : (dynamicSafetyStock > 0 ? (int) Math.round(dynamicSafetyStock * 1.5) : 0);
 
             int currentStock = inv.getQuantityAvailable() != null ? inv.getQuantityAvailable() : 0;
-            int currentSS = inv.getSafetyStock() != null ? inv.getSafetyStock() : (product.getSafetyStock() != null ? product.getSafetyStock() : 50);
 
             String status = "OPTIMAL";
             int adjustment = 0;
 
-            if (currentStock < dynamicSafetyStock) {
+            if (dynamicSafetyStock > 0 && currentStock < dynamicSafetyStock) {
                 status = "DEFICIT_RISK";
                 deficitCount++;
                 adjustment = dynamicSafetyStock - currentStock;
-            } else if (currentStock > (optimalReorderPoint * 2.5)) {
+            } else if (optimalReorderPoint > 0 && currentStock > (optimalReorderPoint * 2.5)) {
                 status = "EXCESS_CAPITAL";
                 excessCount++;
                 adjustment = (int) (currentStock - (optimalReorderPoint * 2.0));
 
-                BigDecimal itemPrice = product.getPrice() != null ? product.getPrice() : BigDecimal.valueOf(25.0);
+                BigDecimal itemPrice = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
                 BigDecimal excessValuation = itemPrice.multiply(BigDecimal.valueOf(adjustment));
                 totalCapitalPotential = totalCapitalPotential.add(excessValuation);
             }
@@ -104,7 +109,7 @@ public class InventoryOptimizationEngine {
                     .inventoryId(inv.getId())
                     .productSku(product.getSku())
                     .productName(product.getName())
-                    .warehouseName(inv.getWarehouse() != null ? inv.getWarehouse().getName() : "Central Warehouse")
+                    .warehouseName(inv.getWarehouse() != null ? inv.getWarehouse().getName() : "Unassigned Warehouse")
                     .currentStock(currentStock)
                     .currentSafetyStock(currentSS)
                     .calculatedDynamicSafetyStock(dynamicSafetyStock)
