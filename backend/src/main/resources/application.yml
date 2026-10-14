@@ -78,9 +78,14 @@ spring:
           starttls:
             enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  base-url: ${BREVO_BASE_URL:https://api.brevo.com/v3}
+
 app:
   email:
     from: ${APP_EMAIL_FROM:no-reply@controltower.supplychain.com}
+    from-name: ${APP_EMAIL_FROM_NAME:Tower AI Control Tower}
     enabled: ${APP_EMAIL_ENABLED:true}
     dev-mode: ${APP_EMAIL_DEV_MODE:false}
 
@@ -96,6 +101,9 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
 
 resilience4j:
   circuitbreaker:
