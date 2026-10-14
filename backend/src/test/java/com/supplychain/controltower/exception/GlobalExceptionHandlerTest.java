@@ -67,6 +67,46 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void testHandleBadCredentialsException_WithCustomMessage() {
+        org.springframework.security.authentication.BadCredentialsException ex =
+                new org.springframework.security.authentication.BadCredentialsException("Invalid verification code. 2 attempt(s) remaining.");
+        ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleBadCredentialsException(ex);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(401, response.getBody().getStatus());
+        assertEquals("Unauthorized", response.getBody().getError());
+        assertEquals("Invalid verification code. 2 attempt(s) remaining.", response.getBody().getMessage());
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
+    void testHandleBadCredentialsException_WithExpiredMessage() {
+        org.springframework.security.authentication.BadCredentialsException ex =
+                new org.springframework.security.authentication.BadCredentialsException("Verification code has expired. Please request a new code.");
+        ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleBadCredentialsException(ex);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(401, response.getBody().getStatus());
+        assertEquals("Unauthorized", response.getBody().getError());
+        assertEquals("Verification code has expired. Please request a new code.", response.getBody().getMessage());
+    }
+
+    @Test
+    void testHandleBadCredentialsException_WithBlankMessage_FallsBackSafely() {
+        org.springframework.security.authentication.BadCredentialsException ex =
+                new org.springframework.security.authentication.BadCredentialsException("");
+        ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleBadCredentialsException(ex);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(401, response.getBody().getStatus());
+        assertEquals("Unauthorized", response.getBody().getError());
+        assertEquals("Invalid credentials or verification session.", response.getBody().getMessage());
+    }
+
+    @Test
     void testHandleGlobalException() {
         Exception ex = new RuntimeException("Unexpected DB connection pool exhausted");
         ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleGlobalException(ex);

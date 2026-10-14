@@ -2,6 +2,7 @@ package com.supplychain.controltower.repository;
 
 import com.supplychain.controltower.entity.EmailOtpVerification;
 import com.supplychain.controltower.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface EmailOtpVerificationRepository extends JpaRepository<EmailOtpVerification, Long> {
 
+    @EntityGraph(attributePaths = {"user", "user.company"})
     Optional<EmailOtpVerification> findByMfaToken(String mfaToken);
 
     Optional<EmailOtpVerification> findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(User user);

@@ -279,4 +279,93 @@ class AuthControllerTest {
         assertEquals("COMP-ACME", response.getBody().getCompanyCode());
         assertEquals("Acme Logistics", response.getBody().getCompanyName());
     }
+
+    @Test
+    void testVerifyOtpInvalidCodeThrowsBadCredentialsException() {
+        com.supplychain.controltower.dto.auth.VerifyOtpRequest verifyReq =
+                new com.supplychain.controltower.dto.auth.VerifyOtpRequest("test-mfa-token-uuid", "000000");
+
+        when(emailOtpService.verifyOtp("test-mfa-token-uuid", "000000"))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Invalid verification code. 2 attempt(s) remaining."));
+
+        org.springframework.security.authentication.BadCredentialsException ex =
+                assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () ->
+                        authController.verifyOtp(verifyReq));
+
+        assertEquals("Invalid verification code. 2 attempt(s) remaining.", ex.getMessage());
+
+        // Verify GlobalExceptionHandler translates it to HTTP 401 Unauthorized
+        com.supplychain.controltower.exception.GlobalExceptionHandler handler =
+                new com.supplychain.controltower.exception.GlobalExceptionHandler();
+        ResponseEntity<com.supplychain.controltower.exception.ErrorResponseDto> errorResp =
+                handler.handleBadCredentialsException(ex);
+        assertEquals(HttpStatus.UNAUTHORIZED, errorResp.getStatusCode());
+        assertEquals("Invalid verification code. 2 attempt(s) remaining.", errorResp.getBody().getMessage());
+    }
+
+    @Test
+    void testVerifyOtpExpiredCodeThrowsBadCredentialsException() {
+        com.supplychain.controltower.dto.auth.VerifyOtpRequest verifyReq =
+                new com.supplychain.controltower.dto.auth.VerifyOtpRequest("expired-token", "123456");
+
+        when(emailOtpService.verifyOtp("expired-token", "123456"))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Verification code has expired. Please request a new code."));
+
+        org.springframework.security.authentication.BadCredentialsException ex =
+                assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () ->
+                        authController.verifyOtp(verifyReq));
+
+        assertEquals("Verification code has expired. Please request a new code.", ex.getMessage());
+
+        com.supplychain.controltower.exception.GlobalExceptionHandler handler =
+                new com.supplychain.controltower.exception.GlobalExceptionHandler();
+        ResponseEntity<com.supplychain.controltower.exception.ErrorResponseDto> errorResp =
+                handler.handleBadCredentialsException(ex);
+        assertEquals(HttpStatus.UNAUTHORIZED, errorResp.getStatusCode());
+        assertEquals("Verification code has expired. Please request a new code.", errorResp.getBody().getMessage());
+    }
+
+    @Test
+    void testVerifyOtpReusedCodeThrowsBadCredentialsException() {
+        com.supplychain.controltower.dto.auth.VerifyOtpRequest verifyReq =
+                new com.supplychain.controltower.dto.auth.VerifyOtpRequest("reused-token", "123456");
+
+        when(emailOtpService.verifyOtp("reused-token", "123456"))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("This verification code has already been used. Please log in again."));
+
+        org.springframework.security.authentication.BadCredentialsException ex =
+                assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () ->
+                        authController.verifyOtp(verifyReq));
+
+        assertEquals("This verification code has already been used. Please log in again.", ex.getMessage());
+
+        com.supplychain.controltower.exception.GlobalExceptionHandler handler =
+                new com.supplychain.controltower.exception.GlobalExceptionHandler();
+        ResponseEntity<com.supplychain.controltower.exception.ErrorResponseDto> errorResp =
+                handler.handleBadCredentialsException(ex);
+        assertEquals(HttpStatus.UNAUTHORIZED, errorResp.getStatusCode());
+        assertEquals("This verification code has already been used. Please log in again.", errorResp.getBody().getMessage());
+    }
+
+    @Test
+    void testVerifyOtpSessionLockedAfterMaxAttempts() {
+        com.supplychain.controltower.dto.auth.VerifyOtpRequest verifyReq =
+                new com.supplychain.controltower.dto.auth.VerifyOtpRequest("locked-token", "123456");
+
+        when(emailOtpService.verifyOtp("locked-token", "123456"))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Too many failed attempts. Verification session locked. Please log in again."));
+
+        org.springframework.security.authentication.BadCredentialsException ex =
+                assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () ->
+                        authController.verifyOtp(verifyReq));
+
+        assertEquals("Too many failed attempts. Verification session locked. Please log in again.", ex.getMessage());
+
+        com.supplychain.controltower.exception.GlobalExceptionHandler handler =
+                new com.supplychain.controltower.exception.GlobalExceptionHandler();
+        ResponseEntity<com.supplychain.controltower.exception.ErrorResponseDto> errorResp =
+                handler.handleBadCredentialsException(ex);
+        assertEquals(HttpStatus.UNAUTHORIZED, errorResp.getStatusCode());
+        assertEquals("Too many failed attempts. Verification session locked. Please log in again.", errorResp.getBody().getMessage());
+    }
 }
