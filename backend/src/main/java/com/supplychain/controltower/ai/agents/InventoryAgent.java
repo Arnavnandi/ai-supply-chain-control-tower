@@ -2,9 +2,12 @@ package com.supplychain.controltower.ai.agents;
 
 import com.supplychain.controltower.ai.tools.InventoryTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,6 +21,11 @@ public class InventoryAgent {
 
     private final InventoryTools inventoryTools;
     private final ChatClient chatClient;
+
+    @Setter
+    @Getter
+    @Value("${app.ai.inventory-timeout-seconds:15}")
+    private long timeoutSeconds = 15;
 
     @CircuitBreaker(name = "llmService", fallbackMethod = "generateFallbackAnalysis")
     public String processQuery(String prompt) {
@@ -34,11 +42,15 @@ public class InventoryAgent {
                 try {
                     return chatClient.prompt()
                             .system("""
-                                    You are the Specialized Inventory Control Agent.
-                                    Your sole responsibility is analyzing SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
-                                    Always ground your analysis in PostgreSQL database data via tools getLowStockProducts and getOverstockedProducts.
-                                    If no items are returned or data is empty, state clearly that no inventory records exist or no stockout issues are present.
-                                    Never invent SKUs, quantities, or warehouses.
+                                    You are the Specialized Inventory Control Agent for an enterprise Supply Chain Intelligence Platform.
+
+                                    RESPONSIBILITIES:
+                                    1. Analyze SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
+                                    2. Answer inventory-related calculations (e.g., reorder quantities, inventory turnover, stock-to-sales ratios, arithmetic on stock numbers), unit conversions, and general inventory-management principles.
+                                    3. For live warehouse stock levels, stockout risks, or overstocked items, ALWAYS ground your analysis in PostgreSQL database data using the provided tools: getLowStockProducts and getOverstockedProducts.
+                                    4. For general inventory questions or numerical calculations that do not require database state, answer directly, accurately, and concisely.
+                                    5. If database tools return no items or data is empty, state clearly that no inventory records exist or no stockout issues are present.
+                                    6. Never invent SKUs, quantities, or warehouse locations.
                                     """)
                             .user(prompt)
                             .functions("getLowStockProducts", "getOverstockedProducts")
@@ -48,7 +60,7 @@ public class InventoryAgent {
                     com.supplychain.controltower.security.TenantContext.clear();
                 }
             })
-                    .orTimeout(2, TimeUnit.SECONDS)
+                    .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                     .join();
         } catch (Exception ex) {
             log.warn("[INVENTORY AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
@@ -65,7 +77,42 @@ public class InventoryAgent {
         return generateFallbackAnalysis(prompt);
     }
 
+    public boolean isInventoryAnalysisQuery(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            return false;
+        }
+        String lower = prompt.toLowerCase().trim();
+
+        // Check if query is primarily arithmetic or general calculation
+        boolean hasArithmeticIntent = lower.contains("calculate")
+                || lower.contains("divide")
+                || lower.contains("divided by")
+                || lower.contains("multiply")
+                || lower.contains("multiplied by")
+                || lower.contains("subtract")
+                || (lower.contains("what is") && lower.matches(".*\\d+\\s*[+\\-*/x]\\s*\\d+.*"))
+                || lower.matches(".*\\b\\d+\\s*(/|\\+|-|\\*|x)\\s*\\d+\\b.*");
+
+        if (hasArithmeticIntent) {
+            return false;
+        }
+
+        // Domain-specific inventory analysis keywords
+        return lower.contains("stock")
+                || lower.contains("inventory")
+                || lower.contains("sku")
+                || lower.contains("reorder")
+                || lower.contains("overstock")
+                || lower.contains("shortage")
+                || lower.contains("safety stock")
+                || lower.contains("warehouse");
+    }
+
     public String generateFallbackAnalysis(String prompt) {
+        if (!isInventoryAnalysisQuery(prompt)) {
+            return buildAiUnavailableMessage(prompt);
+        }
+
         List<InventoryTools.InventoryItemRecord> lowStock = inventoryTools.getLowStockProducts();
         List<InventoryTools.InventoryItemRecord> overstock = inventoryTools.getOverstockedProducts();
 
@@ -91,6 +138,22 @@ public class InventoryAgent {
         if (!lowStock.isEmpty()) {
             sb.append("\n**Recommendation**: Create expedited purchase orders for low-stock SKUs before safety buffer depletion.");
         }
+        return sb.toString();
+    }
+
+    private String buildAiUnavailableMessage(String prompt) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("### 📦 Inventory Control Agent (AI Reasoning Offline)\n");
+        sb.append("The generative AI reasoning engine is currently unavailable or timed out while processing your request.\n\n");
+        if (prompt != null && !prompt.isBlank()) {
+            sb.append("**Query received**: \"").append(prompt.trim()).append("\"\n\n");
+        }
+        sb.append("This inquiry requires active AI computational capabilities. When offline or disconnected from the LLM, the Inventory Agent cannot perform custom calculations or answer general queries.\n\n");
+        sb.append("**Available Offline Capabilities**:\n");
+        sb.append("The agent can still evaluate live PostgreSQL inventory telemetry. For database-grounded inventory telemetry, you can request:\n");
+        sb.append("- *\"Which products are at risk of stockout?\"*\n");
+        sb.append("- *\"Show overstocked inventory across warehouses.\"*\n");
+        sb.append("- *\"Check current SKU reorder levels.\"*\n");
         return sb.toString();
     }
 }

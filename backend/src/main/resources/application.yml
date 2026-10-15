@@ -84,6 +84,8 @@ brevo:
   base-url: ${BREVO_BASE_URL:https://api.brevo.com/v3}
 
 app:
+  ai:
+    inventory-timeout-seconds: ${AI_INVENTORY_TIMEOUT_SECONDS:15}
   email:
     from: ${APP_EMAIL_FROM:no-reply@controltower.supplychain.com}
     from-name: ${APP_EMAIL_FROM_NAME:Tower AI Control Tower}
