@@ -49,11 +49,38 @@ class TelemetryEventPublisherTest {
                 .build();
     }
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.supplychain.controltower.security.TenantContext.clear();
+    }
+
     @Test
     void publish_ShouldSerializeAndBroadcastMessage_WhenEventProvided() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
+        com.supplychain.controltower.entity.Company mockCompany = com.supplychain.controltower.entity.Company.builder()
+                .id(1L).code("DEMO").name("Demo Supply Chain Corp").status("ACTIVE").build();
+        when(companyRepository.findById(1L)).thenReturn(java.util.Optional.of(mockCompany));
+
         telemetryEventPublisher.publish(testEvent);
-        verify(webSocketHandler, times(1)).broadcastMessageToCompany(any(), anyString());
+        verify(webSocketHandler, times(1)).broadcastMessageToCompany(org.mockito.ArgumentMatchers.eq(1L), anyString());
         verify(telemetryEventRepository, times(1)).save(any());
+    }
+
+    @Test
+    void publish_ShouldSafelySkipPersistence_WhenTenantContextMissing() {
+        com.supplychain.controltower.security.TenantContext.clear();
+
+        telemetryEventPublisher.publish(testEvent);
+        verify(telemetryEventRepository, never()).save(any());
+    }
+
+    @Test
+    void publish_ShouldSafelySkipPersistence_WhenCompanyNotFound() {
+        com.supplychain.controltower.security.TenantContext.setCompanyId(999L);
+        when(companyRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+
+        telemetryEventPublisher.publish(testEvent);
+        verify(telemetryEventRepository, never()).save(any());
     }
 
     @Test

@@ -65,11 +65,7 @@ public class InventoryAgent {
         } catch (Exception ex) {
             log.warn("[INVENTORY AGENT FALLBACK] Executing data-grounded fallback: {}", ex.getMessage());
             com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
-            try {
-                return generateFallbackAnalysis(prompt);
-            } finally {
-                com.supplychain.controltower.security.TenantContext.clear();
-            }
+            return generateFallbackAnalysis(prompt);
         }
     }
 

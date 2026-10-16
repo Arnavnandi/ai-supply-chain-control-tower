@@ -171,4 +171,20 @@ class InventoryAgentTest {
         assertTrue(invResult.contains("No stockout risks or extreme overstock conditions detected")
                 || invResult.contains("Inventory Control Agent Analysis"));
     }
+
+    @Test
+    @DisplayName("9. processQuery preserves caller TenantContext when fallback executes")
+    void testProcessQueryPreservesCallerTenantContextWhenFallbackExecutes() {
+        assertEquals(114L, TenantContext.getCompanyId(), "Precondition: TenantContext must be 114L");
+
+        // Execute arithmetic fallback
+        inventoryAgent.processQuery("Calculate 150 divided by 20.");
+        assertEquals(114L, TenantContext.getCompanyId(), "Caller TenantContext must be preserved after arithmetic fallback");
+
+        // Execute inventory fallback
+        when(inventoryTools.getLowStockProducts()).thenReturn(List.of());
+        when(inventoryTools.getOverstockedProducts()).thenReturn(List.of());
+        inventoryAgent.processQuery("Check stockout risks");
+        assertEquals(114L, TenantContext.getCompanyId(), "Caller TenantContext must be preserved after inventory fallback");
+    }
 }
