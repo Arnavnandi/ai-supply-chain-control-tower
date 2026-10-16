@@ -27,10 +27,35 @@ public class InventoryAgent {
     @Value("${app.ai.inventory-timeout-seconds:15}")
     private long timeoutSeconds = 15;
 
+    @Setter
+    @Getter
+    @Value("${app.ai.inventory-max-attempts:3}")
+    private int maxAttempts = 3;
+
+    @Setter
+    @Getter
+    @Value("${app.ai.inventory-retry-backoff-ms:1000}")
+    private long retryBackoffMs = 1000L;
+
+    public static final String INVENTORY_AGENT_SYSTEM_PROMPT = """
+            You are the Specialized Inventory Control Agent for an enterprise Supply Chain Intelligence Platform.
+
+            RESPONSIBILITIES:
+            1. Analyze SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
+            2. Answer inventory-related calculations (e.g., reorder quantities, inventory turnover, stock-to-sales ratios, arithmetic on stock numbers), unit conversions, and general inventory-management principles.
+            3. For live warehouse stock levels, stockout risks, or overstocked items, ALWAYS ground your analysis in PostgreSQL database data using the provided tools: getLowStockProducts and getOverstockedProducts.
+            4. For general inventory questions or numerical calculations that do not require database state, answer directly, accurately, and concisely.
+            5. If database tools return no items or data is empty, state clearly that no inventory records exist or no stockout issues are present.
+            6. Never invent SKUs, quantities, or warehouse locations.
+            """;
+
+    @Setter
+    private String apiKeyOverride = null;
+
     @CircuitBreaker(name = "llmService", fallbackMethod = "generateFallbackAnalysis")
     public String processQuery(String prompt) {
         log.info("[INVENTORY AGENT] Processing query: '{}'", prompt);
-        String apiKey = System.getenv("GEMINI_API_KEY");
+        String apiKey = apiKeyOverride != null ? apiKeyOverride : System.getenv("GEMINI_API_KEY");
         boolean validKey = apiKey != null && !apiKey.isBlank() && !"unconfigured".equalsIgnoreCase(apiKey) && !apiKey.contains("your-api-key");
         if (!validKey) {
             return generateFallbackAnalysis(prompt);
@@ -40,22 +65,7 @@ public class InventoryAgent {
             return CompletableFuture.supplyAsync(() -> {
                 com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
                 try {
-                    return chatClient.prompt()
-                            .system("""
-                                    You are the Specialized Inventory Control Agent for an enterprise Supply Chain Intelligence Platform.
-
-                                    RESPONSIBILITIES:
-                                    1. Analyze SKU stock levels, safety stock thresholds, stockout risks, and overstocking across warehouses.
-                                    2. Answer inventory-related calculations (e.g., reorder quantities, inventory turnover, stock-to-sales ratios, arithmetic on stock numbers), unit conversions, and general inventory-management principles.
-                                    3. For live warehouse stock levels, stockout risks, or overstocked items, ALWAYS ground your analysis in PostgreSQL database data using the provided tools: getLowStockProducts and getOverstockedProducts.
-                                    4. For general inventory questions or numerical calculations that do not require database state, answer directly, accurately, and concisely.
-                                    5. If database tools return no items or data is empty, state clearly that no inventory records exist or no stockout issues are present.
-                                    6. Never invent SKUs, quantities, or warehouse locations.
-                                    """)
-                            .user(prompt)
-                            .functions("getLowStockProducts", "getOverstockedProducts")
-                            .call()
-                            .content();
+                    return executePromptWithRetry(prompt);
                 } finally {
                     com.supplychain.controltower.security.TenantContext.clear();
                 }
@@ -67,6 +77,61 @@ public class InventoryAgent {
             com.supplychain.controltower.security.TenantContext.setCompanyId(callerCompanyId);
             return generateFallbackAnalysis(prompt);
         }
+    }
+
+    String executePromptWithRetry(String prompt) {
+        long backoff = retryBackoffMs;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return chatClient.prompt()
+                        .system(INVENTORY_AGENT_SYSTEM_PROMPT)
+                        .user(prompt)
+                        .functions("getLowStockProducts", "getOverstockedProducts")
+                        .call()
+                        .content();
+            } catch (Exception ex) {
+                boolean isTransient = isTransientLlmError(ex);
+                if (isTransient && attempt < maxAttempts) {
+                    log.warn("[INVENTORY AGENT RETRY] Transient error from LLM on attempt {}/{}: {}. Retrying in {}ms...",
+                            attempt, maxAttempts, ex.getMessage(), backoff);
+                    try {
+                        Thread.sleep(backoff);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("LLM retry interrupted", ie);
+                    }
+                    backoff *= 2;
+                } else {
+                    throw ex;
+                }
+            }
+        }
+        throw new IllegalStateException("LLM call failed after " + maxAttempts + " attempts");
+    }
+
+    boolean isTransientLlmError(Throwable ex) {
+        if (ex == null) {
+            return false;
+        }
+        if (ex instanceof org.springframework.web.client.HttpStatusCodeException sce) {
+            int code = sce.getStatusCode().value();
+            if (code == 503 || code == 502 || code == 504 || code == 429) {
+                return true;
+            }
+        }
+        if (ex instanceof org.springframework.web.client.ResourceAccessException) {
+            return true;
+        }
+        if (ex instanceof java.net.SocketTimeoutException || ex instanceof java.net.ConnectException) {
+            return true;
+        }
+        String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+        if (msg.contains("503") || msg.contains("high demand") || msg.contains("unavailable")
+                || msg.contains("temporarily") || msg.contains("rate limit") || msg.contains("too many requests")
+                || msg.contains("timeout")) {
+            return true;
+        }
+        return isTransientLlmError(ex.getCause());
     }
 
     public String generateFallbackAnalysis(String prompt, Throwable ex) {

@@ -10,7 +10,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -186,5 +192,179 @@ class InventoryAgentTest {
         when(inventoryTools.getOverstockedProducts()).thenReturn(List.of());
         inventoryAgent.processQuery("Check stockout risks");
         assertEquals(114L, TenantContext.getCompanyId(), "Caller TenantContext must be preserved after inventory fallback");
+    }
+
+    @Test
+    @DisplayName("10. Retry configuration defaults to 3 attempts with 1000ms backoff and accepts custom values")
+    void testRetryConfigurationDefaultsAndSetters() {
+        assertEquals(3, inventoryAgent.getMaxAttempts(), "Default maxAttempts must be 3");
+        assertEquals(1000L, inventoryAgent.getRetryBackoffMs(), "Default retryBackoffMs must be 1000ms");
+
+        inventoryAgent.setMaxAttempts(5);
+        inventoryAgent.setRetryBackoffMs(500L);
+
+        assertEquals(5, inventoryAgent.getMaxAttempts());
+        assertEquals(500L, inventoryAgent.getRetryBackoffMs());
+    }
+
+    @Test
+    @DisplayName("11. isTransientLlmError correctly classifies transient vs non-transient failures")
+    void testTransientLlmErrorClassification() {
+        // Transient HTTP status codes
+        assertTrue(inventoryAgent.isTransientLlmError(
+                new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "503 UNAVAILABLE: This model is currently experiencing high demand")));
+        assertTrue(inventoryAgent.isTransientLlmError(
+                new HttpServerErrorException(HttpStatus.BAD_GATEWAY, "502 Bad Gateway")));
+        assertTrue(inventoryAgent.isTransientLlmError(
+                new HttpServerErrorException(HttpStatus.GATEWAY_TIMEOUT, "504 Gateway Timeout")));
+        assertTrue(inventoryAgent.isTransientLlmError(
+                new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS, "429 Too Many Requests")));
+
+        // Transient network/IO errors
+        assertTrue(inventoryAgent.isTransientLlmError(new ResourceAccessException("I/O error on POST request")));
+        assertTrue(inventoryAgent.isTransientLlmError(new SocketTimeoutException("Read timed out")));
+        assertTrue(inventoryAgent.isTransientLlmError(new ConnectException("Connection refused")));
+
+        // Nested transient cause
+        assertTrue(inventoryAgent.isTransientLlmError(
+                new RuntimeException("Outer wrapper", new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "Service unavailable"))));
+
+        // Keywords in message
+        assertTrue(inventoryAgent.isTransientLlmError(new RuntimeException("Error: upstream high demand spike")));
+        assertTrue(inventoryAgent.isTransientLlmError(new RuntimeException("Service temporarily unavailable")));
+
+        // Non-transient errors (must not retry)
+        assertFalse(inventoryAgent.isTransientLlmError(
+                new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Invalid prompt schema")));
+        assertFalse(inventoryAgent.isTransientLlmError(
+                new HttpClientErrorException(HttpStatus.UNAUTHORIZED, "Invalid API key")));
+        assertFalse(inventoryAgent.isTransientLlmError(new IllegalArgumentException("Null argument")));
+        assertFalse(inventoryAgent.isTransientLlmError(new NullPointerException("NPE")));
+        assertFalse(inventoryAgent.isTransientLlmError(null));
+    }
+
+    @Test
+    @DisplayName("12. executePromptWithRetry succeeds on second attempt after transient 503 error")
+    void testExecutePromptWithRetrySucceedsOnSecondAttempt() {
+        ChatClient deepChatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        InventoryAgent agentWithMock = new InventoryAgent(inventoryTools, deepChatClient);
+        agentWithMock.setRetryBackoffMs(5L); // 5ms backoff for fast testing
+
+        when(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call()
+                .content())
+                .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "This model is currently experiencing high demand"))
+                .thenReturn("150 divided by 20 is 7.5");
+
+        String result = agentWithMock.executePromptWithRetry("Calculate 150 divided by 20.");
+
+        assertEquals("150 divided by 20 is 7.5", result);
+        verify(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call(), times(2)).content();
+    }
+
+    @Test
+    @DisplayName("13. executePromptWithRetry fails immediately without retrying on non-transient error")
+    void testExecutePromptWithRetryFailsImmediatelyOnNonTransientError() {
+        ChatClient deepChatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        InventoryAgent agentWithMock = new InventoryAgent(inventoryTools, deepChatClient);
+        agentWithMock.setRetryBackoffMs(5L);
+
+        when(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Malformed prompt")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call()
+                .content())
+                .thenThrow(new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Bad Request: invalid token"));
+
+        assertThrows(HttpClientErrorException.class, () ->
+                agentWithMock.executePromptWithRetry("Malformed prompt"));
+
+        verify(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Malformed prompt")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call(), times(1)).content();
+    }
+
+    @Test
+    @DisplayName("14. executePromptWithRetry exhausts 3 retry attempts on persistent 503 and rethrows exception")
+    void testExecutePromptWithRetryExhaustsRetries() {
+        ChatClient deepChatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        InventoryAgent agentWithMock = new InventoryAgent(inventoryTools, deepChatClient);
+        agentWithMock.setRetryBackoffMs(5L);
+        agentWithMock.setMaxAttempts(3);
+
+        when(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call()
+                .content())
+                .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "503 UNAVAILABLE: high demand"));
+
+        assertThrows(HttpServerErrorException.class, () ->
+                agentWithMock.executePromptWithRetry("Calculate 150 divided by 20."));
+
+        verify(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call(), times(3)).content();
+    }
+
+    @Test
+    @DisplayName("15. processQuery retries transient 503, succeeds on attempt 2, and preserves caller TenantContext")
+    void testProcessQueryRetriesTransient503AndSucceeds() {
+        ChatClient deepChatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        InventoryAgent agentWithMock = new InventoryAgent(inventoryTools, deepChatClient);
+        agentWithMock.setApiKeyOverride("test-gemini-key");
+        agentWithMock.setRetryBackoffMs(5L);
+
+        when(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call()
+                .content())
+                .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "503 UNAVAILABLE: high demand"))
+                .thenReturn("150 divided by 20 is 7.5");
+
+        String result = agentWithMock.processQuery("Calculate 150 divided by 20.");
+
+        assertEquals("150 divided by 20 is 7.5", result);
+        assertEquals(114L, TenantContext.getCompanyId(), "Caller TenantContext must remain preserved after successful query");
+    }
+
+    @Test
+    @DisplayName("16. processQuery exhausts retries on persistent 503, executes safe fallback, and preserves caller TenantContext")
+    void testProcessQueryExhaustsRetriesAndFallsBackWithTenantContext() {
+        ChatClient deepChatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+        InventoryAgent agentWithMock = new InventoryAgent(inventoryTools, deepChatClient);
+        agentWithMock.setApiKeyOverride("test-gemini-key");
+        agentWithMock.setRetryBackoffMs(5L);
+        agentWithMock.setMaxAttempts(3);
+
+        when(deepChatClient.prompt()
+                .system(InventoryAgent.INVENTORY_AGENT_SYSTEM_PROMPT)
+                .user("Calculate 150 divided by 20.")
+                .functions("getLowStockProducts", "getOverstockedProducts")
+                .call()
+                .content())
+                .thenThrow(new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "503 UNAVAILABLE: high demand"));
+
+        String result = agentWithMock.processQuery("Calculate 150 divided by 20.");
+
+        assertNotNull(result);
+        assertTrue(result.contains("AI Reasoning Offline"), "Exhausted retries must safely fall back");
+        assertTrue(result.contains("Calculate 150 divided by 20."));
+        assertEquals(114L, TenantContext.getCompanyId(), "Caller TenantContext must remain preserved after fallback");
     }
 }
