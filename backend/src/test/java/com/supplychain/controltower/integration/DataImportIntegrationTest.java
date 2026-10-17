@@ -19,16 +19,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
+import com.supplychain.controltower.dto.domain.CsvImportHistoryDto;
+import com.supplychain.controltower.entity.CsvImportHistory;
+import com.supplychain.controltower.security.UserPrincipal;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@Transactional
 class DataImportIntegrationTest {
 
     @Autowired
@@ -42,6 +45,9 @@ class DataImportIntegrationTest {
 
     @Autowired
     private InventoryRepository inventoryRepository;
+
+    @Autowired
+    private com.supplychain.controltower.repository.CsvImportHistoryRepository csvImportHistoryRepository;
 
     @Autowired
     private DashboardService dashboardService;
@@ -67,6 +73,15 @@ class DataImportIntegrationTest {
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+        csvImportHistoryRepository.deleteAll();
+        inventoryRepository.deleteAll();
+        productRepository.deleteAll();
+        if (tenantAlpha != null && tenantAlpha.getId() != null) {
+            companyRepository.deleteById(tenantAlpha.getId());
+        }
+        if (tenantBeta != null && tenantBeta.getId() != null) {
+            companyRepository.deleteById(tenantBeta.getId());
+        }
     }
 
     @Test
@@ -192,5 +207,155 @@ class DataImportIntegrationTest {
         // Verify zero inventory records saved for Beta
         var betaInventory = inventoryRepository.findByCompanyId(tenantBeta.getId());
         assertTrue(betaInventory.isEmpty());
+    }
+
+    @Test
+    @DisplayName("6. History record persists with status FAILED when domain transaction rolls back")
+    void testHistoryPersistsWhenDomainRollsBack() {
+        TenantContext.setCompanyId(tenantAlpha.getId());
+
+        String invalidCsv = "sku,name,price\n" +
+                "SKU-GOOD,Good Product,50.00\n" +
+                "SKU-DUP,Dup 1,10.00\n" +
+                "SKU-DUP,Dup 2,15.00\n";
+        MockMultipartFile file = new MockMultipartFile("file", "failed_products.csv", "text/csv",
+                invalidCsv.getBytes(StandardCharsets.UTF_8));
+
+        ResponseEntity<?> response = dataImportController.importFile(file, "products");
+        assertEquals(400, response.getStatusCode().value());
+
+        // Domain table is completely empty (rolled back)
+        assertEquals(0, productRepository.findByCompanyId(tenantAlpha.getId()).size());
+
+        // But History survived and was persisted
+        var alphaHistory = csvImportHistoryRepository.findByCompanyIdOrderByStartedAtDesc(tenantAlpha.getId());
+        assertEquals(1, alphaHistory.size());
+        CsvImportHistory record = alphaHistory.get(0);
+        assertEquals("failed_products.csv", record.getFilename());
+        assertEquals("products", record.getEntityType());
+        assertEquals(CsvImportHistory.ImportStatus.FAILED, record.getStatus());
+        assertEquals(3, record.getTotalRows());
+        assertEquals(0, record.getRecordsImported());
+        assertTrue(record.getRecordsFailed() > 0);
+        assertNotNull(record.getErrorSummary());
+        assertTrue(record.getErrorSummary().contains("Duplicate SKU 'SKU-DUP'"));
+    }
+
+    @Test
+    @DisplayName("7. Tenant isolation is enforced on import history query")
+    void testTenantIsolationOnImportHistory() {
+        // Alpha imports a file
+        TenantContext.setCompanyId(tenantAlpha.getId());
+        String alphaCsv = "sku,name,price\nSKU-A1,Alpha Part,10.00\n";
+        MockMultipartFile fileA = new MockMultipartFile("file", "alpha.csv", "text/csv",
+                alphaCsv.getBytes(StandardCharsets.UTF_8));
+        dataImportController.importFile(fileA, "products");
+
+        // Beta imports a file
+        TenantContext.setCompanyId(tenantBeta.getId());
+        String betaCsv = "sku,name,price\nSKU-B1,Beta Part,20.00\n";
+        MockMultipartFile fileB = new MockMultipartFile("file", "beta.csv", "text/csv",
+                betaCsv.getBytes(StandardCharsets.UTF_8));
+        dataImportController.importFile(fileB, "products");
+
+        // Alpha queries history
+        UserPrincipal principalAlpha = new UserPrincipal(
+                100L, "alpha_user", "alpha@test.com", "pw",
+                tenantAlpha.getId(), tenantAlpha.getCode(), "ACTIVE",
+                List.of(new SimpleGrantedAuthority("ROLE_MANAGER"))
+        );
+        var resAlpha = dataImportController.getImportHistory(principalAlpha);
+        assertEquals(200, resAlpha.getStatusCode().value());
+        assertNotNull(resAlpha.getBody());
+        assertEquals(1, resAlpha.getBody().size());
+        assertEquals("alpha.csv", resAlpha.getBody().get(0).getOriginalFilename());
+
+        // Beta queries history
+        UserPrincipal principalBeta = new UserPrincipal(
+                200L, "beta_user", "beta@test.com", "pw",
+                tenantBeta.getId(), tenantBeta.getCode(), "ACTIVE",
+                List.of(new SimpleGrantedAuthority("ROLE_MANAGER"))
+        );
+        var resBeta = dataImportController.getImportHistory(principalBeta);
+        assertEquals(200, resBeta.getStatusCode().value());
+        assertNotNull(resBeta.getBody());
+        assertEquals(1, resBeta.getBody().size());
+        assertEquals("beta.csv", resBeta.getBody().get(0).getOriginalFilename());
+    }
+
+    @Test
+    @DisplayName("8. Duplicate file content warns but does not block upsert processing")
+    void testDuplicateFileContentWarning_PreservesUpsertSemantics() {
+        TenantContext.setCompanyId(tenantAlpha.getId());
+
+        String csvData = "sku,name,price,reorder_level,safety_stock,lead_time_days\n" +
+                "SKU-IDEM-1,Micro Controller,45.00,20,5,3\n";
+        MockMultipartFile firstUpload = new MockMultipartFile("file", "sensors.csv", "text/csv",
+                csvData.getBytes(StandardCharsets.UTF_8));
+
+        // First upload
+        ResponseEntity<?> firstResp = dataImportController.importFile(firstUpload, "products");
+        assertEquals(200, firstResp.getStatusCode().value());
+        CsvImportService.ImportResult firstResult = (CsvImportService.ImportResult) firstResp.getBody();
+        assertNotNull(firstResult);
+        assertFalse(firstResult.isDuplicateDetected());
+
+        // Second upload of identical content
+        MockMultipartFile secondUpload = new MockMultipartFile("file", "sensors_copy.csv", "text/csv",
+                csvData.getBytes(StandardCharsets.UTF_8));
+        ResponseEntity<?> secondResp = dataImportController.importFile(secondUpload, "products");
+        assertEquals(200, secondResp.getStatusCode().value());
+        CsvImportService.ImportResult secondResult = (CsvImportService.ImportResult) secondResp.getBody();
+        assertNotNull(secondResult);
+        assertTrue(secondResult.isSuccess());
+        assertTrue(secondResult.isDuplicateDetected());
+        assertNotNull(secondResult.getDuplicateWarning());
+        assertTrue(secondResult.getDuplicateWarning().contains("An identical CSV file was previously imported"));
+
+        // Business-key upsert updated/retained record: still exactly 1 product with this SKU
+        var products = productRepository.findByCompanyId(tenantAlpha.getId());
+        assertEquals(1, products.size());
+        assertEquals("SKU-IDEM-1", products.get(0).getSku());
+
+        // Two history entries recorded; query history DTOs through controller to verify duplicateFile flag
+        UserPrincipal principalAlpha = new UserPrincipal(
+                100L, "alpha_user", "alpha@test.com", "pw",
+                tenantAlpha.getId(), tenantAlpha.getCode(), "ACTIVE",
+                List.of(new SimpleGrantedAuthority("ROLE_MANAGER"))
+        );
+        var historyDtos = dataImportController.getImportHistory(principalAlpha).getBody();
+        assertNotNull(historyDtos);
+        assertEquals(2, historyDtos.size());
+        assertTrue(historyDtos.get(0).isDuplicateFile());
+        assertFalse(historyDtos.get(1).isDuplicateFile());
+    }
+
+    @Test
+    @DisplayName("9. Successful import records complete history metadata")
+    void testHistoryPersistsOnSuccessfulImport() {
+        TenantContext.setCompanyId(tenantAlpha.getId());
+
+        String csvData = "sku,name,price,reorder_level,safety_stock,lead_time_days\n" +
+                "SKU-P1,Product 1,12.50,10,2,4\n" +
+                "SKU-P2,Product 2,24.00,15,5,5\n";
+        MockMultipartFile file = new MockMultipartFile("file", "parts.csv", "text/csv",
+                csvData.getBytes(StandardCharsets.UTF_8));
+
+        ResponseEntity<?> response = dataImportController.importFile(file, "products");
+        assertEquals(200, response.getStatusCode().value());
+
+        var historyList = csvImportHistoryRepository.findByCompanyIdOrderByStartedAtDesc(tenantAlpha.getId());
+        assertEquals(1, historyList.size());
+        CsvImportHistory h = historyList.get(0);
+        assertEquals("parts.csv", h.getFilename());
+        assertEquals("products", h.getEntityType());
+        assertEquals(CsvImportHistory.ImportStatus.IMPORTED, h.getStatus());
+        assertEquals(2, h.getTotalRows());
+        assertEquals(2, h.getRecordsImported());
+        assertEquals(0, h.getRecordsFailed());
+        assertNotNull(h.getFileHash());
+        assertEquals(64, h.getFileHash().length());
+        assertNotNull(h.getStartedAt());
+        assertNotNull(h.getCompletedAt());
     }
 }

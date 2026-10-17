@@ -58,6 +58,8 @@ public class CsvImportService {
         private int recordsFailed;
         private List<String> errors;
         private String message;
+        private boolean duplicateDetected;
+        private String duplicateWarning;
     }
 
     @Data

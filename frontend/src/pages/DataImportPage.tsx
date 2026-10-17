@@ -1,6 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { UploadCloud, CheckCircle2, AlertCircle, RefreshCw, FileText, ShieldCheck } from 'lucide-react';
+import {
+  UploadCloud,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  FileText,
+  ShieldCheck,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  XCircle,
+  FileSpreadsheet,
+  User,
+  Hash,
+} from 'lucide-react';
+
+export interface CsvImportHistoryItem {
+  id: number;
+  companyId: number;
+  userId?: number;
+  username?: string;
+  originalFilename: string;
+  entityType: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'IMPORTED' | 'FAILED' | string;
+  totalRows: number;
+  importedRows: number;
+  failedRows: number;
+  validationErrors?: string;
+  errorList: string[];
+  fileSizeBytes?: number;
+  fileHash?: string;
+  duplicateFile: boolean;
+  startedAt: string;
+  completedAt?: string;
+}
+
+const ENTITY_LABELS: Record<string, string> = {
+  products: 'Products',
+  warehouses: 'Warehouses',
+  suppliers: 'Suppliers',
+  inventories: 'Inventories',
+  supplier_products: 'Supplier Contracts',
+  orders: 'Customer Orders',
+  order_items: 'Order Items',
+  shipments: 'Shipments',
+  categories: 'Categories',
+};
 
 export const DataImportPage: React.FC = () => {
   const [entityType, setEntityType] = useState('products');
@@ -8,6 +55,30 @@ export const DataImportPage: React.FC = () => {
   const [loadingFile, setLoadingFile] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // History state
+  const [history, setHistory] = useState<CsvImportHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    setHistoryError(null);
+    try {
+      const res = await axiosInstance.get<CsvImportHistoryItem[]>('/data/import/history');
+      setHistory(res.data);
+    } catch (err: any) {
+      console.error('Failed to load CSV import history:', err);
+      setHistoryError(err.response?.data?.message || 'Failed to load import history.');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +110,70 @@ export const DataImportPage: React.FC = () => {
       }
     } finally {
       setLoadingFile(false);
+      // Automatically refresh history to reflect the latest ingestion
+      fetchHistory();
+    }
+  };
+
+  const toggleRowExpansion = (id: number) => {
+    setExpandedRowId((prev) => (prev === id ? null : id));
+  };
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const renderStatusBadge = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'IMPORTED':
+        return (
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 border border-emerald-500/40 text-emerald-400">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>IMPORTED</span>
+          </span>
+        );
+      case 'FAILED':
+        return (
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-950/80 border border-rose-500/40 text-rose-400">
+            <XCircle className="w-3.5 h-3.5 text-rose-400" />
+            <span>FAILED</span>
+          </span>
+        );
+      case 'IN_PROGRESS':
+        return (
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 animate-pulse">
+            <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+            <span>IN PROGRESS</span>
+          </span>
+        );
+      case 'PENDING':
+      default:
+        return (
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span>PENDING</span>
+          </span>
+        );
     }
   };
 
@@ -166,6 +301,20 @@ export const DataImportPage: React.FC = () => {
         </form>
       </div>
 
+      {/* Duplicate File Content Warning Banner */}
+      {result?.duplicateDetected && (
+        <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 flex items-start space-x-3 text-amber-200 text-xs">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-400" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-amber-300">Duplicate File Content Detected</h4>
+            <p className="text-amber-200/90 leading-relaxed">
+              {result.duplicateWarning ||
+                'An identical file was previously imported for this tenant. Existing records were updated or retained based on business key upsert rules.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Error Output */}
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 flex items-start space-x-3 text-rose-300 text-sm">
@@ -226,6 +375,219 @@ export const DataImportPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Tenant CSV Ingestion History Section */}
+      <div className="glass-panel p-6 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-base font-bold text-white">Tenant CSV Import History</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                  {history.length} {history.length === 1 ? 'Import' : 'Imports'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Audit trail of tenant-scoped CSV dataset uploads, processing statuses, row counts, and error summaries
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={fetchHistory}
+            disabled={loadingHistory}
+            className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-xs text-slate-300 hover:text-white flex items-center space-x-1.5 transition-colors disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+            title="Refresh history"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${loadingHistory ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {historyError && (
+          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{historyError}</span>
+          </div>
+        )}
+
+        {loadingHistory && history.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-400 text-xs">
+            <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+            <span>Loading import history...</span>
+          </div>
+        ) : history.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center space-y-2 text-center">
+            <FileSpreadsheet className="w-10 h-10 text-slate-600 mb-1" />
+            <p className="text-sm font-semibold text-slate-300">No Import History Found</p>
+            <p className="text-xs text-slate-500 max-w-sm">
+              No CSV datasets have been uploaded to this company workspace yet. Use the upload form above to ingest your operational records.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-800">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-950/90 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th className="px-4 py-3.5">Original File &amp; Hash</th>
+                  <th className="px-4 py-3.5">Entity</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5 text-center">Processed</th>
+                  <th className="px-4 py-3.5 text-center">Imported</th>
+                  <th className="px-4 py-3.5 text-center">Failed</th>
+                  <th className="px-4 py-3.5">Uploaded By</th>
+                  <th className="px-4 py-3.5">Timestamp</th>
+                  <th className="px-4 py-3.5 text-right">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
+                {history.map((item) => {
+                  const isExpanded = expandedRowId === item.id;
+                  const hasErrors =
+                    (item.errorList && item.errorList.length > 0) ||
+                    (item.validationErrors && item.validationErrors.trim().length > 0) ||
+                    item.failedRows > 0 ||
+                    item.status === 'FAILED';
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr className="hover:bg-slate-800/40 transition-colors">
+                        {/* Filename & Hash */}
+                        <td className="px-4 py-3.5">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-semibold text-white">{item.originalFilename}</span>
+                              {item.duplicateFile && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400"
+                                  title="Identical file content SHA-256 was previously imported"
+                                >
+                                  Duplicate File
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2 text-[11px] text-slate-500 font-mono">
+                              <span>{formatBytes(item.fileSizeBytes)}</span>
+                              {item.fileHash && (
+                                <span title={`SHA-256: ${item.fileHash}`}>
+                                  • hash:{item.fileHash.substring(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Entity */}
+                        <td className="px-4 py-3.5">
+                          <span className="px-2 py-1 rounded-md text-[11px] font-medium bg-slate-800/80 text-cyan-300 border border-slate-700">
+                            {ENTITY_LABELS[item.entityType] || item.entityType}
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {renderStatusBadge(item.status)}
+                        </td>
+
+                        {/* Total Rows */}
+                        <td className="px-4 py-3.5 text-center font-semibold text-white">
+                          {item.totalRows}
+                        </td>
+
+                        {/* Imported Rows */}
+                        <td className="px-4 py-3.5 text-center font-bold text-emerald-400">
+                          {item.importedRows}
+                        </td>
+
+                        {/* Failed Rows */}
+                        <td className="px-4 py-3.5 text-center font-bold">
+                          <span className={item.failedRows > 0 ? 'text-rose-400' : 'text-slate-500'}>
+                            {item.failedRows}
+                          </span>
+                        </td>
+
+                        {/* Uploader */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center space-x-1.5 text-slate-300">
+                            <User className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="truncate max-w-[110px]" title={item.username || 'System'}>
+                              {item.username || 'System'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Timestamp */}
+                        <td className="px-4 py-3.5 whitespace-nowrap text-slate-400 text-[11px]">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>{formatDate(item.startedAt)}</span>
+                          </div>
+                        </td>
+
+                        {/* Details / Error Toggle */}
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          {hasErrors ? (
+                            <button
+                              onClick={() => toggleRowExpansion(item.id)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-950/80 border border-rose-500/30 text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
+                            >
+                              <span>Errors</span>
+                              {isExpanded ? (
+                                <ChevronDown className="w-3 h-3" />
+                              ) : (
+                                <ChevronRight className="w-3 h-3" />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="text-slate-600 text-[11px]">—</span>
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* Expandable Error Details Accordion */}
+                      {isExpanded && (
+                        <tr className="bg-slate-950/70">
+                          <td colSpan={9} className="px-6 py-4 border-t border-slate-800/80 space-y-3">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-rose-400 flex items-center space-x-1.5">
+                                <AlertCircle className="w-4 h-4" />
+                                <span>Validation Error Details &amp; Diagnostics</span>
+                              </span>
+                              <div className="flex items-center space-x-2 text-[11px] text-slate-500 font-mono">
+                                <Hash className="w-3 h-3" />
+                                <span>SHA-256: {item.fileHash || 'N/A'}</span>
+                              </div>
+                            </div>
+
+                            {item.errorList && item.errorList.length > 0 ? (
+                              <ul className="space-y-1 font-mono text-xs text-rose-300/90 bg-rose-950/20 p-3 rounded-lg border border-rose-900/40 max-h-40 overflow-y-auto">
+                                {item.errorList.map((err, idx) => (
+                                  <li key={idx} className="border-b border-rose-950/60 pb-1 last:border-0 last:pb-0">
+                                    {err}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : item.validationErrors ? (
+                              <div className="font-mono text-xs text-rose-300/90 bg-rose-950/20 p-3 rounded-lg border border-rose-900/40 whitespace-pre-wrap">
+                                {item.validationErrors}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400 italic">No specific error strings recorded.</p>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
