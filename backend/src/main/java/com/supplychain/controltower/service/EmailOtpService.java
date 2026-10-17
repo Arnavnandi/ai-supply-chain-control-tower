@@ -68,9 +68,9 @@ public class EmailOtpService {
                         .message("A verification code was recently sent. Please check your email or wait for cooldown to request a new code.")
                         .build();
             } else {
-                // Invalidate older unused challenge before creating a fresh one
-                active.setIsUsed(true);
-                otpRepository.save(active);
+                // Discard older unverified challenge before creating a fresh one.
+                // Deleting ensures unverified or expired challenges are never counted as verified email records.
+                otpRepository.delete(active);
             }
         }
 

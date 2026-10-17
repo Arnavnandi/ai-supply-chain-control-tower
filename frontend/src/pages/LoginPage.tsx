@@ -445,7 +445,7 @@ export const LoginPage: React.FC = () => {
                   disabled={loading}
                   className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 mt-2 cursor-pointer"
                 >
-                  <span>{loading ? 'Authenticating...' : 'Sign In (Sends Verification Code)'}</span>
+                  <span>{loading ? 'Authenticating...' : 'Sign In with Password'}</span>
                   {!loading && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
@@ -564,12 +564,17 @@ export const LoginPage: React.FC = () => {
                   </p>
                 </div>
 
+                <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-[11px] text-cyan-300 flex items-center space-x-2">
+                  <Mail className="w-4 h-4 shrink-0 text-cyan-400" />
+                  <span>A 6-digit email verification code will be sent to confirm your email upon registration.</span>
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 mt-2 cursor-pointer"
                 >
-                  <span>{loading ? 'Creating Account...' : 'Register Account'}</span>
+                  <span>{loading ? 'Creating Account...' : 'Register & Send Verification Code'}</span>
                   {!loading && <UserPlus className="w-4 h-4" />}
                 </button>
               </form>

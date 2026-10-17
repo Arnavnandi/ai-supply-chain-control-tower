@@ -304,7 +304,7 @@ class EmailOtpServiceTest {
     }
 
     @Test
-    void testInitiateOtpChallenge_WhenAfterCooldown_InvalidatesOldAndCreatesNewChallenge() {
+    void testInitiateOtpChallenge_WhenAfterCooldown_DeletesOldAndCreatesNewChallenge() {
         EmailOtpVerification oldChallenge = EmailOtpVerification.builder()
                 .id(88L)
                 .user(testUser)
@@ -326,12 +326,43 @@ class EmailOtpServiceTest {
         assertTrue(response.isMfaRequired());
         assertNotEquals("old-mfa-token-456", response.getMfaToken());
 
-        // Old challenge must be invalidated
-        assertTrue(oldChallenge.getIsUsed(), "Older active challenge must be invalidated when initiating new challenge after cooldown!");
-        verify(otpRepository, atLeastOnce()).save(oldChallenge);
+        // Old unverified challenge must be deleted rather than marked is_used=true
+        verify(otpRepository, times(1)).delete(oldChallenge);
+        verify(otpRepository, never()).save(oldChallenge);
 
         // New email must be dispatched
         verify(emailDeliveryService, times(1)).sendOtpEmail(eq("operator@supplychain.com"), anyString(), eq(5));
+    }
+
+    @Test
+    void testInitiateOtpChallenge_ReplacingExpiredChallenge_DoesNotMarkUnverifiedUserAsVerified() {
+        EmailOtpVerification expiredChallenge = EmailOtpVerification.builder()
+                .id(92L)
+                .user(testUser)
+                .mfaToken("expired-mfa-token-789")
+                .hashedOtp("expired_hash")
+                .salt("expired_salt")
+                .expiresAt(LocalDateTime.now().minusMinutes(10))
+                .attemptsRemaining(3)
+                .resendCooldownUntil(LocalDateTime.now().minusMinutes(9))
+                .isUsed(false)
+                .build();
+
+        when(otpRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(testUser))
+                .thenReturn(Optional.of(expiredChallenge));
+
+        LoginInitiationResponse response = emailOtpService.initiateOtpChallenge(testUser);
+
+        assertNotNull(response);
+        assertTrue(response.isMfaRequired());
+
+        // Confirm expired challenge was deleted so it cannot be misconstrued as a verified OTP
+        verify(otpRepository, times(1)).delete(expiredChallenge);
+
+        // Verification query must still report false
+        when(otpRepository.existsByUserAndIsUsedTrue(testUser)).thenReturn(false);
+        assertFalse(emailOtpService.isUserEmailVerified(testUser),
+                "Replacing an expired/superseded challenge must not mark an unverified user as email-verified");
     }
 
     @Test
