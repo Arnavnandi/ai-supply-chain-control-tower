@@ -166,7 +166,7 @@ export const LoginPage: React.FC = () => {
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mfaChallenge) return;
+    if (!mfaChallenge || !mfaChallenge.mfaToken) return;
     if (otpDigits.trim().length !== 6) {
       setError('Please enter the complete 6-digit verification code.');
       return;
@@ -197,7 +197,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleResendOtp = async () => {
-    if (!mfaChallenge || cooldownRemaining > 0 || resending) return;
+    if (!mfaChallenge || !mfaChallenge.mfaToken || cooldownRemaining > 0 || resending) return;
     setError('');
     setSuccess('');
     setResending(true);

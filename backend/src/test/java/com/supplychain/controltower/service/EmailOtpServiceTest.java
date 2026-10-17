@@ -334,6 +334,43 @@ class EmailOtpServiceTest {
         verify(emailDeliveryService, times(1)).sendOtpEmail(eq("operator@supplychain.com"), anyString(), eq(5));
     }
 
+    @Test
+    void testIsUserEmailVerified_ReturnsTrueForSeedAdminUser() {
+        User adminUser = User.builder().id(1L).username("admin").email("admin@supplychain.com").build();
+        assertTrue(emailOtpService.isUserEmailVerified(adminUser), "Seed admin user must be verified by default");
+        verify(otpRepository, never()).existsByUserAndIsUsedTrue(any());
+    }
+
+    @Test
+    void testIsUserEmailVerified_ReturnsTrueForSeedManagerUser() {
+        User managerUser = User.builder().id(2L).username("manager").email("manager@supplychain.com").build();
+        assertTrue(emailOtpService.isUserEmailVerified(managerUser), "Seed manager user must be verified by default");
+        verify(otpRepository, never()).existsByUserAndIsUsedTrue(any());
+    }
+
+    @Test
+    void testIsUserEmailVerified_ReturnsTrueWhenUsedVerificationExists() {
+        User regularUser = User.builder().id(50L).username("john_doe").email("john@corp.com").build();
+        when(otpRepository.existsByUserAndIsUsedTrue(regularUser)).thenReturn(true);
+
+        assertTrue(emailOtpService.isUserEmailVerified(regularUser), "User with used OTP record must be verified");
+        verify(otpRepository, times(1)).existsByUserAndIsUsedTrue(regularUser);
+    }
+
+    @Test
+    void testIsUserEmailVerified_ReturnsFalseWhenNoUsedVerificationExists() {
+        User unverifiedUser = User.builder().id(51L).username("jane_doe").email("jane@corp.com").build();
+        when(otpRepository.existsByUserAndIsUsedTrue(unverifiedUser)).thenReturn(false);
+
+        assertFalse(emailOtpService.isUserEmailVerified(unverifiedUser), "User without used OTP record must not be verified");
+        verify(otpRepository, times(1)).existsByUserAndIsUsedTrue(unverifiedUser);
+    }
+
+    @Test
+    void testIsUserEmailVerified_ReturnsFalseForNullUser() {
+        assertFalse(emailOtpService.isUserEmailVerified(null));
+    }
+
     private String computeHash(String salt, String rawOtp) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         digest.update(salt.getBytes(StandardCharsets.UTF_8));

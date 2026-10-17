@@ -17,4 +17,6 @@ public class AuthResponse {
     private Long companyId;
     private String companyCode;
     private String companyName;
+    @Builder.Default
+    private boolean mfaRequired = false;
 }

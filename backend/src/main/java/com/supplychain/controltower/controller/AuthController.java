@@ -34,7 +34,7 @@ public class AuthController {
     private final EmailOtpService emailOtpService;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginInitiationResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsernameOrEmail(),
@@ -45,6 +45,23 @@ public class AuthController {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("User account not found."));
+
+        if (emailOtpService.isUserEmailVerified(user)) {
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = tokenProvider.generateToken(authentication);
+            return ResponseEntity.ok(AuthResponse.builder()
+                    .token(jwt)
+                    .tokenType("Bearer")
+                    .id(user.getId())
+                    .username(user.getUsername())
+                    .email(user.getEmail())
+                    .role(user.getRole().name())
+                    .companyId(user.getCompany() != null ? user.getCompany().getId() : null)
+                    .companyCode(user.getCompany() != null ? user.getCompany().getCode() : null)
+                    .companyName(user.getCompany() != null ? user.getCompany().getName() : null)
+                    .mfaRequired(false)
+                    .build());
+        }
 
         LoginInitiationResponse initiationResponse = emailOtpService.initiateOtpChallenge(user);
         return ResponseEntity.ok(initiationResponse);

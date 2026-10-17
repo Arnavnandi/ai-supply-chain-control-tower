@@ -202,16 +202,24 @@ class AuthControllerTest {
     }
 
     @Test
-    void testLoginValidCredentialsReturnsMfaChallengeWithoutJwt() {
+    void testLoginVerifiedUserReturnsJwtDirectlyWithoutOtpChallenge() {
         com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
-        loginReq.setUsernameOrEmail("user@company.com");
+        loginReq.setUsernameOrEmail("verified_user@company.com");
         loginReq.setPassword("Secret123!");
+
+        com.supplychain.controltower.entity.Company comp = com.supplychain.controltower.entity.Company.builder()
+                .id(10L)
+                .name("Acme Corp")
+                .code("COMP-ACME")
+                .status("ACTIVE")
+                .build();
 
         User mockUser = User.builder()
                 .id(42L)
-                .username("user")
-                .email("user@company.com")
+                .username("verified_user")
+                .email("verified_user@company.com")
                 .role(Role.ROLE_ADMIN)
+                .company(comp)
                 .build();
 
         com.supplychain.controltower.security.UserPrincipal principal =
@@ -223,26 +231,124 @@ class AuthControllerTest {
 
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(userRepository.findById(42L)).thenReturn(java.util.Optional.of(mockUser));
+        when(emailOtpService.isUserEmailVerified(mockUser)).thenReturn(true);
+        when(tokenProvider.generateToken(any())).thenReturn("direct.jwt.token");
+
+        ResponseEntity<?> response = authController.authenticateUser(loginReq);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof com.supplychain.controltower.dto.auth.AuthResponse);
+        com.supplychain.controltower.dto.auth.AuthResponse authResp = (com.supplychain.controltower.dto.auth.AuthResponse) response.getBody();
+        assertEquals("direct.jwt.token", authResp.getToken());
+        assertEquals(42L, authResp.getId());
+        assertEquals("verified_user", authResp.getUsername());
+        assertEquals("verified_user@company.com", authResp.getEmail());
+        assertEquals("ROLE_ADMIN", authResp.getRole());
+        assertEquals(10L, authResp.getCompanyId());
+        assertEquals("COMP-ACME", authResp.getCompanyCode());
+        assertFalse(authResp.isMfaRequired(), "MFA must not be required for verified accounts");
+
+        verify(tokenProvider, times(1)).generateToken(auth);
+        verify(emailOtpService, never()).initiateOtpChallenge(any());
+    }
+
+    @Test
+    void testLoginUnverifiedUserReturnsMfaChallengeWithoutJwt() {
+        com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
+        loginReq.setUsernameOrEmail("newuser@company.com");
+        loginReq.setPassword("Secret123!");
+
+        User mockUser = User.builder()
+                .id(43L)
+                .username("newuser")
+                .email("newuser@company.com")
+                .role(Role.ROLE_VIEWER)
+                .build();
+
+        com.supplychain.controltower.security.UserPrincipal principal =
+                com.supplychain.controltower.security.UserPrincipal.create(mockUser);
+
+        org.springframework.security.core.Authentication auth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities());
+
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userRepository.findById(43L)).thenReturn(java.util.Optional.of(mockUser));
+        when(emailOtpService.isUserEmailVerified(mockUser)).thenReturn(false);
 
         com.supplychain.controltower.dto.auth.LoginInitiationResponse initiation =
                 com.supplychain.controltower.dto.auth.LoginInitiationResponse.builder()
                         .mfaRequired(true)
                         .mfaToken("test-mfa-token-uuid")
-                        .maskedEmail("u***r@company.com")
+                        .maskedEmail("n***r@company.com")
                         .expiresInSeconds(300)
                         .resendCooldownSeconds(60)
                         .build();
 
         when(emailOtpService.initiateOtpChallenge(mockUser)).thenReturn(initiation);
 
-        ResponseEntity<com.supplychain.controltower.dto.auth.LoginInitiationResponse> response =
-                authController.authenticateUser(loginReq);
+        ResponseEntity<?> response = authController.authenticateUser(loginReq);
 
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().isMfaRequired());
-        assertEquals("test-mfa-token-uuid", response.getBody().getMfaToken());
-        assertEquals("u***r@company.com", response.getBody().getMaskedEmail());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof com.supplychain.controltower.dto.auth.LoginInitiationResponse);
+        com.supplychain.controltower.dto.auth.LoginInitiationResponse mfaResp = (com.supplychain.controltower.dto.auth.LoginInitiationResponse) response.getBody();
+        assertTrue(mfaResp.isMfaRequired());
+        assertEquals("test-mfa-token-uuid", mfaResp.getMfaToken());
+        assertEquals("n***r@company.com", mfaResp.getMaskedEmail());
+
         verify(tokenProvider, never()).generateToken(any());
+        verify(emailOtpService, times(1)).initiateOtpChallenge(mockUser);
+    }
+
+    @Test
+    void testLoginInvalidCredentialsThrowsBadCredentialsExceptionWithoutSendingOtp() {
+        com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
+        loginReq.setUsernameOrEmail("user@company.com");
+        loginReq.setPassword("WrongPassword!");
+
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
+
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class, () ->
+                authController.authenticateUser(loginReq));
+
+        verify(emailOtpService, never()).initiateOtpChallenge(any());
+        verify(tokenProvider, never()).generateToken(any());
+    }
+
+    @Test
+    void testLoginSeedAdminReturnsJwtDirectlyWithoutOtpChallenge() {
+        com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
+        loginReq.setUsernameOrEmail("admin");
+        loginReq.setPassword("admin123");
+
+        User adminUser = User.builder()
+                .id(1L)
+                .username("admin")
+                .email("admin@supplychain.com")
+                .role(Role.ROLE_ADMIN)
+                .build();
+
+        com.supplychain.controltower.security.UserPrincipal principal =
+                com.supplychain.controltower.security.UserPrincipal.create(adminUser);
+
+        org.springframework.security.core.Authentication auth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities());
+
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(emailOtpService.isUserEmailVerified(adminUser)).thenReturn(true);
+        when(tokenProvider.generateToken(any())).thenReturn("admin.jwt.token");
+
+        ResponseEntity<?> response = authController.authenticateUser(loginReq);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof com.supplychain.controltower.dto.auth.AuthResponse);
+        com.supplychain.controltower.dto.auth.AuthResponse authResp = (com.supplychain.controltower.dto.auth.AuthResponse) response.getBody();
+        assertEquals("admin.jwt.token", authResp.getToken());
+        assertFalse(authResp.isMfaRequired());
+        verify(emailOtpService, never()).initiateOtpChallenge(any());
     }
 
     @Test
@@ -367,5 +473,48 @@ class AuthControllerTest {
                 handler.handleBadCredentialsException(ex);
         assertEquals(HttpStatus.UNAUTHORIZED, errorResp.getStatusCode());
         assertEquals("Too many failed attempts. Verification session locked. Please log in again.", errorResp.getBody().getMessage());
+    }
+
+    @Test
+    void testSubsequentLoginAfterOtpVerificationReturnsJwtDirectlyWithoutOtp() {
+        // Setup verified user
+        User user = User.builder()
+                .id(99L)
+                .username("registered_user")
+                .email("user@tenant.com")
+                .role(Role.ROLE_VIEWER)
+                .build();
+
+        com.supplychain.controltower.security.UserPrincipal principal =
+                com.supplychain.controltower.security.UserPrincipal.create(user);
+
+        org.springframework.security.core.Authentication auth =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        principal, null, principal.getAuthorities());
+
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userRepository.findById(99L)).thenReturn(java.util.Optional.of(user));
+        // User has already completed OTP verification (isUserEmailVerified returns true)
+        when(emailOtpService.isUserEmailVerified(user)).thenReturn(true);
+        when(tokenProvider.generateToken(any())).thenReturn("verified.subsequent.jwt");
+
+        com.supplychain.controltower.dto.auth.LoginRequest loginReq = new com.supplychain.controltower.dto.auth.LoginRequest();
+        loginReq.setUsernameOrEmail("user@tenant.com");
+        loginReq.setPassword("Password123!");
+
+        // Subsequent sign-in
+        ResponseEntity<?> loginResponse = authController.authenticateUser(loginReq);
+
+        assertEquals(HttpStatus.OK, loginResponse.getStatusCode());
+        assertTrue(loginResponse.getBody() instanceof com.supplychain.controltower.dto.auth.AuthResponse);
+        com.supplychain.controltower.dto.auth.AuthResponse authResp =
+                (com.supplychain.controltower.dto.auth.AuthResponse) loginResponse.getBody();
+
+        assertEquals("verified.subsequent.jwt", authResp.getToken());
+        assertFalse(authResp.isMfaRequired(), "Subsequent login must not require OTP");
+        assertEquals("registered_user", authResp.getUsername());
+
+        // Confirm OTP challenge was NEVER dispatched on subsequent sign-in
+        verify(emailOtpService, never()).initiateOtpChallenge(any());
     }
 }

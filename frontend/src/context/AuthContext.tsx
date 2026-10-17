@@ -12,12 +12,20 @@ interface User {
 }
 
 export interface LoginInitiationResult {
-  mfaRequired: boolean;
-  mfaToken: string;
-  maskedEmail: string;
-  expiresInSeconds: number;
-  resendCooldownSeconds: number;
+  mfaRequired?: boolean;
+  mfaToken?: string;
+  maskedEmail?: string;
+  expiresInSeconds?: number;
+  resendCooldownSeconds?: number;
   message?: string;
+  token?: string;
+  id?: number;
+  username?: string;
+  email?: string;
+  role?: string;
+  companyId?: number;
+  companyCode?: string;
+  companyName?: string;
 }
 
 interface AuthContextType {
@@ -72,6 +80,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (usernameOrEmail: string, password: string): Promise<LoginInitiationResult> => {
     const res = await axiosInstance.post('/auth/login', { usernameOrEmail, password });
+    if (res.data && res.data.token) {
+      const { token: jwtToken, id, username, email, role, companyId, companyCode, companyName } = res.data;
+      localStorage.setItem('control_tower_token', jwtToken);
+      setToken(jwtToken);
+      setUser({ id, username, email, role, companyId, companyCode, companyName });
+    }
     return res.data;
   };
 

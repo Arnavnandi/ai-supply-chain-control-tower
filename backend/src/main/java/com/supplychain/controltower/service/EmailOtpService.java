@@ -34,6 +34,18 @@ public class EmailOtpService {
     private final EmailDeliveryService emailDeliveryService;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    @Transactional(readOnly = true)
+    public boolean isUserEmailVerified(User user) {
+        if (user == null) {
+            return false;
+        }
+        // Seed administrative accounts are verified by default
+        if ("admin".equalsIgnoreCase(user.getUsername()) || "manager".equalsIgnoreCase(user.getUsername())) {
+            return true;
+        }
+        return otpRepository.existsByUserAndIsUsedTrue(user);
+    }
+
     @Transactional
     public LoginInitiationResponse initiateOtpChallenge(User user) {
         LocalDateTime now = LocalDateTime.now();

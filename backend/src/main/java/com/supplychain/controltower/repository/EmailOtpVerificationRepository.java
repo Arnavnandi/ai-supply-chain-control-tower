@@ -17,5 +17,7 @@ public interface EmailOtpVerificationRepository extends JpaRepository<EmailOtpVe
 
     Optional<EmailOtpVerification> findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(User user);
 
+    boolean existsByUserAndIsUsedTrue(User user);
+
     void deleteByExpiresAtBefore(LocalDateTime time);
 }
