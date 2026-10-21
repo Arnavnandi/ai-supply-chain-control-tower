@@ -130,7 +130,11 @@ export const DataImportPage: React.FC = () => {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
     try {
-      const d = new Date(dateStr);
+      const trimmed = dateStr.trim();
+      const hasTimezone = /[zZ]$|[+-]\d{2}(?::?\d{2})?$/.test(trimmed);
+      const normalizedStr = hasTimezone ? trimmed : `${trimmed}Z`;
+      const d = new Date(normalizedStr);
+      if (isNaN(d.getTime())) return dateStr;
       return d.toLocaleString(undefined, {
         month: 'short',
         day: 'numeric',

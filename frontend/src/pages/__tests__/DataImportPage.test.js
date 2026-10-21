@@ -10,10 +10,13 @@ const formatBytes = (bytes) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr, timeZone) => {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr);
+    const trimmed = dateStr.trim();
+    const hasTimezone = /[zZ]$|[+-]\d{2}(?::?\d{2})?$/.test(trimmed);
+    const normalizedStr = hasTimezone ? trimmed : `${trimmed}Z`;
+    const d = new Date(normalizedStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleString('en-US', {
       month: 'short',
@@ -21,7 +24,7 @@ const formatDate = (dateStr) => {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'UTC',
+      ...(timeZone ? { timeZone } : {}),
     });
   } catch {
     return dateStr;
@@ -55,8 +58,50 @@ test('formatBytes formats bytes correctly across magnitudes', () => {
 test('formatDate safely formats ISO date strings and handles empty values', () => {
   assert.equal(formatDate(undefined), '—');
   assert.equal(formatDate(''), '—');
-  const formatted = formatDate('2026-10-17T12:00:00Z');
+  const formatted = formatDate('2026-10-17T12:00:00Z', 'UTC');
   assert.match(formatted, /Oct 17, 2026/);
+});
+
+test('formatDate normalizes timezone-naive UTC timestamps so they convert correctly to local time', () => {
+  // Staging database produces timezone-naive UTC timestamp: '2026-10-21T13:43:08.537906'
+  const naiveUtc = '2026-10-21T13:43:08.537906';
+  const explicitZ = '2026-10-21T13:43:08.537906Z';
+
+  // In Asia/Kolkata (IST, UTC+05:30), 13:43 UTC must display as 19:13 (7:13 PM)
+  const formattedIst = formatDate(naiveUtc, 'Asia/Kolkata');
+  assert.match(formattedIst, /Oct 21, 2026/);
+  assert.match(formattedIst, /07:13 PM/);
+
+  // Both naive UTC and explicit Z must produce identical formatted output in IST
+  assert.equal(formattedIst, formatDate(explicitZ, 'Asia/Kolkata'));
+
+  // In UTC, both should display 01:43 PM
+  assert.match(formatDate(naiveUtc, 'UTC'), /01:43 PM/);
+  assert.match(formatDate(explicitZ, 'UTC'), /01:43 PM/);
+});
+
+test('formatDate preserves timestamps that already have Z or an explicit timezone offset', () => {
+  // Trailing Z
+  const withZ = '2026-10-21T13:43:08Z';
+  assert.match(formatDate(withZ, 'UTC'), /01:43 PM/);
+
+  // Explicit positive offset (+05:30)
+  const withPositiveOffset = '2026-10-21T19:13:08+05:30';
+  // 19:13 at +05:30 corresponds to 13:43 UTC
+  assert.match(formatDate(withPositiveOffset, 'UTC'), /01:43 PM/);
+  assert.match(formatDate(withPositiveOffset, 'Asia/Kolkata'), /07:13 PM/);
+
+  // Explicit negative offset (-04:00)
+  const withNegativeOffset = '2026-10-21T09:43:08-04:00';
+  // 09:43 at -04:00 corresponds to 13:43 UTC
+  assert.match(formatDate(withNegativeOffset, 'UTC'), /01:43 PM/);
+
+  // Compact offset (+0530)
+  const withCompactOffset = '2026-10-21T19:13:08+0530';
+  assert.match(formatDate(withCompactOffset, 'UTC'), /01:43 PM/);
+
+  // Invalid date string safely returns original string
+  assert.equal(formatDate('invalid-date-string'), 'invalid-date-string');
 });
 
 test('getStatusBadgeVariant returns correct metadata for each import status', () => {
