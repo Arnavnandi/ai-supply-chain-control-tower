@@ -1,7 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import axiosInstance from '../../api/axiosInstance.ts';
 
 // Helper reproduction matching DataImportPage.tsx
+const classifyHistoryError = (err) => {
+  const isTimeout =
+    err?.code === 'ECONNABORTED' ||
+    Boolean(err?.message && /timeout/i.test(err.message)) ||
+    err?.response?.status === 504;
+
+  const status = err?.response?.status;
+
+  if (isTimeout) {
+    return {
+      isTimeout: true,
+      isAuthError: false,
+      message: 'Request timed out after 15s. The backend service may be spinning up from idle (cold start). Please click Retry in a few moments.',
+    };
+  }
+
+  if (status === 401) {
+    return {
+      isTimeout: false,
+      isAuthError: true,
+      message: err?.response?.data?.message || 'Authentication session expired. Please sign in again.',
+    };
+  }
+
+  if (status === 403) {
+    return {
+      isTimeout: false,
+      isAuthError: true,
+      message: err?.response?.data?.message || 'Access denied. You do not have permission to view import history.',
+    };
+  }
+
+  return {
+    isTimeout: false,
+    isAuthError: false,
+    message: err?.response?.data?.message || err?.message || 'Failed to load import history.',
+  };
+};
+
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return '0 B';
   const k = 1024;
@@ -184,3 +224,97 @@ test('history items distinguish duplicate uploads and preserve tenant row counts
   assert.equal(historyItems[0].fileHash, historyItems[1].fileHash);
   assert.equal(historyItems[0].importedRows, 15);
 });
+
+test('axiosInstance has a default 15-second timeout configured', () => {
+  assert.equal(axiosInstance.defaults.timeout, 15000);
+});
+
+test('classifyHistoryError detects Axios timeout (ECONNABORTED) and returns cold start guidance', () => {
+  const timeoutErr = {
+    code: 'ECONNABORTED',
+    message: 'timeout of 15000ms exceeded',
+  };
+  const result = classifyHistoryError(timeoutErr);
+  assert.equal(result.isTimeout, true);
+  assert.equal(result.isAuthError, false);
+  assert.match(result.message, /Request timed out after 15s/);
+  assert.match(result.message, /cold start/);
+  assert.match(result.message, /Retry/);
+});
+
+test('classifyHistoryError detects message-based timeout and HTTP 504 Gateway Timeout', () => {
+  const msgErr = { message: 'Network timeout occurred' };
+  const resMsg = classifyHistoryError(msgErr);
+  assert.equal(resMsg.isTimeout, true);
+  assert.equal(resMsg.isAuthError, false);
+
+  const gatewayTimeoutErr = { response: { status: 504 } };
+  const res504 = classifyHistoryError(gatewayTimeoutErr);
+  assert.equal(res504.isTimeout, true);
+  assert.equal(res504.isAuthError, false);
+});
+
+test('classifyHistoryError strictly distinguishes HTTP 401 Authentication errors from timeouts', () => {
+  const authErr401 = {
+    response: {
+      status: 401,
+      data: { message: 'Token expired' },
+    },
+  };
+  const result = classifyHistoryError(authErr401);
+  assert.equal(result.isTimeout, false);
+  assert.equal(result.isAuthError, true);
+  assert.equal(result.message, 'Token expired');
+  // Must NOT suggest cold start or timeout
+  assert.doesNotMatch(result.message, /cold start/i);
+  assert.doesNotMatch(result.message, /timed out/i);
+
+  const fallback401 = { response: { status: 401 } };
+  const resFallback = classifyHistoryError(fallback401);
+  assert.equal(resFallback.isTimeout, false);
+  assert.equal(resFallback.isAuthError, true);
+  assert.match(resFallback.message, /Authentication session expired/);
+});
+
+test('classifyHistoryError strictly distinguishes HTTP 403 Authorization errors from timeouts', () => {
+  const authErr403 = {
+    response: {
+      status: 403,
+      data: { error: 'Forbidden', message: 'Access denied' },
+    },
+  };
+  const result = classifyHistoryError(authErr403);
+  assert.equal(result.isTimeout, false);
+  assert.equal(result.isAuthError, true);
+  assert.equal(result.message, 'Access denied');
+  assert.doesNotMatch(result.message, /cold start/i);
+  assert.doesNotMatch(result.message, /timed out/i);
+
+  const fallback403 = { response: { status: 403 } };
+  const resFallback = classifyHistoryError(fallback403);
+  assert.equal(resFallback.isTimeout, false);
+  assert.equal(resFallback.isAuthError, true);
+  assert.match(resFallback.message, /Access denied/);
+});
+
+test('classifyHistoryError handles HTTP 500 server errors and generic network failures', () => {
+  const serverErr = {
+    response: {
+      status: 500,
+      data: { message: 'Internal database query failure' },
+    },
+  };
+  const res500 = classifyHistoryError(serverErr);
+  assert.equal(res500.isTimeout, false);
+  assert.equal(res500.isAuthError, false);
+  assert.equal(res500.message, 'Internal database query failure');
+
+  const genericNetworkErr = {
+    message: 'Network Error',
+  };
+  const resGeneric = classifyHistoryError(genericNetworkErr);
+  assert.equal(resGeneric.isTimeout, false);
+  assert.equal(resGeneric.isAuthError, false);
+  assert.equal(resGeneric.message, 'Network Error');
+});
+

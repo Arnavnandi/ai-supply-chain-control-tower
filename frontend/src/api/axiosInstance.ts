@@ -3,10 +3,10 @@ import axios from 'axios';
 const DEFAULT_PROD_API_URL = 'https://ai-supply-chain-control-tower-backend.onrender.com/api';
 
 const getBaseURL = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  if (import.meta.env.MODE === 'production') {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'production') {
     return DEFAULT_PROD_API_URL;
   }
   return '/api';
@@ -14,6 +14,7 @@ const getBaseURL = () => {
 
 const axiosInstance = axios.create({
   baseURL: getBaseURL(),
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,9 +22,11 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('control_tower_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem('control_tower_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

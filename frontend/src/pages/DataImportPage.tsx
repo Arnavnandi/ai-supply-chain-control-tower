@@ -49,6 +49,51 @@ const ENTITY_LABELS: Record<string, string> = {
   categories: 'Categories',
 };
 
+interface HistoryErrorClassification {
+  isTimeout: boolean;
+  isAuthError: boolean;
+  message: string;
+}
+
+const classifyHistoryError = (err: any): HistoryErrorClassification => {
+  const isTimeout =
+    err?.code === 'ECONNABORTED' ||
+    Boolean(err?.message && /timeout/i.test(err.message)) ||
+    err?.response?.status === 504;
+
+  const status = err?.response?.status;
+
+  if (isTimeout) {
+    return {
+      isTimeout: true,
+      isAuthError: false,
+      message: 'Request timed out after 15s. The backend service may be spinning up from idle (cold start). Please click Retry in a few moments.',
+    };
+  }
+
+  if (status === 401) {
+    return {
+      isTimeout: false,
+      isAuthError: true,
+      message: err?.response?.data?.message || 'Authentication session expired. Please sign in again.',
+    };
+  }
+
+  if (status === 403) {
+    return {
+      isTimeout: false,
+      isAuthError: true,
+      message: err?.response?.data?.message || 'Access denied. You do not have permission to view import history.',
+    };
+  }
+
+  return {
+    isTimeout: false,
+    isAuthError: false,
+    message: err?.response?.data?.message || err?.message || 'Failed to load import history.',
+  };
+};
+
 export const DataImportPage: React.FC = () => {
   const [entityType, setEntityType] = useState('products');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -60,17 +105,21 @@ export const DataImportPage: React.FC = () => {
   const [history, setHistory] = useState<CsvImportHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [isHistoryTimeout, setIsHistoryTimeout] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
 
   const fetchHistory = async () => {
     setLoadingHistory(true);
     setHistoryError(null);
+    setIsHistoryTimeout(false);
     try {
       const res = await axiosInstance.get<CsvImportHistoryItem[]>('/data/import/history');
       setHistory(res.data);
     } catch (err: any) {
       console.error('Failed to load CSV import history:', err);
-      setHistoryError(err.response?.data?.message || 'Failed to load import history.');
+      const classification = classifyHistoryError(err);
+      setIsHistoryTimeout(classification.isTimeout);
+      setHistoryError(classification.message);
     } finally {
       setLoadingHistory(false);
     }
@@ -412,9 +461,41 @@ export const DataImportPage: React.FC = () => {
         </div>
 
         {historyError && (
-          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs text-rose-300 flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{historyError}</span>
+          <div
+            className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+              isHistoryTimeout
+                ? 'bg-amber-950/60 border-amber-500/40 text-amber-200'
+                : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+            }`}
+          >
+            <div className="flex items-start sm:items-center space-x-2.5">
+              <AlertCircle
+                className={`w-4 h-4 shrink-0 mt-0.5 sm:mt-0 ${
+                  isHistoryTimeout ? 'text-amber-400' : 'text-rose-400'
+                }`}
+              />
+              <div className="space-y-0.5">
+                {isHistoryTimeout && (
+                  <span className="font-semibold text-amber-300 block sm:inline mr-1.5">
+                    Connection Timed Out:
+                  </span>
+                )}
+                <span>{historyError}</span>
+              </div>
+            </div>
+            <button
+              onClick={fetchHistory}
+              disabled={loadingHistory}
+              className={`px-3 py-1.5 rounded-lg font-medium text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50 ${
+                isHistoryTimeout
+                  ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40'
+                  : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40'
+              }`}
+              title="Retry fetching import history"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} />
+              <span>Retry</span>
+            </button>
           </div>
         )}
 
@@ -426,10 +507,26 @@ export const DataImportPage: React.FC = () => {
         ) : history.length === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center space-y-2 text-center">
             <FileSpreadsheet className="w-10 h-10 text-slate-600 mb-1" />
-            <p className="text-sm font-semibold text-slate-300">No Import History Found</p>
-            <p className="text-xs text-slate-500 max-w-sm">
-              No CSV datasets have been uploaded to this company workspace yet. Use the upload form above to ingest your operational records.
+            <p className="text-sm font-semibold text-slate-300">
+              {historyError ? 'Import History Unavailable' : 'No Import History Found'}
             </p>
+            <p className="text-xs text-slate-500 max-w-sm">
+              {historyError
+                ? isHistoryTimeout
+                  ? 'The backend server took longer than 15 seconds to respond. It may still be warming up from idle. Click Retry to fetch history again.'
+                  : 'Unable to retrieve tenant import history at this time.'
+                : 'No CSV datasets have been uploaded to this company workspace yet. Use the upload form above to ingest your operational records.'}
+            </p>
+            {historyError && (
+              <button
+                onClick={fetchHistory}
+                disabled={loadingHistory}
+                className="mt-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${loadingHistory ? 'animate-spin' : ''}`} />
+                <span>Retry Loading History</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-800">
