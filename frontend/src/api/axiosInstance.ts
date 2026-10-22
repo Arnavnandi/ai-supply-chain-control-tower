@@ -2,7 +2,10 @@ import axios from 'axios';
 
 const DEFAULT_PROD_API_URL = 'https://ai-supply-chain-control-tower-backend.onrender.com/api';
 
-const getBaseURL = () => {
+export const DEFAULT_TIMEOUT = 15000;
+export const STAGING_TIMEOUT = 60000;
+
+export const getBaseURL = () => {
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
@@ -12,9 +15,26 @@ const getBaseURL = () => {
   return '/api';
 };
 
+export const getTimeout = (mode?: string, customTimeout?: string | number): number => {
+  if (customTimeout !== undefined && customTimeout !== '') {
+    const parsed = Number(customTimeout);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  const activeMode = mode !== undefined
+    ? mode
+    : (typeof import.meta !== 'undefined' ? import.meta.env?.MODE : undefined);
+  if (activeMode === 'staging') {
+    return STAGING_TIMEOUT;
+  }
+  return DEFAULT_TIMEOUT;
+};
+
 const axiosInstance = axios.create({
   baseURL: getBaseURL(),
-  timeout: 15000,
+  timeout: getTimeout(
+    typeof import.meta !== 'undefined' ? import.meta.env?.MODE : undefined,
+    typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_TIMEOUT : undefined
+  ),
   headers: {
     'Content-Type': 'application/json',
   },

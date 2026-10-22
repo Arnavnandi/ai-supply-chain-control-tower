@@ -1,10 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import axiosInstance from '../../api/axiosInstance.ts';
-import { classifyApiError } from '../../utils/errorClassification.ts';
+import axiosInstance, { DEFAULT_TIMEOUT, STAGING_TIMEOUT, getTimeout } from '../../api/axiosInstance.ts';
+import { classifyApiError, getTimeoutDurationDisplay } from '../../utils/errorClassification.ts';
 
-test('axiosInstance preserves the configured 15-second timeout', () => {
+test('axiosInstance preserves the configured 15-second timeout in default/test environment', () => {
   assert.equal(axiosInstance.defaults.timeout, 15000);
+});
+
+test('getTimeout resolves 60 seconds (60000ms) for staging build mode only', () => {
+  assert.equal(getTimeout('staging'), 60000);
+  assert.equal(STAGING_TIMEOUT, 60000);
+});
+
+test('getTimeout preserves 15 seconds (15000ms) for production and development', () => {
+  assert.equal(getTimeout('production'), 15000);
+  assert.equal(getTimeout('development'), 15000);
+  assert.equal(getTimeout(undefined), 15000);
+  assert.equal(DEFAULT_TIMEOUT, 15000);
+});
+
+test('getTimeout supports custom timeout overrides', () => {
+  assert.equal(getTimeout('staging', 45000), 45000);
+  assert.equal(getTimeout('production', '30000'), 30000);
+  assert.equal(getTimeout('staging', ''), 60000);
+  assert.equal(getTimeout('staging', 'invalid'), 60000);
+});
+
+test('getTimeoutDurationDisplay distinguishes staging (60s) from production/default (15s)', () => {
+  assert.equal(getTimeoutDurationDisplay('staging'), '60s');
+  assert.equal(getTimeoutDurationDisplay('production'), '15s');
+  assert.equal(getTimeoutDurationDisplay(undefined), '15s');
+});
+
+test('classifyApiError generates 60s cold-start message in staging mode', () => {
+  const timeoutErr = { code: 'ECONNABORTED', message: 'timeout of 60000ms exceeded' };
+  const result = classifyApiError(timeoutErr, 'Failed to load data.', 'staging');
+  assert.equal(result.isTimeout, true);
+  assert.match(result.message, /Request timed out after 60s/);
+  assert.match(result.message, /cold start/);
+  assert.match(result.message, /Retry/);
 });
 
 test('classifyApiError detects ECONNABORTED timeout and provides cold-start guidance', () => {
