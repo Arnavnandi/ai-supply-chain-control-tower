@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { classifyApiError } from '../utils/errorClassification';
 
 export const InventoryPage: React.FC = () => {
   const [inventory, setInventory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | 'LOW_STOCK' | 'OVERSTOCK'>('ALL');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [adjustQty, setAdjustQty] = useState(0);
 
   const fetchInventory = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const url = filter === 'LOW_STOCK' ? '/inventory/low-stock' : filter === 'OVERSTOCK' ? '/inventory/overstock' : '/inventory';
       const res = await axiosInstance.get(url);
       setInventory(res.data);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Failed to load inventory stock:', err);
+      const classified = classifyApiError(err, 'Failed to load inventory stock records.');
+      setError(classified.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,44 +92,36 @@ export const InventoryPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60">
-            {inventory.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-800/40 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-semibold text-white">{inv.productName}</p>
-                    {inv.isDemo && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
-                        Demo Data
-                      </span>
-                    )}
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 px-4">
+                  <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 text-xs">
+                    <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+                    <span>Loading multi-warehouse inventory stock records...</span>
                   </div>
-                  <p className="font-mono text-xs text-cyan-400">{inv.productSku}</p>
-                </td>
-                <td className="px-6 py-4">{inv.warehouseName} ({inv.warehouseCode})</td>
-                <td className="px-6 py-4 font-bold text-white text-base">{inv.quantityAvailable} units</td>
-                <td className="px-6 py-4 text-slate-400">{inv.reorderLevel} units</td>
-                <td className="px-6 py-4 text-slate-400">{inv.safetyStock} units</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                    inv.status === 'CRITICAL' ? 'bg-rose-950/80 text-rose-400 border border-rose-800/50' :
-                    inv.status === 'LOW_STOCK' ? 'bg-amber-950/80 text-amber-400 border border-amber-800/50' :
-                    inv.status === 'OVERSTOCK' ? 'bg-purple-950/80 text-purple-400 border border-purple-800/50' :
-                    'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'
-                  }`}>
-                    {inv.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => setSelectedItem(inv)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold border border-slate-700"
-                  >
-                    Adjust Qty
-                  </button>
                 </td>
               </tr>
-            ))}
-            {inventory.length === 0 && (
+            ) : error ? (
+              <tr>
+                <td colSpan={7} className="text-center py-12 px-4">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <div className="flex items-center justify-center space-x-2 text-amber-400">
+                      <AlertTriangle className="w-5 h-5" />
+                      <p className="text-sm font-semibold">Unable to Load Inventory</p>
+                    </div>
+                    <p className="text-xs text-slate-400">{error}</p>
+                    <button
+                      type="button"
+                      onClick={fetchInventory}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Retry</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : inventory.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-12 px-4">
                   <div className="max-w-md mx-auto space-y-3">
@@ -144,6 +146,44 @@ export const InventoryPage: React.FC = () => {
                   </div>
                 </td>
               </tr>
+            ) : (
+              inventory.map((inv) => (
+                <tr key={inv.id} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <p className="font-semibold text-white">{inv.productName}</p>
+                      {inv.isDemo && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
+                          Demo Data
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-mono text-xs text-cyan-400">{inv.productSku}</p>
+                  </td>
+                  <td className="px-6 py-4">{inv.warehouseName} ({inv.warehouseCode})</td>
+                  <td className="px-6 py-4 font-bold text-white text-base">{inv.quantityAvailable} units</td>
+                  <td className="px-6 py-4 text-slate-400">{inv.reorderLevel} units</td>
+                  <td className="px-6 py-4 text-slate-400">{inv.safetyStock} units</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      inv.status === 'CRITICAL' ? 'bg-rose-950/80 text-rose-400 border border-rose-800/50' :
+                      inv.status === 'LOW_STOCK' ? 'bg-amber-950/80 text-amber-400 border border-amber-800/50' :
+                      inv.status === 'OVERSTOCK' ? 'bg-purple-950/80 text-purple-400 border border-purple-800/50' :
+                      'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'
+                    }`}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => setSelectedItem(inv)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold border border-slate-700"
+                    >
+                      Adjust Qty
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

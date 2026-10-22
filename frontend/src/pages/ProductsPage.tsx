@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { Search } from 'lucide-react';
+import { Search, AlertTriangle, RefreshCw } from 'lucide-react';
+import { classifyApiError } from '../utils/errorClassification';
 
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchProducts = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await axiosInstance.get(`/products${query ? `?query=${query}` : ''}`);
       setProducts(res.data);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Failed to load products:', err);
+      const classified = classifyApiError(err, 'Failed to load product catalog.');
+      setError(classified.message);
     } finally {
       setLoading(false);
     }
@@ -60,27 +66,36 @@ export const ProductsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {products.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="px-6 py-4 font-mono text-cyan-400 font-semibold">{p.sku}</td>
-                  <td className="px-6 py-4 font-medium text-white">
-                    <div className="flex items-center space-x-2">
-                      <span>{p.name}</span>
-                      {p.isDemo && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
-                          Demo Data
-                        </span>
-                      )}
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 px-4">
+                    <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 text-xs">
+                      <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+                      <span>Loading product catalog...</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-400">{p.categoryName}</td>
-                  <td className="px-6 py-4 font-semibold text-emerald-400">${p.price?.toFixed(2)}</td>
-                  <td className="px-6 py-4">{p.reorderLevel} units</td>
-                  <td className="px-6 py-4 text-amber-400">{p.safetyStock} units</td>
-                  <td className="px-6 py-4">{p.leadTimeDays} days</td>
                 </tr>
-              ))}
-              {products.length === 0 && !loading && (
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 px-4">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="flex items-center justify-center space-x-2 text-amber-400">
+                        <AlertTriangle className="w-5 h-5" />
+                        <p className="text-sm font-semibold">Unable to Load Products</p>
+                      </div>
+                      <p className="text-xs text-slate-400">{error}</p>
+                      <button
+                        type="button"
+                        onClick={fetchProducts}
+                        className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 px-4">
                     <div className="max-w-md mx-auto space-y-3">
@@ -103,6 +118,27 @@ export const ProductsPage: React.FC = () => {
                     </div>
                   </td>
                 </tr>
+              ) : (
+                products.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-6 py-4 font-mono text-cyan-400 font-semibold">{p.sku}</td>
+                    <td className="px-6 py-4 font-medium text-white">
+                      <div className="flex items-center space-x-2">
+                        <span>{p.name}</span>
+                        {p.isDemo && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 border border-amber-500/40 text-amber-400">
+                            Demo Data
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">{p.categoryName}</td>
+                    <td className="px-6 py-4 font-semibold text-emerald-400">${p.price?.toFixed(2)}</td>
+                    <td className="px-6 py-4">{p.reorderLevel} units</td>
+                    <td className="px-6 py-4 text-amber-400">{p.safetyStock} units</td>
+                    <td className="px-6 py-4">{p.leadTimeDays} days</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
