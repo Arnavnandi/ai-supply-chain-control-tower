@@ -268,7 +268,7 @@ export const ActionCenterPage: React.FC = () => {
                       <span className="text-xs text-slate-500 block">Target SKU</span>
                       <span className="text-sm font-bold text-white flex items-center gap-1.5 mt-0.5">
                         <Package className="h-4 w-4 text-blue-400" />
-                        {payload.productSku || 'SKU-N/A'}
+                        {payload.productSku?.trim() || payload.sku?.trim() || 'SKU-N/A'}
                       </span>
                     </div>
 

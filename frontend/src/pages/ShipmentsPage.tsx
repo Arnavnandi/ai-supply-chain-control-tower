@@ -102,7 +102,8 @@ export const ShipmentsPage: React.FC = () => {
       )}
 
       <div className="glass-panel rounded-xl overflow-hidden border border-slate-800">
-        <table className="w-full text-left text-sm text-slate-300">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-300">
           <thead className="bg-slate-900/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
             <tr>
               <th className="px-6 py-4">Tracking Code</th>
@@ -191,6 +192,7 @@ export const ShipmentsPage: React.FC = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

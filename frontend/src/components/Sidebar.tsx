@@ -14,7 +14,8 @@ import {
   BarChart3,
   Activity,
   Building,
-  LogOut
+  LogOut,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,6 +27,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Data Import (CSV)', path: '/import', icon: Database },
     { name: 'AI Assistant', path: '/ai-assistant', icon: Bot },
     { name: 'Scenario Analytics', path: '/analytics', icon: BarChart3 },
+    { name: 'Policy Knowledge RAG', path: '/documents', icon: BookOpen },
   ];
 
   const operationalNavItems = [

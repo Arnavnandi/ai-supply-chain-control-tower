@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axiosInstance from '../api/axiosInstance';
 import {
   Package,
@@ -78,33 +78,74 @@ export const DashboardPage: React.FC = () => {
   const [intelligence, setIntelligence] = useState<any>(null);
   const [radarReport, setRadarReport] = useState<EarlyWarningRadarReport | null>(null);
   const [executiveScorecard, setExecutiveScorecard] = useState<ExecutiveScorecardReport | null>(null);
+  const [radarError, setRadarError] = useState<string | null>(null);
+  const [scorecardError, setScorecardError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedExplainableItem, setSelectedExplainableItem] = useState<ExplainableRiskItem | null>(null);
+  const fetchRequestIdRef = useRef(0);
 
   const fetchDashboardData = async (isManualRefresh = false) => {
+    const requestId = ++fetchRequestIdRef.current;
     if (isManualRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
+    setRadarError(null);
+    setScorecardError(null);
+
     try {
-      const [intelRes, radarRes, execRes] = await Promise.all([
+      const [intelRes, radarRes, execRes] = await Promise.allSettled([
         axiosInstance.get('/intelligence/summary'),
         axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=false'),
         axiosInstance.get('/public/simulation/executive/command-center')
       ]);
-      setSummary(intelRes.data?.summaryKpis || null);
-      setIntelligence(intelRes.data);
-      setRadarReport(radarRes.data);
-      setExecutiveScorecard(execRes.data);
-      setError(null);
+
+      if (requestId !== fetchRequestIdRef.current) return;
+
+      // 1. Process Core Intelligence Summary (Primary operational telemetry & KPI cards)
+      if (intelRes.status === 'fulfilled') {
+        setSummary(intelRes.value.data?.summaryKpis || null);
+        setIntelligence(intelRes.value.data);
+        setError(null);
+      } else {
+        console.error('Failed to load control tower core summary telemetry:', intelRes.reason);
+        const classified = classifyApiError(intelRes.reason, 'Failed to load control tower dashboard intelligence.');
+        // If core summary fails, KPI cards cannot render, so surface primary error with retry
+        setError(classified.message);
+      }
+
+      // 2. Process Predictive Early-Warning Radar
+      if (radarRes.status === 'fulfilled') {
+        setRadarReport(radarRes.value.data);
+        setRadarError(null);
+      } else {
+        console.warn('Predictive early-warnings failed to load:', radarRes.reason);
+        const classified = classifyApiError(radarRes.reason, 'Predictive early-warning radar simulation unavailable.');
+        setRadarError(classified.message);
+        setRadarReport(null);
+      }
+
+      // 3. Process Executive Resiliency Command Center Scorecard
+      if (execRes.status === 'fulfilled') {
+        setExecutiveScorecard(execRes.value.data);
+        setScorecardError(null);
+      } else {
+        console.warn('Executive command center scorecard failed to load:', execRes.reason);
+        const classified = classifyApiError(execRes.reason, 'Executive resiliency scorecard unavailable.');
+        setScorecardError(classified.message);
+        setExecutiveScorecard(null);
+      }
     } catch (err: any) {
-      console.error('Failed to load control tower intelligence', err);
+      if (requestId !== fetchRequestIdRef.current) return;
+      console.error('Unexpected error loading control tower intelligence', err);
       const classified = classifyApiError(err, 'Failed to load control tower dashboard intelligence.');
       setError(classified.message);
     } finally {
-      setLoading(false);
-      if (isManualRefresh) setRefreshing(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+        if (isManualRefresh) setRefreshing(false);
+      }
     }
   };
 
@@ -359,6 +400,21 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+      {scorecardError && !executiveScorecard && !isUnpopulated && (
+        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center space-x-2 text-amber-400">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Executive Resiliency Scorecard: {scorecardError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchDashboardData(true)}
+            className="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer underline text-[11px]"
+          >
+            Retry Telemetry
+          </button>
+        </div>
+      )}
 
       {/* 1. AI Executive Briefing Banner */}
       <div className="glass-panel p-5 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -455,6 +511,21 @@ export const DashboardPage: React.FC = () => {
                 : 'No predictive disruption anomalies detected. Operational parameters within normal tolerances across active network.'}
             </div>
           )}
+        </div>
+      )}
+      {radarError && !radarReport && !isUnpopulated && (
+        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center space-x-2 text-amber-400">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Predictive Early-Warning Radar: {radarError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchDashboardData(true)}
+            className="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer underline text-[11px]"
+          >
+            Retry Telemetry
+          </button>
         </div>
       )}
 
