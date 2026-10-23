@@ -24,6 +24,7 @@ class DisruptionMitigationPolicyEngineTest {
     @BeforeEach
     void setUp() {
         MDC.clear();
+        com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
     }
 
     @Test

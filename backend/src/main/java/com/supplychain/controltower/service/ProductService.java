@@ -27,10 +27,11 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductDto> getAllProducts(String query) {
         Long companyId = TenantContext.getRequiredCompanyId();
+        String companyCode = resolveCompanyCode(companyId);
         List<Product> products = (query != null && !query.isBlank()) ?
                 productRepository.searchProducts(companyId, query) : productRepository.findByCompanyId(companyId);
 
-        return products.stream().map(this::mapToDto).toList();
+        return products.stream().map(p -> mapToDto(p, companyCode)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -38,7 +39,7 @@ public class ProductService {
         Long companyId = TenantContext.getRequiredCompanyId();
         Product product = productRepository.findByCompanyIdAndId(companyId, id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        return mapToDto(product);
+        return mapToDto(product, resolveCompanyCode(companyId));
     }
 
     @Transactional
@@ -66,7 +67,7 @@ public class ProductService {
                 .unitOfMeasure(dto.getUnitOfMeasure() != null ? dto.getUnitOfMeasure() : "Units")
                 .build();
 
-        return mapToDto(productRepository.save(product));
+        return mapToDto(productRepository.save(product), company.getCode());
     }
 
     @Transactional
@@ -91,7 +92,7 @@ public class ProductService {
             product.setUnitOfMeasure(dto.getUnitOfMeasure());
         }
 
-        return mapToDto(productRepository.save(product));
+        return mapToDto(productRepository.save(product), resolveCompanyCode(companyId));
     }
 
     @Transactional
@@ -102,8 +103,27 @@ public class ProductService {
         productRepository.delete(product);
     }
 
+    private String resolveCompanyCode(Long companyId) {
+        String code = TenantContext.getCompanyCode();
+        if (code != null && !code.isBlank()) {
+            return code;
+        }
+        return companyRepository.findById(companyId)
+                .map(Company::getCode)
+                .orElse(null);
+    }
+
     private ProductDto mapToDto(Product p) {
-        boolean isDemo = (p.getCompany() != null && "DEMO".equalsIgnoreCase(p.getCompany().getCode())) ||
+        Long companyId = TenantContext.getCompanyId();
+        String companyCode = (companyId != null) ? resolveCompanyCode(companyId) : null;
+        if (companyCode == null && p.getCompany() != null) {
+            companyCode = p.getCompany().getCode();
+        }
+        return mapToDto(p, companyCode);
+    }
+
+    private ProductDto mapToDto(Product p, String companyCode) {
+        boolean isDemo = (companyCode != null && "DEMO".equalsIgnoreCase(companyCode)) ||
                 (p.getSku() != null && (p.getSku().startsWith("SKU-ELEC-") || p.getSku().startsWith("SKU-IND-") || p.getSku().startsWith("SKU-PKG-") || p.getSku().startsWith("SKU-PROD-")));
         return ProductDto.builder()
                 .id(p.getId())

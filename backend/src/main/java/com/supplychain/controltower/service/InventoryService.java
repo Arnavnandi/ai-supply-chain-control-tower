@@ -31,19 +31,22 @@ public class InventoryService {
     @Transactional(readOnly = true)
     public List<InventoryDto> getAllInventory() {
         Long companyId = TenantContext.getRequiredCompanyId();
-        return inventoryRepository.findByCompanyId(companyId).stream().map(this::mapToDto).toList();
+        String companyCode = resolveCompanyCode(companyId);
+        return inventoryRepository.findByCompanyId(companyId).stream().map(inv -> mapToDto(inv, companyCode)).toList();
     }
 
     @Transactional(readOnly = true)
     public List<InventoryDto> getLowStockInventory() {
         Long companyId = TenantContext.getRequiredCompanyId();
-        return inventoryRepository.findLowStockInventory(companyId).stream().map(this::mapToDto).toList();
+        String companyCode = resolveCompanyCode(companyId);
+        return inventoryRepository.findLowStockInventory(companyId).stream().map(inv -> mapToDto(inv, companyCode)).toList();
     }
 
     @Transactional(readOnly = true)
     public List<InventoryDto> getOverstockedInventory() {
         Long companyId = TenantContext.getRequiredCompanyId();
-        return inventoryRepository.findOverstockedInventory(companyId).stream().map(this::mapToDto).toList();
+        String companyCode = resolveCompanyCode(companyId);
+        return inventoryRepository.findOverstockedInventory(companyId).stream().map(inv -> mapToDto(inv, companyCode)).toList();
     }
 
     @Transactional
@@ -75,10 +78,29 @@ public class InventoryService {
             inv.setLastRestockedAt(LocalDateTime.now());
         }
 
-        return mapToDto(inventoryRepository.save(inv));
+        return mapToDto(inventoryRepository.save(inv), company.getCode());
+    }
+
+    private String resolveCompanyCode(Long companyId) {
+        String code = TenantContext.getCompanyCode();
+        if (code != null && !code.isBlank()) {
+            return code;
+        }
+        return companyRepository.findById(companyId)
+                .map(Company::getCode)
+                .orElse(null);
     }
 
     private InventoryDto mapToDto(Inventory inv) {
+        Long companyId = TenantContext.getCompanyId();
+        String companyCode = (companyId != null) ? resolveCompanyCode(companyId) : null;
+        if (companyCode == null && inv.getCompany() != null) {
+            companyCode = inv.getCompany().getCode();
+        }
+        return mapToDto(inv, companyCode);
+    }
+
+    private InventoryDto mapToDto(Inventory inv, String companyCode) {
         String status = "OPTIMAL";
         if (inv.getQuantityAvailable() <= inv.getSafetyStock()) {
             status = "CRITICAL";
@@ -88,7 +110,7 @@ public class InventoryService {
             status = "OVERSTOCK";
         }
 
-        boolean isDemo = (inv.getCompany() != null && "DEMO".equalsIgnoreCase(inv.getCompany().getCode())) ||
+        boolean isDemo = (companyCode != null && "DEMO".equalsIgnoreCase(companyCode)) ||
                 (inv.getProduct() != null && inv.getProduct().getSku() != null &&
                 (inv.getProduct().getSku().startsWith("SKU-ELEC-") || inv.getProduct().getSku().startsWith("SKU-IND-") || inv.getProduct().getSku().startsWith("SKU-PKG-") || inv.getProduct().getSku().startsWith("SKU-PROD-")));
 
