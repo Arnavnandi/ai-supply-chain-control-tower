@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
@@ -95,12 +96,12 @@ export const RisksPage: React.FC = () => {
             <p className="text-xs text-slate-400 leading-relaxed">
               Operational risks are generated strictly when actual records violate safety parameters (inventory stockouts, supplier lead time delays, or warehouse capacity overflow). Current operational state is nominal or awaiting data import.
             </p>
-            <a
-              href="/import"
+            <Link
+              to="/import"
               className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
             >
               Check Ingestion Pipeline
-            </a>
+            </Link>
           </div>
         </div>
       )}

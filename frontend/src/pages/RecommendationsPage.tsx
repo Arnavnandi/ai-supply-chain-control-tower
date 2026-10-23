@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
-import { CheckCircle2, XCircle, ShieldCheck, Play } from 'lucide-react';
+import { CheckCircle2, XCircle, ShieldCheck, Play, AlertTriangle } from 'lucide-react';
 
 export const RecommendationsPage: React.FC = () => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchRecommendations = async () => {
     try {
@@ -19,25 +21,48 @@ export const RecommendationsPage: React.FC = () => {
   }, []);
 
   const handleApprove = async (id: number) => {
+    setErrorMessage(null);
     try {
       await axiosInstance.post(`/actions/${id}/approve`);
+      setSuccessMessage(`Action #${id} approved and executed successfully.`);
+      setTimeout(() => setSuccessMessage(null), 4000);
       fetchRecommendations();
-    } catch (err) {
-      alert('Action approval failed');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Action approval failed';
+      setErrorMessage(`Action #${id} approval failed: ${msg}`);
+      setTimeout(() => setErrorMessage(null), 5000);
     }
   };
 
   const handleReject = async (id: number) => {
+    setErrorMessage(null);
     try {
       await axiosInstance.post(`/actions/${id}/reject`);
+      setSuccessMessage(`Action #${id} rejected.`);
+      setTimeout(() => setSuccessMessage(null), 4000);
       fetchRecommendations();
-    } catch (err) {
-      alert('Action rejection failed');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Action rejection failed';
+      setErrorMessage(`Action #${id} rejection failed: ${msg}`);
+      setTimeout(() => setErrorMessage(null), 5000);
     }
   };
 
   return (
     <div className="space-y-6">
+      {successMessage && (
+        <div className="p-3 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-2 shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs flex items-center space-x-2 shadow-lg">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
       <div className="glass-panel p-5 rounded-xl border border-cyan-500/30 bg-cyan-950/20 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <ShieldCheck className="w-8 h-8 text-cyan-400" />

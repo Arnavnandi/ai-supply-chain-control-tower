@@ -9,6 +9,7 @@ import {
   Users,
   Bot,
   ShieldCheck,
+  ShieldAlert,
   Database,
   BarChart3,
   Activity,
@@ -33,7 +34,8 @@ export const Sidebar: React.FC = () => {
     { name: 'Suppliers & OTIF', path: '/suppliers', icon: Users },
     { name: 'Warehouse Hubs', path: '/warehouses', icon: Building2 },
     { name: 'Shipments & Freight', path: '/shipments', icon: Truck },
-    { name: 'Action Center & Risks', path: '/action-center', icon: ShieldCheck },
+    { name: 'Operational Risks', path: '/risks', icon: ShieldAlert },
+    { name: 'Action Center & HITL', path: '/action-center', icon: ShieldCheck },
   ];
 
   return (

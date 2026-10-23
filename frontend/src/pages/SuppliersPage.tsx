@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { ShieldCheck, AlertTriangle, ShieldAlert, RefreshCw } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
@@ -170,12 +171,12 @@ export const SuppliersPage: React.FC = () => {
             <p className="text-xs text-slate-400 leading-relaxed">
               Upload suppliers.csv via the Ingestion Pipeline to evaluate vendor reliability, baseline lead times, and on-time delivery performance.
             </p>
-            <a
-              href="/import"
+            <Link
+              to="/import"
               className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
             >
               Upload suppliers.csv
-            </a>
+            </Link>
           </div>
         </div>
       )}

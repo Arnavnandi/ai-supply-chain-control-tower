@@ -112,7 +112,7 @@ export const SystemHealthDashboardPage: React.FC = () => {
     setWsStatus('CONNECTING');
 
     const getWsUrl = () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('control_tower_token') || localStorage.getItem('token');
       const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
       if (import.meta.env.VITE_WS_BASE_URL) {
         return `${import.meta.env.VITE_WS_BASE_URL}${tokenQuery}`;
@@ -195,7 +195,7 @@ export const SystemHealthDashboardPage: React.FC = () => {
     setSimulating(true);
     setSimResult(null);
     try {
-      const res = await axiosInstance.post('/api/public/simulation/disruption', {
+      const res = await axiosInstance.post('/public/simulation/disruption', {
         type: simType,
         targetEntity: `TARGET-${simType}`
       });

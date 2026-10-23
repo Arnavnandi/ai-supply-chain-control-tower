@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { Truck, AlertTriangle, RefreshCw } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
@@ -150,12 +151,12 @@ export const ShipmentsPage: React.FC = () => {
                     <p className="text-xs text-slate-500">
                       Upload shipments.csv via the Ingestion Pipeline to track freight carrier performance, transit routes, and delay congestion.
                     </p>
-                    <a
-                      href="/import"
+                    <Link
+                      to="/import"
                       className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
                     >
                       Upload shipments.csv
-                    </a>
+                    </Link>
                   </div>
                 </td>
               </tr>

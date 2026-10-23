@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
 
 export const InventoryPage: React.FC = () => {
@@ -10,6 +11,9 @@ export const InventoryPage: React.FC = () => {
   const [filter, setFilter] = useState<'ALL' | 'LOW_STOCK' | 'OVERSTOCK'>('ALL');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [adjustQty, setAdjustQty] = useState(0);
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -34,22 +38,37 @@ export const InventoryPage: React.FC = () => {
   const handleAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
+    setAdjustSubmitting(true);
+    setAdjustError(null);
     try {
       await axiosInstance.post('/inventory/adjust', {
         productId: selectedItem.productId,
         warehouseId: selectedItem.warehouseId,
         adjustmentQty: Number(adjustQty)
       });
+      const adjustedName = selectedItem.productName;
       setSelectedItem(null);
       setAdjustQty(0);
+      setSuccessToast(`Stock adjusted successfully for ${adjustedName}`);
+      setTimeout(() => setSuccessToast(null), 4000);
       fetchInventory();
-    } catch (err) {
-      alert('Adjustment failed');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Inventory adjustment failed.';
+      setAdjustError(msg);
+    } finally {
+      setAdjustSubmitting(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {successToast && (
+        <div className="p-3 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-2 shadow-lg">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{successToast}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-white">Multi-Warehouse Inventory Stock</h2>
@@ -136,12 +155,12 @@ export const InventoryPage: React.FC = () => {
                         : 'Operational stock is nominal with no items currently in this status.'}
                     </p>
                     {filter === 'ALL' && (
-                      <a
-                        href="/import"
+                      <Link
+                        to="/import"
                         className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
                       >
                         Upload inventories.csv
-                      </a>
+                      </Link>
                     )}
                   </div>
                 </td>
@@ -196,6 +215,13 @@ export const InventoryPage: React.FC = () => {
             <h3 className="text-lg font-bold text-white mb-2">Adjust Inventory Quantity</h3>
             <p className="text-xs text-slate-400 mb-4">{selectedItem.productName} @ {selectedItem.warehouseName}</p>
 
+            {adjustError && (
+              <div className="p-3 mb-3 rounded-lg bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{adjustError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleAdjust} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Adjustment Quantity (+/-)</label>
@@ -206,22 +232,29 @@ export const InventoryPage: React.FC = () => {
                   placeholder="e.g. 50 or -20"
                   className="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm"
                   required
+                  disabled={adjustSubmitting}
                 />
               </div>
 
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedItem(null)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm font-semibold"
+                  onClick={() => {
+                    setSelectedItem(null);
+                    setAdjustError(null);
+                  }}
+                  disabled={adjustSubmitting}
+                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm font-semibold disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-semibold"
+                  disabled={adjustSubmitting}
+                  className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-semibold disabled:opacity-50 inline-flex items-center space-x-1.5"
                 >
-                  Confirm Adjustment
+                  {adjustSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin text-white" />}
+                  <span>{adjustSubmitting ? 'Adjusting...' : 'Confirm Adjustment'}</span>
                 </button>
               </div>
             </form>

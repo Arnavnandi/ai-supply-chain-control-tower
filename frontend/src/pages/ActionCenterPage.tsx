@@ -9,7 +9,8 @@ import {
   FileText,
   DollarSign,
   Package,
-  Building2
+  Building2,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Recommendation {
@@ -42,6 +43,7 @@ export const ActionCenterPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+  const [errorNotification, setErrorNotification] = useState<string | null>(null);
 
   const fetchActionCenterData = async () => {
     setLoading(true);
@@ -74,38 +76,49 @@ export const ActionCenterPage: React.FC = () => {
       setNotification(`Successfully generated ${createdCount} automated replenishment proposals based on live database stockouts!`);
       await fetchActionCenterData();
     } catch (err: any) {
-      setNotification('Failed to generate replenishment proposals.');
+      setErrorNotification('Failed to generate replenishment proposals: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-      setTimeout(() => setNotification(null), 5000);
+      setTimeout(() => {
+        setNotification(null);
+        setErrorNotification(null);
+      }, 5000);
     }
   };
 
   const handleApprove = async (id: number) => {
     setProcessingId(id);
+    setErrorNotification(null);
     try {
       await axiosInstance.post(`/actions/${id}/approve`);
       setNotification(`Action ID #${id} approved and executed successfully! Inventory replenished.`);
       await fetchActionCenterData();
     } catch (err: any) {
-      alert('Failed to approve action: ' + (err.response?.data?.message || err.message));
+      setErrorNotification('Failed to approve action: ' + (err.response?.data?.message || err.message));
     } finally {
       setProcessingId(null);
-      setTimeout(() => setNotification(null), 5000);
+      setTimeout(() => {
+        setNotification(null);
+        setErrorNotification(null);
+      }, 5000);
     }
   };
 
   const handleReject = async (id: number) => {
     setProcessingId(id);
+    setErrorNotification(null);
     try {
       await axiosInstance.post(`/actions/${id}/reject`);
       setNotification(`Action ID #${id} rejected by manager review.`);
       await fetchActionCenterData();
     } catch (err: any) {
-      alert('Failed to reject action.');
+      setErrorNotification('Failed to reject action: ' + (err.response?.data?.message || err.message));
     } finally {
       setProcessingId(null);
-      setTimeout(() => setNotification(null), 5000);
+      setTimeout(() => {
+        setNotification(null);
+        setErrorNotification(null);
+      }, 5000);
     }
   };
 
@@ -147,6 +160,13 @@ export const ActionCenterPage: React.FC = () => {
         <div className="p-4 bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 rounded-xl flex items-center gap-3 shadow-lg">
           <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
           <span className="text-sm font-medium">{notification}</span>
+        </div>
+      )}
+
+      {errorNotification && (
+        <div className="p-4 bg-rose-950/80 border border-rose-500/30 text-rose-300 rounded-xl flex items-center gap-3 shadow-lg">
+          <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0" />
+          <span className="text-sm font-medium">{errorNotification}</span>
         </div>
       )}
 

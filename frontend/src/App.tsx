@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -47,7 +47,7 @@ const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = 
               <span className="font-bold uppercase tracking-wider text-amber-400">Demo Environment</span>
               <span className="text-amber-500/60">•</span>
               <span className="text-amber-200/90">
-                Operating on synthetic demonstration dataset. Upload company operational data via <a href="/import" className="underline font-semibold hover:text-amber-100">Ingestion Pipeline</a>.
+                Operating on synthetic demonstration dataset. Upload company operational data via <Link to="/import" className="underline font-semibold hover:text-amber-100">Ingestion Pipeline</Link>.
               </span>
             </div>
           </div>
@@ -58,7 +58,7 @@ const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = 
               <span className="font-bold uppercase tracking-wider text-emerald-400">Active Tenant: {user?.companyName || 'Enterprise Workspace'}</span>
               <span className="text-slate-600">•</span>
               <span className="text-slate-400">
-                Data-isolated PostgreSQL operational environment. Upload operational records via <a href="/import" className="underline text-cyan-400 hover:text-cyan-300 font-semibold">Ingestion Pipeline</a>.
+                Data-isolated PostgreSQL operational environment. Upload operational records via <Link to="/import" className="underline text-cyan-400 hover:text-cyan-300 font-semibold">Ingestion Pipeline</Link>.
               </span>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
@@ -106,12 +107,12 @@ export const WarehousesPage: React.FC = () => {
             <p className="text-xs text-slate-400 leading-relaxed">
               Upload warehouses.csv via the Ingestion Pipeline to define regional distribution hubs, storage capacities, and manager assignments.
             </p>
-            <a
-              href="/import"
+            <Link
+              to="/import"
               className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
             >
               Upload warehouses.csv
-            </a>
+            </Link>
           </div>
         </div>
       )}

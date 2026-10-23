@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import axiosInstance from '../api/axiosInstance';
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -138,12 +139,12 @@ export const ProductsPage: React.FC = () => {
                           : 'Upload products.csv to establish your company SKU catalog, safety stock thresholds, and unit pricing.'}
                       </p>
                       {!query && (
-                        <a
-                          href="/import"
+                        <Link
+                          to="/import"
                           className="inline-flex items-center px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all"
                         >
                           Upload products.csv
-                        </a>
+                        </Link>
                       )}
                     </div>
                   </td>

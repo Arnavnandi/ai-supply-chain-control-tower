@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import {
   BarChart3,
@@ -703,12 +704,12 @@ export const AnalyticsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 The Master Orchestration Blueprint requires active suppliers, inventory items, and warehouses in your company catalog to model multi-domain failover and rebalancing.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
@@ -998,12 +999,12 @@ export const AnalyticsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 Multi-echelon rebalancing requires multiple registered warehouses and active inventory records to model cross-dock stock transfers.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
@@ -1098,12 +1099,12 @@ export const AnalyticsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 Failover routing requires at least two registered suppliers and warehouse facilities to model alternate split routing.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
@@ -1195,12 +1196,12 @@ export const AnalyticsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 Evaluating logistics costs versus customer SLA preservation requires registered products and suppliers.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
@@ -1518,12 +1519,12 @@ export const AnalyticsPage: React.FC = () => {
                 Backtesting evaluation requires catalog products and at least 4 months of historical order demand.
                 Upload products.csv and orders.csv to compute deterministic MAPE and RMSE accuracy ratings.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
@@ -1598,12 +1599,12 @@ export const AnalyticsPage: React.FC = () => {
               <p className="text-xs text-slate-400 leading-relaxed">
                 Dynamic safety stock calculation requires active inventory records. Upload products.csv and inventory.csv to evaluate dynamic safety buffers and reorder points.
               </p>
-              <a
-                href="/import"
+              <Link
+                to="/import"
                 className="inline-flex items-center px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all"
               >
                 Upload Ingestion Data
-              </a>
+              </Link>
             </div>
           </div>
         )
