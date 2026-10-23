@@ -49,8 +49,7 @@ class DashboardServiceTest {
     @Test
     void testGetDashboardSummaryWithDatabaseData() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
-        Product mockProduct = Product.builder().id(1L).sku("MOCK-1").build();
-        when(productRepository.findByCompanyId(1L)).thenReturn(List.of(mockProduct, mockProduct, mockProduct, mockProduct, mockProduct));
+        when(productRepository.countByCompanyId(1L)).thenReturn(5L);
 
         Warehouse wh1 = Warehouse.builder().code("WH-NORTH").name("North Warehouse").totalCapacityUnits(10000).currentUtilizationUnits(8000).utilizationPercentage(new BigDecimal("80.00")).build();
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of(wh1));
@@ -58,16 +57,16 @@ class DashboardServiceTest {
         Inventory inv1 = Inventory.builder().warehouse(wh1).quantityAvailable(500).reservedQuantity(50).safetyStock(100).build();
         when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of(inv1));
         when(inventoryRepository.calculateTotalInventoryValue(org.mockito.ArgumentMatchers.anyLong())).thenReturn(22500.0);
-        when(inventoryRepository.findLowStockInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of());
-        when(inventoryRepository.findOverstockedInventory(org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of());
+        when(inventoryRepository.countLowStockInventory(1L)).thenReturn(2L);
+        when(inventoryRepository.countOverstockedInventory(1L)).thenReturn(1L);
 
         CustomerOrder o1 = CustomerOrder.builder().orderNumber("ORD-1").orderDate(LocalDate.now().minusDays(10)).build();
         OrderItem oi1 = OrderItem.builder().order(o1).quantity(100).build();
         o1.setItems(List.of(oi1));
         when(orderRepository.findByCompanyIdOrderByOrderDateDesc(1L)).thenReturn(List.of(o1));
-        when(orderRepository.findByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PENDING)).thenReturn(List.of());
-        when(orderRepository.findByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PROCESSING)).thenReturn(List.of());
-        when(shipmentRepository.findByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED)).thenReturn(List.of());
+        when(orderRepository.countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PENDING)).thenReturn(3L);
+        when(orderRepository.countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PROCESSING)).thenReturn(4L);
+        when(shipmentRepository.countByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED)).thenReturn(1L);
 
         Supplier s1 = Supplier.builder().name("TechComp").reliabilityScore(new BigDecimal("95.0")).build();
         when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of(s1));
@@ -78,17 +77,36 @@ class DashboardServiceTest {
         assertEquals(5L, summary.getTotalProducts());
         assertEquals(500L, summary.getTotalInventoryUnits());
         assertEquals(new BigDecimal("22500.00"), summary.getTotalInventoryValue());
+        assertEquals(2L, summary.getLowStockProductsCount());
+        assertEquals(1L, summary.getOverstockedProductsCount());
+        assertEquals(7L, summary.getPendingOrdersCount());
+        assertEquals(1L, summary.getDelayedShipmentsCount());
         assertFalse(summary.getDemandTrends().isEmpty());
         assertFalse(summary.getInventoryTrends().isEmpty());
+
+        // Verify database count queries were called rather than loading entire entity collections
+        Mockito.verify(productRepository).countByCompanyId(1L);
+        Mockito.verify(inventoryRepository).countLowStockInventory(1L);
+        Mockito.verify(inventoryRepository).countOverstockedInventory(1L);
+        Mockito.verify(orderRepository).countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PENDING);
+        Mockito.verify(orderRepository).countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PROCESSING);
+        Mockito.verify(shipmentRepository).countByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED);
+        Mockito.verify(inventoryRepository, Mockito.never()).findLowStockInventory(1L);
+        Mockito.verify(inventoryRepository, Mockito.never()).findOverstockedInventory(1L);
     }
 
     @Test
     void testGetDashboardSummaryEmptyDatabaseReturnsEmptyTrendsWithoutCrashing() {
         com.supplychain.controltower.security.TenantContext.setCompanyId(1L);
-        when(productRepository.findByCompanyId(1L)).thenReturn(List.of());
+        when(productRepository.countByCompanyId(1L)).thenReturn(0L);
         when(inventoryRepository.findByCompanyId(1L)).thenReturn(List.of());
         when(inventoryRepository.calculateTotalInventoryValue(org.mockito.ArgumentMatchers.anyLong())).thenReturn(0.0);
+        when(inventoryRepository.countLowStockInventory(1L)).thenReturn(0L);
+        when(inventoryRepository.countOverstockedInventory(1L)).thenReturn(0L);
         when(orderRepository.findByCompanyIdOrderByOrderDateDesc(1L)).thenReturn(List.of());
+        when(orderRepository.countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PENDING)).thenReturn(0L);
+        when(orderRepository.countByCompanyIdAndStatus(1L, CustomerOrder.OrderStatus.PROCESSING)).thenReturn(0L);
+        when(shipmentRepository.countByCompanyIdAndStatus(1L, Shipment.ShipmentStatus.DELAYED)).thenReturn(0L);
         when(warehouseRepository.findByCompanyId(1L)).thenReturn(List.of());
         when(supplierRepository.findByCompanyId(1L)).thenReturn(List.of());
 
@@ -96,6 +114,10 @@ class DashboardServiceTest {
 
         assertNotNull(summary);
         assertEquals(0L, summary.getTotalProducts());
+        assertEquals(0L, summary.getLowStockProductsCount());
+        assertEquals(0L, summary.getOverstockedProductsCount());
+        assertEquals(0L, summary.getPendingOrdersCount());
+        assertEquals(0L, summary.getDelayedShipmentsCount());
         assertTrue(summary.getDemandTrends().isEmpty());
         assertTrue(summary.getInventoryTrends().isEmpty());
         assertNull(summary.getOverallSupplierReliabilityPct());

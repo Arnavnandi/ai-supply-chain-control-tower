@@ -20,8 +20,14 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("SELECT i FROM Inventory i WHERE i.company.id = :companyId AND i.quantityAvailable <= i.reorderLevel")
     List<Inventory> findLowStockInventory(@Param("companyId") Long companyId);
 
+    @Query("SELECT COUNT(i) FROM Inventory i WHERE i.company.id = :companyId AND i.quantityAvailable <= i.reorderLevel")
+    long countLowStockInventory(@Param("companyId") Long companyId);
+
     @Query("SELECT i FROM Inventory i WHERE i.company.id = :companyId AND i.quantityAvailable > (i.reorderLevel * 3)")
     List<Inventory> findOverstockedInventory(@Param("companyId") Long companyId);
+
+    @Query("SELECT COUNT(i) FROM Inventory i WHERE i.company.id = :companyId AND i.quantityAvailable > (i.reorderLevel * 3)")
+    long countOverstockedInventory(@Param("companyId") Long companyId);
 
     @Query("SELECT SUM(i.quantityAvailable * i.product.price) FROM Inventory i WHERE i.company.id = :companyId")
     Double calculateTotalInventoryValue(@Param("companyId") Long companyId);

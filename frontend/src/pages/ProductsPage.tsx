@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import axiosInstance from '../api/axiosInstance';
 import { Search, AlertTriangle, RefreshCw } from 'lucide-react';
 import { classifyApiError } from '../utils/errorClassification';
@@ -6,27 +7,56 @@ import { classifyApiError } from '../utils/errorClassification';
 export const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axiosInstance.get(`/products${query ? `?query=${query}` : ''}`);
-      setProducts(res.data);
-    } catch (err: any) {
-      console.error('Failed to load products:', err);
-      const classified = classifyApiError(err, 'Failed to load product catalog.');
-      setError(classified.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   useEffect(() => {
-    fetchProducts();
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let isCurrent = true;
+
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const trimmed = debouncedQuery.trim();
+        const res = await axiosInstance.get(`/products${trimmed ? `?query=${encodeURIComponent(trimmed)}` : ''}`, {
+          signal: controller.signal,
+        });
+        if (isCurrent) {
+          setProducts(res.data);
+        }
+      } catch (err: any) {
+        if (axios.isCancel(err) || err?.name === 'CanceledError' || controller.signal.aborted) {
+          return;
+        }
+        console.error('Failed to load products:', err);
+        if (isCurrent) {
+          const classified = classifyApiError(err, 'Failed to load product catalog.');
+          setError(classified.message);
+        }
+      } finally {
+        if (isCurrent && !controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isCurrent = false;
+      controller.abort();
+    };
+  }, [debouncedQuery, retryTrigger]);
 
   return (
     <div className="space-y-6">
@@ -86,7 +116,7 @@ export const ProductsPage: React.FC = () => {
                       <p className="text-xs text-slate-400">{error}</p>
                       <button
                         type="button"
-                        onClick={fetchProducts}
+                        onClick={() => setRetryTrigger((prev) => prev + 1)}
                         className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
                       >
                         <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />

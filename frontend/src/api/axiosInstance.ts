@@ -15,6 +15,11 @@ export const getBaseURL = () => {
   return '/api';
 };
 
+export const getBackendOrigin = () => {
+  const base = getBaseURL() || '';
+  return base.replace(/\/api\/?$/, '');
+};
+
 export const getTimeout = (mode?: string, customTimeout?: string | number): number => {
   if (customTimeout !== undefined && customTimeout !== '') {
     const parsed = Number(customTimeout);

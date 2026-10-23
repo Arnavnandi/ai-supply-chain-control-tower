@@ -29,18 +29,18 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardSummaryDto getDashboardSummary() {
         Long companyId = TenantContext.getRequiredCompanyId();
-        long totalProducts = productRepository.findByCompanyId(companyId).size();
+        long totalProducts = productRepository.countByCompanyId(companyId);
         List<Inventory> allInventory = inventoryRepository.findByCompanyId(companyId);
         long totalUnits = allInventory.stream().mapToLong(Inventory::getQuantityAvailable).sum();
 
         Double totalVal = inventoryRepository.calculateTotalInventoryValue(companyId);
         BigDecimal totalInventoryValue = totalVal != null ? BigDecimal.valueOf(totalVal).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
 
-        long lowStockCount = inventoryRepository.findLowStockInventory(companyId).size();
-        long overstockCount = inventoryRepository.findOverstockedInventory(companyId).size();
-        long pendingOrdersCount = orderRepository.findByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PENDING).size() +
-                orderRepository.findByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PROCESSING).size();
-        long delayedShipmentsCount = shipmentRepository.findByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED).size();
+        long lowStockCount = inventoryRepository.countLowStockInventory(companyId);
+        long overstockCount = inventoryRepository.countOverstockedInventory(companyId);
+        long pendingOrdersCount = orderRepository.countByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PENDING) +
+                orderRepository.countByCompanyIdAndStatus(companyId, CustomerOrder.OrderStatus.PROCESSING);
+        long delayedShipmentsCount = shipmentRepository.countByCompanyIdAndStatus(companyId, Shipment.ShipmentStatus.DELAYED);
 
         // Calculate average supplier reliability
         List<com.supplychain.controltower.entity.Supplier> companySuppliers = supplierRepository.findByCompanyId(companyId);

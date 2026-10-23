@@ -13,6 +13,7 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
     Optional<Shipment> findByCompanyIdAndId(Long companyId, Long id);
     Optional<Shipment> findByCompanyIdAndTrackingCode(Long companyId, String trackingCode);
     List<Shipment> findByCompanyIdAndStatus(Long companyId, Shipment.ShipmentStatus status);
+    long countByCompanyIdAndStatus(Long companyId, Shipment.ShipmentStatus status);
     List<Shipment> findByCompanyIdAndSupplierId(Long companyId, Long supplierId);
     List<Shipment> findByCompanyIdAndDestinationWarehouseId(Long companyId, Long warehouseId);
 

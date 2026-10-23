@@ -83,13 +83,12 @@ export const DashboardPage: React.FC = () => {
   const fetchDashboardData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
     try {
-      const [sumRes, intelRes, radarRes, execRes] = await Promise.all([
-        axiosInstance.get('/dashboard/summary'),
+      const [intelRes, radarRes, execRes] = await Promise.all([
         axiosInstance.get('/intelligence/summary'),
         axiosInstance.get('/public/simulation/predictive/early-warnings?convertToActionProposal=false'),
         axiosInstance.get('/public/simulation/executive/command-center')
       ]);
-      setSummary(sumRes.data);
+      setSummary(intelRes.data?.summaryKpis || null);
       setIntelligence(intelRes.data);
       setRadarReport(radarRes.data);
       setExecutiveScorecard(execRes.data);

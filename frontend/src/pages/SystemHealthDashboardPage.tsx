@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import axiosInstance from '../api/axiosInstance';
+import axiosInstance, { getBackendOrigin } from '../api/axiosInstance';
 import {
   Activity,
   Radio,
@@ -42,13 +42,8 @@ export const SystemHealthDashboardPage: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
 
   // System Health & Actuator State
-  const [health, setHealth] = useState<SystemHealthData | null>({
-    status: 'UP',
-    components: {
-      db: { status: 'UP', details: { database: 'PostgreSQL (pgvector)' } }
-    }
-  });
-  const [circuitBreakerCalls, setCircuitBreakerCalls] = useState<any | null>({ name: 'llmService' });
+  const [health, setHealth] = useState<SystemHealthData | null>(null);
+  const [circuitBreakerCalls, setCircuitBreakerCalls] = useState<any | null>(null);
   const [recentEvents, setRecentEvents] = useState<TelemetryEvent[]>([]);
   const [alerts, setAlerts] = useState<TelemetryEvent[]>([]);
 
@@ -60,29 +55,28 @@ export const SystemHealthDashboardPage: React.FC = () => {
   // Fetch initial REST data
   const fetchDashboardData = async () => {
     try {
-      // Actuator Health
+      const origin = getBackendOrigin();
+
+      // Actuator Health (un-prefixed root endpoint permitted by Spring Security)
       try {
-        const healthRes = await axiosInstance.get('/actuator/health');
+        const healthUrl = origin ? `${origin}/actuator/health` : '/actuator/health';
+        const healthRes = await axiosInstance.get(healthUrl);
         if (healthRes.data) {
           setHealth(healthRes.data);
         }
       } catch (e) {
-        // Fall back to UP baseline if actuator is internal
-        setHealth((prev) => prev || {
-          status: 'UP',
-          components: { db: { status: 'UP', details: { database: 'PostgreSQL' } } }
-        });
+        console.warn('Could not fetch live actuator health:', e);
       }
 
       // Actuator Circuit Breaker Metrics
       try {
-        const cbRes = await axiosInstance.get('/actuator/metrics/resilience4j.circuitbreaker.calls');
+        const cbUrl = origin ? `${origin}/actuator/metrics/resilience4j.circuitbreaker.calls` : '/actuator/metrics/resilience4j.circuitbreaker.calls';
+        const cbRes = await axiosInstance.get(cbUrl);
         if (cbRes.data) {
           setCircuitBreakerCalls(cbRes.data);
         }
       } catch (e) {
-        // Metric endpoint fallback
-        setCircuitBreakerCalls({ name: 'llmService' });
+        console.warn('Could not fetch live circuit breaker metrics:', e);
       }
 
       // Recent Persistent Telemetry Events
