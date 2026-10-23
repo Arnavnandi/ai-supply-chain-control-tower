@@ -91,6 +91,10 @@ public class ReplenishmentProposalService {
                     Recommendation saved = recommendationRepository.save(recommendation);
                     createdProposals.add(saved);
 
+                    String loggedSku = (payload.getSku() != null && !payload.getSku().isBlank())
+                            ? payload.getSku()
+                            : (payload.getProductSku() != null && !payload.getProductSku().isBlank() ? payload.getProductSku() : "N/A");
+
                     auditLogRepository.save(AuditLog.builder()
                             .company(company)
                             .userId(1L)
@@ -98,11 +102,11 @@ public class ReplenishmentProposalService {
                             .actionTaken("GENERATED_PURCHASE_ORDER_RECOMMENDATION")
                             .entityAffected("Recommendation")
                             .entityId(saved.getId().toString())
-                            .details("Generated PENDING_APPROVAL PO recommendation for SKU '" + payload.getProductSku() + "'")
+                            .details("Generated PENDING_APPROVAL PO recommendation for SKU '" + loggedSku + "'")
                             .timestamp(LocalDateTime.now())
                             .build());
 
-                    log.info("[REPLENISHMENT PROPOSAL CREATED] Created recommendation ID={} for SKU={}", saved.getId(), payload.getProductSku());
+                    log.info("[REPLENISHMENT PROPOSAL CREATED] Created recommendation ID={} for SKU={}", saved.getId(), loggedSku);
                 }
             }
         }

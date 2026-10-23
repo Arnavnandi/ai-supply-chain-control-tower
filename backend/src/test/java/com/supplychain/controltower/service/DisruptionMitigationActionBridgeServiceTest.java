@@ -147,8 +147,13 @@ class DisruptionMitigationActionBridgeServiceTest {
         assertEquals(DisruptionMitigationPolicyEngine.RiskBand.CRITICAL, result.getRiskBand());
         assertEquals("EXPEDITE_REPLENISHMENT_AND_REBALANCE", result.getPolicyDecision());
 
+        ArgumentCaptor<Recommendation> recCaptor = ArgumentCaptor.forClass(Recommendation.class);
+        verify(recommendationRepository, times(1)).save(recCaptor.capture());
+        Recommendation captured = recCaptor.getValue();
+        assertTrue(captured.getActionPayloadJson().contains("\"sku\":\"SKU-PROPOSAL-999\""));
+        assertTrue(captured.getActionPayloadJson().contains("\"productSku\":\"SKU-PROPOSAL-999\""));
+
         verify(telemetryEventPublisher, times(1)).publish(any(TelemetryEvent.class));
-        verify(recommendationRepository, times(1)).save(any(Recommendation.class));
     }
 
     @Test

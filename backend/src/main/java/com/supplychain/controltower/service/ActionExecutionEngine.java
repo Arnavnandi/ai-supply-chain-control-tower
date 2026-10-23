@@ -113,8 +113,14 @@ public class ActionExecutionEngine {
                     orderItemRepository.save(orderItem);
                 }
 
+                String resolvedSku = (payload.getSku() != null && !payload.getSku().isBlank())
+                        ? payload.getSku()
+                        : (payload.getProductSku() != null && !payload.getProductSku().isBlank()
+                                ? payload.getProductSku()
+                                : (product != null && product.getSku() != null ? product.getSku() : "N/A"));
+
                 return String.format("Action executed successfully. Replenished %d units of SKU '%s' into %s. Generated PO #PO-REPLENISH.",
-                        addQty, payload.getProductSku(), payload.getWarehouseName() != null ? payload.getWarehouseName() : "Warehouse");
+                        addQty, resolvedSku, payload.getWarehouseName() != null ? payload.getWarehouseName() : "Warehouse");
             }
         } catch (Exception ex) {
             log.error("[ACTION EXECUTION ERROR] Failed to execute action payload: {}", ex.getMessage(), ex);

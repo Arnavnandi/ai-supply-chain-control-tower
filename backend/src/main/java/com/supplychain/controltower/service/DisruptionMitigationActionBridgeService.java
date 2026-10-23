@@ -69,6 +69,11 @@ public class DisruptionMitigationActionBridgeService {
         payloadMap.put("recommendedActions", recommendedActions != null ? recommendedActions : List.of());
         payloadMap.put("executionMode", "RECOMMENDATION_ONLY");
 
+        if (targetEntity != null && (targetEntity.startsWith("SKU-") || disruptionType == DisruptionSimulationService.DisruptionType.INVENTORY_SHORTAGE)) {
+            payloadMap.put("sku", targetEntity);
+            payloadMap.put("productSku", targetEntity);
+        }
+
         String payloadJson;
         try {
             payloadJson = objectMapper.writeValueAsString(payloadMap);
