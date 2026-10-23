@@ -12,8 +12,11 @@ import {
   CheckCircle2,
   X,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
+import { classifyApiError } from '../utils/errorClassification';
 
 interface AccuracyMetrics {
   productId: number;
@@ -205,101 +208,119 @@ interface MasterOrchestrationReport {
   timestamp: string;
 }
 
+export type TabType =
+  | 'masterOrchestrator'
+  | 'cascade'
+  | 'rebalance'
+  | 'failover'
+  | 'costSla'
+  | 'historicalEfficacy'
+  | 'simulation'
+  | 'accuracy'
+  | 'optimization';
+
 export const AnalyticsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<'disruption' | 'inventory' | 'resilience'>('disruption');
-  const [activeTab, setActiveTab] = useState<'masterOrchestrator' | 'cascade' | 'rebalance' | 'failover' | 'costSla' | 'historicalEfficacy' | 'simulation' | 'accuracy' | 'optimization'>('masterOrchestrator');
+  const [activeTab, setActiveTab] = useState<TabType>('masterOrchestrator');
 
-  // Tenant Entities
+  // Tenant Entities (Loaded lazily when tabs requiring entity selectors are chosen)
   const [productList, setProductList] = useState<any[]>([]);
   const [supplierList, setSupplierList] = useState<any[]>([]);
   const [warehouseList, setWarehouseList] = useState<any[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
 
-  // Accuracy State
-  const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-
-  // Optimization State
-  const [optimizationReport, setOptimizationReport] = useState<OptimizationReport | null>(null);
-
-  // Simulation State
-  const [demandSurge, setDemandSurge] = useState<number>(30);
-  const [leadTimeDelay, setLeadTimeDelay] = useState<number>(5);
-  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
-
-  // Cascade State
-  const [cascadePrimaryType, setCascadePrimaryType] = useState<string>('SUPPLIER_DISRUPTION');
-  const [cascadeTargetEntity, setCascadeTargetEntity] = useState<string>('');
+  // Tab Data States (Cached in state once loaded to avoid duplicate requests)
+  const [masterReport, setMasterReport] = useState<MasterOrchestrationReport | null>(null);
   const [cascadeResult, setCascadeResult] = useState<CascadeResult | null>(null);
-  const [cascadeLoading, setCascadeLoading] = useState<boolean>(false);
-
-  // Phase 23 State
+  const [rebalanceReport, setRebalanceReport] = useState<RebalancingReport | null>(null);
+  const [failoverReport, setFailoverReport] = useState<ContainmentFailoverReport | null>(null);
   const [costSlaReport, setCostSlaReport] = useState<CostSlaReport | null>(null);
   const [historicalEfficacyReport, setHistoricalEfficacyReport] = useState<HistoricalEfficacyReport | null>(null);
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+  const [accuracyData, setAccuracyData] = useState<AccuracyMetrics | null>(null);
+  const [optimizationReport, setOptimizationReport] = useState<OptimizationReport | null>(null);
 
-  // Phase 25 State
-  const [failoverReport, setFailoverReport] = useState<ContainmentFailoverReport | null>(null);
+  // Simulation / Cascade Parameters
+  const [demandSurge, setDemandSurge] = useState<number>(30);
+  const [leadTimeDelay, setLeadTimeDelay] = useState<number>(5);
+  const [cascadePrimaryType, setCascadePrimaryType] = useState<string>('SUPPLIER_DISRUPTION');
+  const [cascadeTargetEntity, setCascadeTargetEntity] = useState<string>('');
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
-  // Phase 26 State
-  const [rebalanceReport, setRebalanceReport] = useState<RebalancingReport | null>(null);
+  // Individual Tab Loading States
+  const [loadingMaster, setLoadingMaster] = useState(false);
+  const [loadingCascade, setLoadingCascade] = useState(false);
+  const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [loadingRebalance, setLoadingRebalance] = useState(false);
+  const [loadingFailover, setLoadingFailover] = useState(false);
+  const [loadingCostSla, setLoadingCostSla] = useState(false);
+  const [loadingHistoricalEfficacy, setLoadingHistoricalEfficacy] = useState(false);
+  const [loadingSimulation, setLoadingSimulation] = useState(false);
+  const [loadingAccuracy, setLoadingAccuracy] = useState(false);
+  const [loadingOptimization, setLoadingOptimization] = useState(false);
 
-  // Phase 27 State
-  const [masterReport, setMasterReport] = useState<MasterOrchestrationReport | null>(null);
+  // Individual Tab Error States
+  const [errorMaster, setErrorMaster] = useState<string | null>(null);
+  const [errorCascade, setErrorCascade] = useState<string | null>(null);
+  const [errorRebalance, setErrorRebalance] = useState<string | null>(null);
+  const [errorFailover, setErrorFailover] = useState<string | null>(null);
+  const [errorCostSla, setErrorCostSla] = useState<string | null>(null);
+  const [errorHistoricalEfficacy, setErrorHistoricalEfficacy] = useState<string | null>(null);
+  const [errorSimulation, setErrorSimulation] = useState<string | null>(null);
+  const [errorAccuracy, setErrorAccuracy] = useState<string | null>(null);
+  const [errorOptimization, setErrorOptimization] = useState<string | null>(null);
 
   // Executive Report Modal State
   const [executiveReport, setExecutiveReport] = useState<any | null>(null);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
 
-  useEffect(() => {
-    const initData = async () => {
-      try {
-        const [prodRes, suppRes, whRes] = await Promise.allSettled([
-          axiosInstance.get('/products'),
-          axiosInstance.get('/suppliers'),
-          axiosInstance.get('/warehouses')
-        ]);
+  // Lazy Catalog Loader: Only called when a tab requiring entity selectors is selected
+  const ensureCatalogLoaded = async () => {
+    if (catalogLoaded) {
+      return {
+        products: productList,
+        suppliers: supplierList,
+        warehouses: warehouseList,
+        initialTarget: cascadeTargetEntity,
+        firstProductId: selectedProductId,
+      };
+    }
+    try {
+      const [prodRes, suppRes, whRes] = await Promise.allSettled([
+        axiosInstance.get('/products'),
+        axiosInstance.get('/suppliers'),
+        axiosInstance.get('/warehouses'),
+      ]);
 
-        const prods = prodRes.status === 'fulfilled' ? prodRes.value.data || [] : [];
-        const supps = suppRes.status === 'fulfilled' ? suppRes.value.data || [] : [];
-        const whs = whRes.status === 'fulfilled' ? whRes.value.data || [] : [];
+      const prods = prodRes.status === 'fulfilled' ? prodRes.value.data || [] : [];
+      const supps = suppRes.status === 'fulfilled' ? suppRes.value.data || [] : [];
+      const whs = whRes.status === 'fulfilled' ? whRes.value.data || [] : [];
 
-        setProductList(prods);
-        setSupplierList(supps);
-        setWarehouseList(whs);
+      setProductList(prods);
+      setSupplierList(supps);
+      setWarehouseList(whs);
+      setCatalogLoaded(true);
 
-        if (prods.length > 0) {
-          const firstId = prods[0].id;
-          setSelectedProductId(firstId);
-          fetchAccuracy(firstId);
-        }
-
-        // Dynamically resolve target entity for cascade simulation
-        let initialTarget = '';
-        if (supps.length > 0) {
-          initialTarget = supps[0].supplierCode || '';
-        } else if (whs.length > 0) {
-          initialTarget = whs[0].code || '';
-        } else if (prods.length > 0) {
-          initialTarget = prods[0].sku || '';
-        }
-        setCascadeTargetEntity(initialTarget);
-
-        if (initialTarget) {
-          runCascadeSimulation('SUPPLIER_DISRUPTION', initialTarget);
-        }
-      } catch (e) {
-        console.error('Failed to load initial tenant records for analytics:', e);
+      let initialTarget = cascadeTargetEntity;
+      if (!initialTarget) {
+        if (supps.length > 0) initialTarget = supps[0].supplierCode || '';
+        else if (whs.length > 0) initialTarget = whs[0].code || '';
+        else if (prods.length > 0) initialTarget = prods[0].sku || '';
+        if (initialTarget) setCascadeTargetEntity(initialTarget);
       }
 
-      fetchOptimization();
-      runSimulation(demandSurge, leadTimeDelay);
-      fetchCostSlaTradeoff();
-      fetchHistoricalEfficacy();
-      fetchFailoverContainment();
-      fetchMultiEchelonRebalance();
-      fetchMasterOrchestration();
-    };
-    initData();
-  }, []);
+      let firstProdId = selectedProductId;
+      if (!firstProdId && prods.length > 0) {
+        firstProdId = prods[0].id;
+        setSelectedProductId(firstProdId);
+      }
+
+      return { products: prods, suppliers: supps, warehouses: whs, initialTarget, firstProductId: firstProdId };
+    } catch (e) {
+      console.error('Failed to load catalog records for analytics:', e);
+      return { products: [], suppliers: [], warehouses: [], initialTarget: '', firstProductId: null };
+    }
+  };
 
   const handleCascadeTypeChange = (newType: string) => {
     setCascadePrimaryType(newType);
@@ -314,105 +335,191 @@ export const AnalyticsPage: React.FC = () => {
     }
   };
 
-  const fetchAccuracy = async (productId: number) => {
+  // --- Specialized Tab Fetchers with Loading, Error, and Retry Support ---
+
+  const fetchMasterOrchestration = async () => {
+    if (loadingMaster) return;
+    setLoadingMaster(true);
+    setErrorMaster(null);
     try {
-      const res = await axiosInstance.get(`/analytics/accuracy/${productId}`);
+      const res = await axiosInstance.get('/public/simulation/analytics/unified-orchestration');
+      setMasterReport(res.data);
+      setErrorMaster(null);
+    } catch (err: any) {
+      console.error('Failed to load master orchestration blueprint:', err);
+      const classified = classifyApiError(err, 'Failed to load master orchestration blueprint.');
+      setErrorMaster(classified.message);
+    } finally {
+      setLoadingMaster(false);
+    }
+  };
+
+  const runCascadeSimulation = async (
+    primaryType: string,
+    targetEntity: string,
+    convertToProposal = false
+  ) => {
+    if (loadingCascade || generatingProposal) return;
+    if (convertToProposal) {
+      setGeneratingProposal(true);
+    } else {
+      setLoadingCascade(true);
+    }
+    setErrorCascade(null);
+
+    try {
+      // By default convertToActionProposal is false for fast non-mutating simulation
+      const res = await axiosInstance.post(
+        `/public/simulation/disruption/cascade?convertToActionProposal=${convertToProposal}`,
+        {
+          primaryDisruption: primaryType,
+          primaryTarget: targetEntity,
+        }
+      );
+      setCascadeResult(res.data);
+      setErrorCascade(null);
+    } catch (err: any) {
+      console.error('Failed to run cascade simulation:', err);
+      const classified = classifyApiError(err, 'Failed to execute cascading disruption simulation.');
+      setErrorCascade(classified.message);
+    } finally {
+      setLoadingCascade(false);
+      setGeneratingProposal(false);
+    }
+  };
+
+  const fetchMultiEchelonRebalance = async () => {
+    if (loadingRebalance) return;
+    setLoadingRebalance(true);
+    setErrorRebalance(null);
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/multi-echelon-rebalance');
+      setRebalanceReport(res.data);
+      setErrorRebalance(null);
+    } catch (err: any) {
+      console.error('Failed to load multi-echelon rebalance report:', err);
+      const classified = classifyApiError(err, 'Failed to load multi-echelon inventory rebalancing report.');
+      setErrorRebalance(classified.message);
+    } finally {
+      setLoadingRebalance(false);
+    }
+  };
+
+  const fetchFailoverContainment = async () => {
+    if (loadingFailover) return;
+    setLoadingFailover(true);
+    setErrorFailover(null);
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/failover-containment');
+      setFailoverReport(res.data);
+      setErrorFailover(null);
+    } catch (err: any) {
+      console.error('Failed to load failover containment report:', err);
+      const classified = classifyApiError(err, 'Failed to load supplier failover containment report.');
+      setErrorFailover(classified.message);
+    } finally {
+      setLoadingFailover(false);
+    }
+  };
+
+  const fetchCostSlaTradeoff = async () => {
+    if (loadingCostSla) return;
+    setLoadingCostSla(true);
+    setErrorCostSla(null);
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/cost-sla-tradeoff');
+      setCostSlaReport(res.data);
+      setErrorCostSla(null);
+    } catch (err: any) {
+      console.error('Failed to load cost-SLA tradeoff report:', err);
+      const classified = classifyApiError(err, 'Failed to load Cost vs. SLA recovery tradeoff matrix.');
+      setErrorCostSla(classified.message);
+    } finally {
+      setLoadingCostSla(false);
+    }
+  };
+
+  const fetchHistoricalEfficacy = async () => {
+    if (loadingHistoricalEfficacy) return;
+    setLoadingHistoricalEfficacy(true);
+    setErrorHistoricalEfficacy(null);
+    try {
+      const res = await axiosInstance.get('/public/simulation/analytics/historical-efficacy');
+      setHistoricalEfficacyReport(res.data);
+      setErrorHistoricalEfficacy(null);
+    } catch (err: any) {
+      console.error('Failed to load historical efficacy report:', err);
+      const classified = classifyApiError(err, 'Failed to load historical mitigation efficacy report.');
+      setErrorHistoricalEfficacy(classified.message);
+    } finally {
+      setLoadingHistoricalEfficacy(false);
+    }
+  };
+
+  const runSimulation = async (surge: number, delay: number) => {
+    if (loadingSimulation) return;
+    setLoadingSimulation(true);
+    setErrorSimulation(null);
+    try {
+      const res = await axiosInstance.post('/analytics/simulate', {
+        demandSurgePercentage: surge,
+        supplierLeadTimeDelayDays: delay,
+        freightDelayPercentage: 20.0,
+      });
+      setSimulationResult(res.data);
+      setErrorSimulation(null);
+    } catch (err: any) {
+      console.error('Failed to run simulation:', err);
+      const classified = classifyApiError(err, 'Failed to run what-if stress test simulation.');
+      setErrorSimulation(classified.message);
+    } finally {
+      setLoadingSimulation(false);
+    }
+  };
+
+  const fetchAccuracy = async (productId?: number | null) => {
+    const targetId = productId || selectedProductId || productList[0]?.id;
+    if (!targetId || loadingAccuracy) return;
+    setLoadingAccuracy(true);
+    setErrorAccuracy(null);
+    try {
+      const res = await axiosInstance.get(`/analytics/accuracy/${targetId}`);
       setAccuracyData(res.data);
-    } catch (err) {
+      setErrorAccuracy(null);
+    } catch (err: any) {
       console.error('Failed to load accuracy metrics:', err);
-      const prod = productList.find(p => p.id === productId);
+      const classified = classifyApiError(err, 'Failed to load forecast backtesting metrics.');
+      setErrorAccuracy(classified.message);
+      const prod = productList.find((p) => p.id === targetId);
       setAccuracyData({
-        productId,
+        productId: targetId,
         productSku: prod?.sku || 'UNKNOWN',
         productName: prod?.name || 'Unknown SKU',
         mapePercentage: null as any,
         rmseValue: null as any,
         accuracyRating: 'INSUFFICIENT_DATA',
         sampleSizeMonths: 0,
-        comparisons: []
+        comparisons: [],
       });
+    } finally {
+      setLoadingAccuracy(false);
     }
   };
 
   const fetchOptimization = async () => {
+    if (loadingOptimization) return;
+    setLoadingOptimization(true);
+    setErrorOptimization(null);
     try {
       const res = await axiosInstance.get('/analytics/optimization');
       setOptimizationReport(res.data);
-    } catch (err) {
+      setErrorOptimization(null);
+    } catch (err: any) {
       console.error('Failed to load optimization metrics:', err);
-    }
-  };
-
-  const runSimulation = async (surge: number, delay: number) => {
-    try {
-      const res = await axiosInstance.post('/analytics/simulate', {
-        demandSurgePercentage: surge,
-        supplierLeadTimeDelayDays: delay,
-        freightDelayPercentage: 20.0
-      });
-      setSimulationResult(res.data);
-    } catch (err) {
-      console.error('Failed to run simulation:', err);
-    }
-  };
-
-  const runCascadeSimulation = async (primaryType: string, targetEntity: string) => {
-    setCascadeLoading(true);
-    try {
-      const res = await axiosInstance.post('/public/simulation/disruption/cascade?convertToActionProposal=true', {
-        primaryDisruption: primaryType,
-        primaryTarget: targetEntity
-      });
-      setCascadeResult(res.data);
-    } catch (err) {
-      console.error('Failed to run cascade simulation:', err);
+      const classified = classifyApiError(err, 'Failed to load safety stock optimization report.');
+      setErrorOptimization(classified.message);
     } finally {
-      setCascadeLoading(false);
-    }
-  };
-
-  const fetchCostSlaTradeoff = async () => {
-    try {
-      const res = await axiosInstance.get('/public/simulation/analytics/cost-sla-tradeoff');
-      setCostSlaReport(res.data);
-    } catch (err) {
-      console.error('Failed to load cost-SLA tradeoff report:', err);
-    }
-  };
-
-  const fetchHistoricalEfficacy = async () => {
-    try {
-      const res = await axiosInstance.get('/public/simulation/analytics/historical-efficacy');
-      setHistoricalEfficacyReport(res.data);
-    } catch (err) {
-      console.error('Failed to load historical efficacy report:', err);
-    }
-  };
-
-  const fetchFailoverContainment = async () => {
-    try {
-      const res = await axiosInstance.get('/public/simulation/analytics/failover-containment');
-      setFailoverReport(res.data);
-    } catch (err) {
-      console.error('Failed to load failover containment report:', err);
-    }
-  };
-
-  const fetchMultiEchelonRebalance = async () => {
-    try {
-      const res = await axiosInstance.get('/public/simulation/analytics/multi-echelon-rebalance');
-      setRebalanceReport(res.data);
-    } catch (err) {
-      console.error('Failed to load multi-echelon rebalance report:', err);
-    }
-  };
-
-  const fetchMasterOrchestration = async () => {
-    try {
-      const res = await axiosInstance.get('/public/simulation/analytics/unified-orchestration');
-      setMasterReport(res.data);
-    } catch (err) {
-      console.error('Failed to load master orchestration blueprint:', err);
+      setLoadingOptimization(false);
     }
   };
 
@@ -425,6 +532,119 @@ export const AnalyticsPage: React.FC = () => {
       console.error('Failed to load executive report:', err);
     }
   };
+
+  // --- Lazy Tab Router / Dispatcher ---
+  // Only fetches the data needed for the active tab, caching results in state to prevent duplicate requests.
+  const loadTabData = async (tab: TabType, forceRefresh = false) => {
+    switch (tab) {
+      case 'masterOrchestrator':
+        if (!masterReport || forceRefresh) {
+          await fetchMasterOrchestration();
+        }
+        break;
+      case 'cascade':
+        if (!cascadeResult || forceRefresh) {
+          const catalog = await ensureCatalogLoaded();
+          const target = cascadeTargetEntity || catalog.initialTarget;
+          if (target) {
+            await runCascadeSimulation(cascadePrimaryType, target, false);
+          }
+        }
+        break;
+      case 'rebalance':
+        if (!rebalanceReport || forceRefresh) {
+          await fetchMultiEchelonRebalance();
+        }
+        break;
+      case 'failover':
+        if (!failoverReport || forceRefresh) {
+          await fetchFailoverContainment();
+        }
+        break;
+      case 'costSla':
+        if (!costSlaReport || forceRefresh) {
+          await fetchCostSlaTradeoff();
+        }
+        break;
+      case 'historicalEfficacy':
+        if (!historicalEfficacyReport || forceRefresh) {
+          await fetchHistoricalEfficacy();
+        }
+        break;
+      case 'simulation':
+        if (!simulationResult || forceRefresh) {
+          await runSimulation(demandSurge, leadTimeDelay);
+        }
+        break;
+      case 'accuracy':
+        if (!accuracyData || forceRefresh) {
+          const catalog = await ensureCatalogLoaded();
+          const prodId = selectedProductId || catalog.firstProductId;
+          if (prodId) {
+            await fetchAccuracy(prodId);
+          }
+        }
+        break;
+      case 'optimization':
+        if (!optimizationReport || forceRefresh) {
+          await fetchOptimization();
+        }
+        break;
+    }
+  };
+
+  const selectTab = (tab: TabType, forceRefresh = false) => {
+    setActiveTab(tab);
+    loadTabData(tab, forceRefresh);
+  };
+
+  const selectCategory = (category: 'disruption' | 'inventory' | 'resilience') => {
+    setSelectedCategory(category);
+    if (category === 'disruption' && !['masterOrchestrator', 'cascade', 'simulation'].includes(activeTab)) {
+      selectTab('masterOrchestrator');
+    } else if (category === 'inventory' && !['accuracy', 'optimization', 'rebalance'].includes(activeTab)) {
+      selectTab('accuracy');
+    } else if (category === 'resilience' && !['failover', 'costSla', 'historicalEfficacy'].includes(activeTab)) {
+      selectTab('failover');
+    }
+  };
+
+  // On mount: ONLY fetch the initial active tab ('masterOrchestrator')
+  useEffect(() => {
+    loadTabData('masterOrchestrator');
+  }, []);
+
+  // UI Helper: Standard Tab Loading Spinner
+  const renderTabLoading = (message: string) => (
+    <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800">
+      <div className="flex flex-col items-center justify-center space-y-3 text-slate-400 text-xs">
+        <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+
+  // UI Helper: Standard Tab Error Panel with Working Retry Action
+  const renderTabError = (title: string, errorMsg: string, onRetry: () => void) => (
+    <div className="glass-panel p-12 text-center rounded-2xl border border-slate-800 space-y-4">
+      <div className="max-w-md mx-auto space-y-3">
+        <div className="flex items-center justify-center space-x-2 text-amber-400">
+          <AlertTriangle className="w-5 h-5" />
+          <h3 className="text-sm font-semibold">{title}</h3>
+        </div>
+        <p className="text-xs text-slate-400 leading-relaxed">{errorMsg}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Retry Analysis</span>
+        </button>
+      </div>
+    </div>
+  );
+
 
   return (
     <div className="p-8 space-y-8 bg-slate-950 min-h-screen text-slate-100">
@@ -454,12 +674,7 @@ export const AnalyticsPage: React.FC = () => {
       {/* 3 Primary Analytics Domain Category Selectors */}
       <div className="flex flex-wrap items-center gap-3 bg-slate-900/60 p-2 rounded-2xl border border-slate-800">
         <button
-          onClick={() => {
-            setSelectedCategory('disruption');
-            if (!['masterOrchestrator', 'cascade', 'simulation'].includes(activeTab)) {
-              setActiveTab('masterOrchestrator');
-            }
-          }}
+          onClick={() => selectCategory('disruption')}
           className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
             selectedCategory === 'disruption'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
@@ -471,12 +686,7 @@ export const AnalyticsPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            setSelectedCategory('inventory');
-            if (!['accuracy', 'optimization', 'rebalance'].includes(activeTab)) {
-              setActiveTab('accuracy');
-            }
-          }}
+          onClick={() => selectCategory('inventory')}
           className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
             selectedCategory === 'inventory'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
@@ -488,12 +698,7 @@ export const AnalyticsPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => {
-            setSelectedCategory('resilience');
-            if (!['failover', 'costSla', 'historicalEfficacy'].includes(activeTab)) {
-              setActiveTab('failover');
-            }
-          }}
+          onClick={() => selectCategory('resilience')}
           className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
             selectedCategory === 'resilience'
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
@@ -510,7 +715,7 @@ export const AnalyticsPage: React.FC = () => {
         {selectedCategory === 'disruption' && (
           <>
             <button
-              onClick={() => setActiveTab('masterOrchestrator')}
+              onClick={() => selectTab('masterOrchestrator')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'masterOrchestrator'
                   ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
@@ -521,7 +726,7 @@ export const AnalyticsPage: React.FC = () => {
               Master Disruption Containment & Recovery Blueprint
             </button>
             <button
-              onClick={() => setActiveTab('cascade')}
+              onClick={() => selectTab('cascade')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'cascade'
                   ? 'bg-slate-800 text-amber-300 border border-amber-500/30 shadow-md'
@@ -532,7 +737,7 @@ export const AnalyticsPage: React.FC = () => {
               Cascading Disruption Correlation
             </button>
             <button
-              onClick={() => setActiveTab('simulation')}
+              onClick={() => selectTab('simulation')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'simulation'
                   ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
@@ -548,7 +753,7 @@ export const AnalyticsPage: React.FC = () => {
         {selectedCategory === 'inventory' && (
           <>
             <button
-              onClick={() => setActiveTab('accuracy')}
+              onClick={() => selectTab('accuracy')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'accuracy'
                   ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
@@ -559,7 +764,7 @@ export const AnalyticsPage: React.FC = () => {
               Forecast Backtesting (MAPE & RMSE)
             </button>
             <button
-              onClick={() => setActiveTab('optimization')}
+              onClick={() => selectTab('optimization')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'optimization'
                   ? 'bg-slate-800 text-emerald-300 border border-emerald-500/30 shadow-md'
@@ -570,7 +775,7 @@ export const AnalyticsPage: React.FC = () => {
               Dynamic Safety Stock Optimization
             </button>
             <button
-              onClick={() => setActiveTab('rebalance')}
+              onClick={() => selectTab('rebalance')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'rebalance'
                   ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
@@ -586,7 +791,7 @@ export const AnalyticsPage: React.FC = () => {
         {selectedCategory === 'resilience' && (
           <>
             <button
-              onClick={() => setActiveTab('failover')}
+              onClick={() => selectTab('failover')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'failover'
                   ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-md'
@@ -597,7 +802,7 @@ export const AnalyticsPage: React.FC = () => {
               Multi-Supplier Failover Split Router
             </button>
             <button
-              onClick={() => setActiveTab('costSla')}
+              onClick={() => selectTab('costSla')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'costSla'
                   ? 'bg-slate-800 text-emerald-300 border border-emerald-500/30 shadow-md'
@@ -608,7 +813,7 @@ export const AnalyticsPage: React.FC = () => {
               Cost-SLA Optimization Tradeoff Matrix
             </button>
             <button
-              onClick={() => setActiveTab('historicalEfficacy')}
+              onClick={() => selectTab('historicalEfficacy')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'historicalEfficacy'
                   ? 'bg-slate-800 text-purple-300 border border-purple-500/30 shadow-md'
@@ -622,9 +827,14 @@ export const AnalyticsPage: React.FC = () => {
         )}
       </div>
 
+
       {/* Tab: Master Disruption Containment & Recovery Blueprint */}
       {activeTab === 'masterOrchestrator' && (
-        masterReport && masterReport.orchestrationStatus !== 'INSUFFICIENT_DATA' ? (
+        loadingMaster ? (
+          renderTabLoading('Synthesizing Master Disruption Containment & Recovery Blueprint...')
+        ) : errorMaster ? (
+          renderTabError('Unable to Generate Master Blueprint', errorMaster, () => fetchMasterOrchestration())
+        ) : masterReport && masterReport.orchestrationStatus !== 'INSUFFICIENT_DATA' ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -636,9 +846,20 @@ export const AnalyticsPage: React.FC = () => {
                   <p className="text-xs text-slate-400">Target Disruption: {masterReport.disruptionType} on {masterReport.primaryTargetEntity} | Status: {masterReport.orchestrationStatus}</p>
                 </div>
 
-                <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
-                  {masterReport.orchestrationPlanId}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchMasterOrchestration()}
+                    disabled={loadingMaster}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${loadingMaster ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
+                    {masterReport.orchestrationPlanId}
+                  </span>
+                </div>
               </div>
 
               {/* Master Executive Summary Banner */}
@@ -813,18 +1034,24 @@ export const AnalyticsPage: React.FC = () => {
                 )}
 
                 <button
-                  onClick={() => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity)}
-                  disabled={cascadeLoading || !cascadeTargetEntity}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                  type="button"
+                  onClick={() => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity, false)}
+                  disabled={loadingCascade || generatingProposal || !cascadeTargetEntity}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50 flex items-center gap-2 whitespace-nowrap cursor-pointer"
                 >
-                  {cascadeLoading ? 'Analyzing...' : 'Run Cascade Analysis'}
+                  <Zap className={`h-3.5 w-3.5 ${loadingCascade ? 'animate-spin' : ''}`} />
+                  <span>{loadingCascade ? 'Analyzing...' : 'Run Cascade Analysis'}</span>
                 </button>
               </div>
             </div>
           </div>
 
           {/* Cascade Results */}
-          {cascadeResult ? (
+          {loadingCascade ? (
+            renderTabLoading('Tracing multi-hop cascading disruption propagation across topology...')
+          ) : errorCascade ? (
+            renderTabError('Unable to Execute Cascade Analysis', errorCascade, () => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity, false))
+          ) : cascadeResult ? (
             cascadeResult.cumulativeRiskBand === 'INSUFFICIENT_DATA' || cascadeResult.cascadeNodes.length === 0 ? (
               <div className="glass-panel p-10 text-center rounded-2xl border border-slate-800 space-y-3">
                 <AlertCircle className="h-8 w-8 text-amber-400 mx-auto" />
@@ -859,12 +1086,30 @@ export const AnalyticsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-                    <span className="text-xs text-slate-400 font-semibold block">Chained Policy Proposals</span>
-                    <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                      {cascadeResult.generatedRecommendationIds.length} Created
-                    </span>
-                    <span className="text-xs text-slate-400">Status: PENDING_APPROVAL</span>
+                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between">
+                    <div>
+                      <span className="text-xs text-slate-400 font-semibold block">Chained Policy Proposals</span>
+                      <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                        {cascadeResult.generatedRecommendationIds?.length || 0} Created
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {cascadeResult.chainedActionProposalsCreated
+                          ? 'Status: PENDING_APPROVAL'
+                          : 'Simulation Mode (No DB mutations)'}
+                      </span>
+                    </div>
+
+                    {!cascadeResult.chainedActionProposalsCreated && (
+                      <button
+                        type="button"
+                        onClick={() => runCascadeSimulation(cascadePrimaryType, cascadeTargetEntity, true)}
+                        disabled={generatingProposal || loadingCascade || !cascadeTargetEntity}
+                        className="mt-3 inline-flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 ${generatingProposal ? 'animate-spin' : ''}`} />
+                        <span>{generatingProposal ? 'Generating Proposals...' : 'Promote to Action Proposals'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -908,9 +1153,14 @@ export const AnalyticsPage: React.FC = () => {
         </div>
       )}
 
+
       {/* Tab: Multi-Echelon Inventory Rebalancing */}
       {activeTab === 'rebalance' && (
-        rebalanceReport && rebalanceReport.rebalancingStatus !== 'INSUFFICIENT_DATA' ? (
+        loadingRebalance ? (
+          renderTabLoading('Computing Multi-Echelon Inventory Rebalancing & Cross-Dock Routes...')
+        ) : errorRebalance ? (
+          renderTabError('Unable to Calculate Inventory Rebalancing', errorRebalance, () => fetchMultiEchelonRebalance())
+        ) : rebalanceReport && rebalanceReport.rebalancingStatus !== 'INSUFFICIENT_DATA' ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -922,9 +1172,20 @@ export const AnalyticsPage: React.FC = () => {
                   <p className="text-xs text-slate-400">Target Deficit Hub: {rebalanceReport.targetWarehouseCode} | SKU: {rebalanceReport.skuCode} | Shortage: {rebalanceReport.deficitUnits} units</p>
                 </div>
 
-                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold rounded-lg font-mono">
-                  {rebalanceReport.rebalancePlanId}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchMultiEchelonRebalance()}
+                    disabled={loadingRebalance}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${loadingRebalance ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold rounded-lg font-mono">
+                    {rebalanceReport.rebalancePlanId}
+                  </span>
+                </div>
               </div>
 
               {/* Executive Summary Banner */}
@@ -1012,7 +1273,11 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* Tab: Multi-Supplier Failover Split Router */}
       {activeTab === 'failover' && (
-        failoverReport && failoverReport.containmentStatus !== 'INSUFFICIENT_DATA' ? (
+        loadingFailover ? (
+          renderTabLoading('Synthesizing Supplier Failover & Split Containment Strategy...')
+        ) : errorFailover ? (
+          renderTabError('Unable to Calculate Supplier Failover Strategy', errorFailover, () => fetchFailoverContainment())
+        ) : failoverReport && failoverReport.containmentStatus !== 'INSUFFICIENT_DATA' ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -1024,9 +1289,20 @@ export const AnalyticsPage: React.FC = () => {
                   <p className="text-xs text-slate-400">Primary Failed Supplier: {failoverReport.failedSupplierCode} ({failoverReport.failedSupplierName}) | Hub: {failoverReport.primaryWarehouseCode}</p>
                 </div>
 
-                <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
-                  {failoverReport.containmentPlanId}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchFailoverContainment()}
+                    disabled={loadingFailover}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${loadingFailover ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <span className="px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold rounded-lg font-mono">
+                    {failoverReport.containmentPlanId}
+                  </span>
+                </div>
               </div>
 
               {/* Explanation Banner */}
@@ -1112,7 +1388,11 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* Tab: Cost-SLA Optimization Tradeoff Matrix */}
       {activeTab === 'costSla' && (
-        costSlaReport && costSlaReport.initialRiskBand !== 'INSUFFICIENT_DATA' ? (
+        loadingCostSla ? (
+          renderTabLoading('Evaluating Cost vs. SLA Recovery Speed Tradeoff Matrix...')
+        ) : errorCostSla ? (
+          renderTabError('Unable to Evaluate Cost-SLA Tradeoff Matrix', errorCostSla, () => fetchCostSlaTradeoff())
+        ) : costSlaReport && costSlaReport.initialRiskBand !== 'INSUFFICIENT_DATA' ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -1124,9 +1404,20 @@ export const AnalyticsPage: React.FC = () => {
                   <p className="text-xs text-slate-400">Target Disruption: {costSlaReport.targetDisruptionType} | Entity: {costSlaReport.targetEntity}</p>
                 </div>
 
-                <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold rounded-lg font-mono">
-                  {costSlaReport.analysisId}
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchCostSlaTradeoff()}
+                    disabled={loadingCostSla}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${loadingCostSla ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold rounded-lg font-mono">
+                    {costSlaReport.analysisId}
+                  </span>
+                </div>
               </div>
 
               {/* Executive Recommendation Banner */}
@@ -1209,7 +1500,11 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* Tab: Historical Mitigation Efficacy */}
       {activeTab === 'historicalEfficacy' && (
-        historicalEfficacyReport && historicalEfficacyReport.totalHistoricalExecutions > 0 ? (
+        loadingHistoricalEfficacy ? (
+          renderTabLoading('Analyzing Historical Mitigation Effectiveness & Audit Logs...')
+        ) : errorHistoricalEfficacy ? (
+          renderTabError('Unable to Load Historical Mitigation Analytics', errorHistoricalEfficacy, () => fetchHistoricalEfficacy())
+        ) : historicalEfficacyReport && historicalEfficacyReport.totalHistoricalExecutions > 0 ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -1222,6 +1517,15 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fetchHistoricalEfficacy()}
+                    disabled={loadingHistoricalEfficacy}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${loadingHistoricalEfficacy ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
                   <span className="text-xs text-slate-400">Overall Success Rate:</span>
                   <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-sm font-bold rounded-lg">
                     {historicalEfficacyReport.overallSuccessRatePct.toFixed(1)}% Efficacy
@@ -1297,10 +1601,21 @@ export const AnalyticsPage: React.FC = () => {
 
           {/* Controls Card */}
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-400" />
-              Deterministic Supply Chain Stress-Test Simulation Controls
-            </h3>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Zap className="h-5 w-5 text-amber-400" />
+                Deterministic Supply Chain Stress-Test Simulation Controls
+              </h3>
+              <button
+                type="button"
+                onClick={() => runSimulation(demandSurge, leadTimeDelay)}
+                disabled={loadingSimulation}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${loadingSimulation ? 'animate-spin' : ''}`} />
+                <span>Re-simulate</span>
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Slider 1: Demand Surge */}
@@ -1354,7 +1669,11 @@ export const AnalyticsPage: React.FC = () => {
           </div>
 
           {/* Simulation Output Overview */}
-          {simulationResult && (
+          {loadingSimulation ? (
+            renderTabLoading('Simulating Market Demand Surge & Supplier Delay Stress...')
+          ) : errorSimulation ? (
+            renderTabError('Unable to Run Stress Simulation', errorSimulation, () => runSimulation(demandSurge, leadTimeDelay))
+          ) : simulationResult ? (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
@@ -1421,13 +1740,25 @@ export const AnalyticsPage: React.FC = () => {
                 </table>
               </div>
             </div>
+          ) : (
+            <div className="glass-panel p-10 text-center rounded-2xl border border-slate-800 space-y-3">
+              <AlertCircle className="h-8 w-8 text-slate-500 mx-auto" />
+              <h4 className="text-sm font-bold text-white">No Stress Simulation Results</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                Adjust the demand surge and supplier delay sliders above to compute projected stockouts and financial exposure.
+              </p>
+            </div>
           )}
         </div>
       )}
 
       {/* Tab 2: Forecast Accuracy & Backtesting */}
       {activeTab === 'accuracy' && (
-        accuracyData ? (
+        loadingAccuracy ? (
+          renderTabLoading('Evaluating SKU Forecast Accuracy & Backtesting Metrics...')
+        ) : errorAccuracy ? (
+          renderTabError('Unable to Evaluate Forecast Accuracy', errorAccuracy, () => fetchAccuracy(selectedProductId))
+        ) : accuracyData ? (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -1435,18 +1766,29 @@ export const AnalyticsPage: React.FC = () => {
                 <h3 className="text-xl font-bold text-white mt-1">{accuracyData.productName} ({accuracyData.productSku})</h3>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {productList.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => { setSelectedProductId(p.id); fetchAccuracy(p.id); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      selectedProductId === p.id ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {p.sku}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => fetchAccuracy(selectedProductId)}
+                  disabled={loadingAccuracy}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-purple-400 ${loadingAccuracy ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {productList.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelectedProductId(p.id); fetchAccuracy(p.id); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        selectedProductId === p.id ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {p.sku}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1532,8 +1874,23 @@ export const AnalyticsPage: React.FC = () => {
 
       {/* Tab 3: Dynamic Safety Stock Optimization */}
       {activeTab === 'optimization' && (
-        optimizationReport && optimizationReport.totalItemsEvaluated > 0 ? (
+        loadingOptimization ? (
+          renderTabLoading('Calculating Dynamic Safety Stock Optimization...')
+        ) : errorOptimization ? (
+          renderTabError('Unable to Calculate Safety Stock Optimization', errorOptimization, () => fetchOptimization())
+        ) : optimizationReport && optimizationReport.totalItemsEvaluated > 0 ? (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => fetchOptimization()}
+                disabled={loadingOptimization}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${loadingOptimization ? 'animate-spin' : ''}`} />
+                <span>Refresh Optimization</span>
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
                 <span className="text-xs text-slate-400 uppercase font-bold block">Evaluated Inventory Items</span>
