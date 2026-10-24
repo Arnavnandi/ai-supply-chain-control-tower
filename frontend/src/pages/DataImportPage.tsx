@@ -231,7 +231,7 @@ export const DataImportPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-white">Dataset Ingestion &amp; Data Pipeline</h2>
         <p className="text-xs text-slate-400">

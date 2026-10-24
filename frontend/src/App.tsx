@@ -20,11 +20,16 @@ import { SystemHealthDashboardPage } from './pages/SystemHealthDashboardPage';
 
 const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
   const { token, user, isLoading } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#060b14] flex flex-col items-center justify-center text-slate-400 space-y-4">
+        <div className="relative">
+          <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
+          <div className="absolute inset-0 w-12 h-12 rounded-full blur-md bg-cyan-500/20" />
+        </div>
+        <p className="text-xs font-mono text-cyan-400 tracking-widest uppercase">Initializing Control Tower...</p>
       </div>
     );
   }
@@ -36,35 +41,41 @@ const ProtectedLayout: React.FC<{ title: string; children: React.ReactNode }> = 
   const isDemoTenant = user?.companyId === 1;
 
   return (
-    <div className="flex min-h-screen bg-[#090d16] text-slate-100">
-      <Sidebar />
+    <div className="flex min-h-screen bg-[#060b14] text-slate-100">
+      <Sidebar isMobileOpen={mobileMenuOpen} onCloseMobile={() => setMobileMenuOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Dynamic Tenant Environment Transparency Banner */}
         {isDemoTenant ? (
-          <div className="bg-amber-950/90 border-b border-amber-500/30 px-6 py-2 flex flex-wrap items-center justify-between text-xs text-amber-200 shadow-inner">
-            <div className="flex items-center space-x-2">
-              <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="font-bold uppercase tracking-wider text-amber-400">Demo Environment</span>
+          <div className="bg-gradient-to-r from-amber-950/90 via-amber-900/80 to-amber-950/90 border-b border-amber-500/30 px-4 md:px-6 py-2 flex flex-wrap items-center justify-between text-xs text-amber-200 shadow-inner">
+            <div className="flex items-center space-x-2.5">
+              <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+              <span className="font-bold uppercase tracking-wider text-amber-400 font-mono text-[11px]">Demo Environment</span>
               <span className="text-amber-500/60">•</span>
-              <span className="text-amber-200/90">
-                Operating on synthetic demonstration dataset. Upload company operational data via <Link to="/import" className="underline font-semibold hover:text-amber-100">Ingestion Pipeline</Link>.
+              <span className="text-amber-200/90 text-xs">
+                Operating on synthetic demonstration dataset. Upload company operational data via <Link to="/import" className="underline font-semibold hover:text-amber-100 text-amber-300">Ingestion Pipeline</Link>.
               </span>
             </div>
+            <span className="hidden lg:inline-block font-mono text-[10px] text-amber-400/80 uppercase tracking-widest">
+              TENANT: DEMO-CORP (ID: 1)
+            </span>
           </div>
         ) : (
-          <div className="bg-slate-900/90 border-b border-slate-800 px-6 py-2 flex flex-wrap items-center justify-between text-xs text-slate-300">
-            <div className="flex items-center space-x-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-              <span className="font-bold uppercase tracking-wider text-emerald-400">Active Tenant: {user?.companyName || 'Enterprise Workspace'}</span>
+          <div className="bg-gradient-to-r from-[#0d1c33]/90 via-[#0a182d]/90 to-[#0d1c33]/90 border-b border-cyan-500/20 px-4 md:px-6 py-2 flex flex-wrap items-center justify-between text-xs text-slate-300 shadow-sm">
+            <div className="flex items-center space-x-2.5">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="font-bold uppercase tracking-wider text-emerald-400 font-mono text-[11px]">Active Tenant: {user?.companyName || 'Enterprise Workspace'}</span>
               <span className="text-slate-600">•</span>
-              <span className="text-slate-400">
+              <span className="text-slate-300 text-xs">
                 Data-isolated PostgreSQL operational environment. Upload operational records via <Link to="/import" className="underline text-cyan-400 hover:text-cyan-300 font-semibold">Ingestion Pipeline</Link>.
               </span>
             </div>
+            <span className="hidden lg:inline-block font-mono text-[10px] text-cyan-400 uppercase tracking-widest">
+              TENANT CODE: {user?.companyCode || 'PROD'}
+            </span>
           </div>
         )}
-        <Header title={title} />
-        <main className="p-6 flex-1 overflow-y-auto">{children}</main>
+        <Header title={title} onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)} />
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

@@ -647,65 +647,72 @@ export const AnalyticsPage: React.FC = () => {
 
 
   return (
-    <div className="p-8 space-y-8 bg-slate-950 min-h-screen text-slate-100">
+    <div className="space-y-6 text-slate-100">
       {/* Page Header */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="glass-panel border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-              <BarChart3 className="h-6 w-6" />
+            <div className="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/30 shadow-xs shadow-cyan-500/20">
+              <BarChart3 className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Advanced Analytics & Decision Intelligence</h1>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-bold tracking-tight text-white">Scenario Analytics & Decision Intelligence</h1>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
+                  Simulation Engine Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Cost-SLA Tradeoff Matrix, Historical Efficacy Analytics, Cascading Disruption Topology, and Dynamic Safety Stock Optimization
+              </p>
+            </div>
           </div>
-          <p className="text-slate-400 text-sm pl-12">
-            Academic Research Suite: Cost-SLA Tradeoff Matrix, Historical Efficacy Analytics, Cascading Disruption Topology, and Dynamic Safety Stock Optimization.
-          </p>
         </div>
 
         <button
           onClick={fetchExecutiveReport}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/20 transition-all self-start md:self-auto"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/25 transition-all self-start md:self-auto cursor-pointer"
         >
           <FileText className="h-4 w-4" />
-          1-Click Executive Audit Report
+          <span>1-Click Executive Audit Report</span>
         </button>
       </div>
 
       {/* 3 Primary Analytics Domain Category Selectors */}
-      <div className="flex flex-wrap items-center gap-3 bg-slate-900/60 p-2 rounded-2xl border border-slate-800">
+      <div className="flex flex-wrap items-center gap-2.5 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
         <button
           onClick={() => selectCategory('disruption')}
-          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             selectedCategory === 'disruption'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 border border-purple-400/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
           }`}
         >
-          <Zap className="h-4 w-4 text-amber-400" />
+          <Zap className="h-3.5 w-3.5 text-amber-400" />
           <span>Disruption & Risk</span>
         </button>
 
         <button
           onClick={() => selectCategory('inventory')}
-          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             selectedCategory === 'inventory'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30 border border-cyan-400/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
           }`}
         >
-          <TrendingUp className="h-4 w-4 text-emerald-400" />
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
           <span>Inventory & Forecasting</span>
         </button>
 
         <button
           onClick={() => selectCategory('resilience')}
-          className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             selectedCategory === 'resilience'
-              ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 border border-emerald-400/30'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
           }`}
         >
-          <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+          <CheckCircle2 className="h-3.5 w-3.5 text-cyan-300" />
           <span>Resilience & Efficacy</span>
         </button>
       </div>

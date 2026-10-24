@@ -235,23 +235,26 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Background Glows */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-[#060b14] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Control Tower Background Atmospheric Glows */}
+      <div className="absolute top-1/4 left-1/4 w-[32rem] h-[32rem] bg-cyan-600/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl relative z-10 border border-slate-800">
+      <div className="w-full max-w-md glass-panel p-8 rounded-3xl shadow-2xl shadow-cyan-950/60 relative z-10 border border-cyan-500/30">
         {/* Header Logo */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-xl shadow-cyan-500/30 mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-xl shadow-cyan-500/30 mb-3.5 border border-cyan-400/40">
             {mfaChallenge ? <ShieldCheck className="w-8 h-8 text-white" /> : <Bot className="w-8 h-8 text-white" />}
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            {mfaChallenge ? 'Two-Factor Verification' : 'Supply Chain Control Tower'}
+          <h1 className="text-2xl font-bold text-white tracking-tight text-center">
+            {mfaChallenge ? 'Two-Factor Verification' : 'AI Supply Chain Control Tower'}
           </h1>
-          <p className="text-xs text-cyan-400 font-semibold tracking-wide mt-1">
-            {mfaChallenge ? 'Secure Email One-Time Password' : 'Enterprise Intelligence Platform'}
-          </p>
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <p className="text-xs text-cyan-400 font-semibold tracking-wide font-mono">
+              {mfaChallenge ? 'Secure Email One-Time Password' : 'Multi-Tenant Control Tower v2.4'}
+            </p>
+          </div>
         </div>
 
         {/* Tab Switcher (Only visible before MFA challenge) */}

@@ -21,35 +21,40 @@ export const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({ item, 
   if (!item) return null;
 
   const getSeverityBadge = (severity: string) => {
-    switch (severity) {
+    switch (severity?.toUpperCase()) {
       case 'CRITICAL':
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
+        return 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-sm shadow-rose-950';
       case 'HIGH':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950';
       case 'MEDIUM':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
       default:
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+        return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-2xl bg-[#0c162b] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden ring-1 ring-white/10">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyan-500/20 bg-[#080f1e]/90">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shadow-inner">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-100 text-lg">AI Recommendation Explainability</h3>
-              <p className="text-xs text-slate-400">Root Cause Telemetry & Recommended Mitigation</p>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">DECISION INTELLIGENCE</span>
+                <span className="text-slate-600">•</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">SPRING AI EXPLAINABILITY</span>
+              </div>
+              <h3 className="font-bold text-white text-lg tracking-tight">AI Root-Cause Telemetry &amp; Explainability</h3>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
@@ -58,56 +63,62 @@ export const ExplainabilityModal: React.FC<ExplainabilityModalProps> = ({ item, 
         {/* Modal Body */}
         <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
           {/* Header Info */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700">
-              {item.category} RISK • {item.id}
-            </span>
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800/60">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-cyan-300 bg-cyan-950/60 px-3 py-1 rounded-md border border-cyan-500/30">
+                {item.category} RISK • {item.id}
+              </span>
+              <span className="text-xs text-slate-400 font-medium">Status: {item.status}</span>
+            </div>
             <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${getSeverityBadge(item.severity)}`}>
               {item.severity} SEVERITY
             </span>
           </div>
 
           {/* 1. Problem Detected */}
-          <div className="p-4 rounded-xl bg-red-950/20 border border-red-900/30 space-y-1.5">
-            <div className="flex items-center gap-2 text-red-400 font-medium text-sm">
+          <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-900/40 space-y-2">
+            <div className="flex items-center gap-2 text-rose-400 font-semibold text-xs tracking-wider uppercase">
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>1. Problem Detected</span>
+              <span>1. Problem Detected by Anomaly Radar</span>
             </div>
-            <p className="text-slate-200 text-sm pl-6 leading-relaxed">
+            <p className="text-slate-200 text-sm leading-relaxed pl-6 font-medium">
               {item.problemDetected}
             </p>
           </div>
 
           {/* 2. Database Metric Cause */}
-          <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-900/30 space-y-1.5">
-            <div className="flex items-center gap-2 text-blue-400 font-medium text-sm">
+          <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-900/40 space-y-2">
+            <div className="flex items-center gap-2 text-cyan-400 font-semibold text-xs tracking-wider uppercase">
               <Database className="w-4 h-4 shrink-0" />
-              <span>2. Underlying Database Metrics Cause</span>
+              <span>2. Underlying PostgreSQL Operational Stream Telemetry</span>
             </div>
-            <p className="text-slate-200 text-sm pl-6 font-mono text-xs leading-relaxed bg-slate-950/40 p-3 rounded-lg border border-slate-800 text-blue-200">
-              {item.dataCause}
-            </p>
+            <div className="pl-6">
+              <p className="text-cyan-200 text-xs font-mono leading-relaxed bg-[#060c18]/80 p-3 rounded-lg border border-cyan-900/40 shadow-inner">
+                {item.dataCause}
+              </p>
+            </div>
           </div>
 
           {/* 3. Recommended Action */}
-          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-900/30 space-y-1.5">
-            <div className="flex items-center gap-2 text-emerald-400 font-medium text-sm">
+          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-900/40 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs tracking-wider uppercase">
               <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>3. Recommended Mitigation Action</span>
+              <span>3. Agentic Mitigation Consensus &amp; Recommendation</span>
             </div>
-            <p className="text-slate-200 text-sm pl-6 leading-relaxed">
+            <p className="text-slate-200 text-sm leading-relaxed pl-6 font-medium">
               {item.actionRecommended}
             </p>
           </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex justify-end">
+        <div className="px-6 py-3.5 border-t border-cyan-500/10 bg-[#080f1e]/90 flex items-center justify-between text-xs text-slate-400">
+          <span className="font-mono text-[11px] text-slate-500">HUMAN-IN-THE-LOOP SAFETY VERIFIED</span>
           <button
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium text-slate-200 bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+            className="px-4 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-semibold transition-colors cursor-pointer"
           >
-            Close Analysis
+            Close Telemetry Review
           </button>
         </div>
       </div>
