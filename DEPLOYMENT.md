@@ -66,7 +66,7 @@ Key environment configuration variables:
 - `SPRING_DATASOURCE_USERNAME`: `postgres`
 - `SPRING_DATASOURCE_PASSWORD`: Secure database password placeholder
 - `JWT_SECRET`: High-entropy 32+ character signing key placeholder
-- `EMBEDDING_PROVIDER`: `gemini` (default) or `onnx` (local in-process fallback)
+- `EMBEDDING_PROVIDER`: `gemini` (active default for 768-dim pgvector)
 - `GEMINI_API_KEY`: Google Gemini API Key for LLM reasoning and embedding generation
 
 ### 2. Start Complete Application Stack
@@ -95,6 +95,6 @@ Expected output:
 ---
 
 ## 🔒 Security & Multi-Tenant Governance
-- **Consequential Actions**: All write actions (`POST /api/actions/{id}/approve`) require an authenticated Manager JWT Bearer token (`ROLE_MANAGER` or `ROLE_ADMIN`).
+- **Consequential Actions**: All write actions (`POST /api/actions/{id}/approve`) require an authenticated Manager JWT Bearer token (`ROLE_SUPPLY_CHAIN_MANAGER` or `ROLE_ADMIN`).
 - **Tenant Context**: All operational records are strictly scoped to the authenticated user's company context via `TenantContext`.
 - **Zero Unauthenticated Execution**: Unauthenticated action execution requests are rejected with `HTTP 403 Forbidden`.

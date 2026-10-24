@@ -1,6 +1,6 @@
 # AI Supply Chain Control Tower 🚀
 
-An enterprise-grade, real-time AI-powered Supply Chain Control Tower built with **Spring Boot 3.3.4 (Java 21)**, **Spring AI (Google Gemini & Local ONNX Embeddings)**, **PostgreSQL 16 (pgvector)**, **React 19 (TypeScript, Vite 8, Tailwind CSS v4)**, and a **Phase 2 Multi-Tenant Architecture**.
+An enterprise-grade, real-time AI-powered Supply Chain Control Tower built with **Spring Boot 3.3.4 (Java 21)**, **Spring AI (Google Gemini Chat & Embeddings)**, **PostgreSQL 16 (pgvector - 768 dimensions)**, **React 19 (TypeScript, Vite 8, Tailwind CSS v4)**, and a **Phase 2 Multi-Tenant Architecture**.
 
 The system transforms enterprise supply chain management from reactive triage into proactive, deterministic, and explainable decision intelligence across global multi-echelon supply networks.
 
@@ -55,7 +55,25 @@ The application implements 14 operational and analytical modules accessible via 
    - Automated mitigation proposals held in `PENDING_APPROVAL` status. Managers can authorize or reject proposals, automatically generating purchase orders or rebalancing transfers with immutable audit logs.
 
 9. **Scenario Analytics & Disruption Stress-Testing (`/analytics`)**:
-   - 9 interactive analytical tabs: Master Unified Orchestration, Cascading Disruption Correlation, Multi-Echelon Rebalancing, Auto-Containment Failover, Cost vs. SLA Optimization, Historical Mitigation Efficacy, Disruption Stress-Testing Simulation, Demand Forecast Accuracy, and Dynamic Safety Stock Optimization (with the Predictive Early Warning Radar embedded in the Executive Dashboard).
+   - **Frontend Interface (9 Interactive Tabs)**: Master Unified Orchestration, Cascading Disruption Correlation, Multi-Echelon Rebalancing, Auto-Containment Failover, Cost vs. SLA Optimization, Historical Mitigation Efficacy, Disruption Stress-Testing Simulation, Demand Forecast Accuracy, and Dynamic Safety Stock Optimization (with the Predictive Early Warning Radar embedded in the Executive Dashboard).
+   - **Backend Engine Core (17 Dedicated Java Engines)**:
+     1. `UnifiedDisruptionOrchestratorEngine`: Master recovery blueprint synthesizing failovers, rebalancing, and PO generation into an orchestrated timeline.
+     2. `CascadingDisruptionCorrelationEngine`: Multi-hop disruption propagation modeling across inventory, vendors, and freight.
+     3. `AutoContainmentFailoverEngine`: Automated 60/40 volume split routing across contracted secondary suppliers.
+     4. `MultiEchelonInventoryRebalancingEngine`: Inter-hub cross-dock transfer optimization between surplus and deficit facilities.
+     5. `CostSlaOptimizationEngine`: Pareto tradeoff optimization balancing freight expediting cost against customer SLA protection.
+     6. `StressTestingEngine`: What-If simulation engine projecting deficit units and stockout days under demand surges or vendor delays.
+     7. `DemandForecastingEngine`: 30-day forecast calculations via Weighted Moving Average (WMA) and Exponential Smoothing ($\alpha=0.3$).
+     8. `ForecastAccuracyEngine`: Statistical Mean Absolute Percentage Error (MAPE) and Root Mean Squared Error (RMSE) against actual orders.
+     9. `InventoryOptimizationEngine`: Dynamic safety stock computation ($Z \times \sqrt{L \sigma_d^2 + d^2 \sigma_L^2}$) and optimal Reorder Points ($ROP$).
+     10. `PurchaseOrderGeneratorEngine`: Automated Economic Order Quantity ($EOQ = \sqrt{2DS/H}$) purchase order proposals.
+     11. `RiskAnalysisEngine`: Multi-domain aggregated risk scoring ($0-100$) across inventory, vendors, warehouses, and transit delays.
+     12. `ExecutiveCommandCenterEngine`: Weighted Resiliency Scorecard ($0-100$) dynamically combining OTIF, stock health, warehouse capacity, and historical efficacy.
+     13. `PredictiveDisruptionEarlyWarningEngine`: Stream anomaly radar scanner identifying stockout trajectories 2-5 days in advance.
+     14. `HistoricalMitigationEfficacyEngine`: Recovery success rate and execution velocity tracking from immutable audit logs.
+     15. `PostRecoveryRiskEvaluationEngine`: Residual risk re-evaluation and risk-reduction delta calculation after proposed mitigations.
+     16. `SupplierAnalyticsEngine`: Vendor On-Time In-Full (OTIF) metrics, lead time tracking, and risk classification matrices.
+     17. `LogisticsAnalyticsEngine`: Carrier transit delay analysis and freight corridor bottleneck tracking.
 
 10. **AI Assistant Workspace (`/ai-assistant`)**:
     - Conversational assistant powered by Spring AI with specialized sub-agents (`SupervisorAgent`, `InventoryAgent`, `SupplierAgent`, `LogisticsAgent`, `WarehouseAgent`, `RiskAgent`) utilizing grounded database tools (`getLowStockProducts`, `getSupplierPerformance`, `getDelayedShipments`, etc.).
@@ -106,8 +124,9 @@ graph TD
         AgentRouter --> SubAgents[Inventory / Supplier / Logistics / Warehouse / Risk Agents]
         SubAgents -->|Function Calling| Tools[Grounded PostgreSQL Tools]
         AgentRouter --> RAG[Hybrid RRF RAG Service]
-        RAG --> GeminiEmbed[Google Gemini / ONNX Embeddings]
-        RAG --> PgVector[(PostgreSQL pgvector - 768 dims HNSW)]
+        RAG --> GeminiEmbed[Google Gemini Embeddings - 768 dims]
+        GeminiEmbed --> PgVector[(PostgreSQL pgvector - 768 dims HNSW)]
+        RAG --> LexicalSearch[In-Memory Lexical Keyword Fallback]
     end
 
     subgraph Governance & Execution Bridge
@@ -141,10 +160,32 @@ The application enforces strict data partitioning across all layers:
 | Component | Implementation | Fallback / Safeguard |
 | :--- | :--- | :--- |
 | **LLM Chat Model** | Google Gemini (`gemini-3.5-flash` or configurable) via Spring AI OpenAI-compatible endpoint | Deterministic Java analytical engines execute regardless of LLM availability. |
-| **Vector Embeddings** | Google Gemini `gemini-embedding-001` (768 dimensions) with `L2NormalizedEmbeddingModel` | In-process local ONNX transformer (`all-MiniLM-L6-v2`) via `embedding.provider: onnx`. |
-| **Vector Store** | PostgreSQL `pgvector` with HNSW cosine distance indexing | Lexical keyword fallback via Reciprocal Rank Fusion (RRF). |
+| **Vector Embeddings** | Google Gemini `gemini-embedding-001` (768 dimensions) with `L2NormalizedEmbeddingModel` | In-memory lexical keyword search with Reciprocal Rank Fusion (RRF); legacy Phase 1 `all-MiniLM-L6-v2` ONNX model files are retained as offline reference. |
+| **Vector Store** | PostgreSQL `pgvector` with HNSW cosine distance indexing (768 dimensions) | Lexical keyword fallback via Reciprocal Rank Fusion (RRF). |
 | **Tool Calling** | 8 Spring AI function tools querying PostgreSQL repositories | Agents only read database telemetry; write actions are routed through HITL approval. |
 | **Circuit Breaker** | Resilience4j `llmService` (50% failure rate threshold, 5s wait duration in open state) | Automatic half-open recovery when API connectivity is restored. |
+
+### 🔍 Model & Embedding Architecture Deep Dive (ONNX vs. Gemini)
+
+1. **Phase 1 Historical Baseline**: The project originally initiated with an embedded ONNX Runtime transformer (`all-MiniLM-L6-v2`) outputting 384-dimensional embeddings into a local `VECTOR(384)` table.
+2. **Phase 2 Cloud Migration**: Database migration `V2__update_vector_dimensions.sql` explicitly altered the pgvector table to `VECTOR(768)` (`ALTER TABLE vector_store ALTER COLUMN embedding TYPE VECTOR(768)`) to support cloud-native Google Gemini embeddings (`gemini-embedding-001`).
+3. **Current Runtime Reality**: The production and staging application sets `embedding.provider: gemini` by default. `GeminiEmbeddingConfig` initializes an `OpenAiEmbeddingModel` with 768 dimensions and wraps it with `L2NormalizedEmbeddingModel` to ensure unit-length cosine vectors for PostgreSQL HNSW index queries.
+4. **Why ONNX is Inactive in Production**: Because the active PostgreSQL pgvector schema expects 768-dimensional vectors, running the 384-dimensional ONNX model would cause vector dimension mismatch errors on database insertion. The 86MB `model.onnx` file in `src/main/resources/onnx/` is a legacy artifact, and `spring.ai.onnx.enabled` is explicitly set to `false` in `application.yml`.
+5. **Hybrid Reciprocal Rank Fusion (RRF) Fallback**: For document knowledge retrieval, `RagRetrievalService` executes hybrid search combining semantic similarity (`vectorStore.similaritySearch(query)`) and lexical BM25-style keyword search (`getLexicalCandidates(query)`) using the standard RRF formula $RRF\_score(d) = \sum \frac{1}{60 + rank(d)}$. If the Gemini API key is unconfigured or rate-limited, the system seamlessly falls back to pure lexical search over in-memory knowledge chunks with zero downtime.
+
+### 📊 Deterministic Calculations vs. Disruption Stress-Testing Benchmarks
+
+To ensure full interview explainability, metrics across the application fall into two distinct categories:
+
+1. **Live Dynamic Metrics (Derived from Seeded Database Telemetry)**:
+   - **Executive Resiliency Scorecard (`41.5/100`)**: Dynamically computed in `ExecutiveCommandCenterEngine` from Supplier OTIF (30%), Inventory Safety (25%), Warehouse Health (25%), and Historical Mitigation Efficacy (20%). In the seeded demo tenant, 12 of 12 shipments are delayed and 5 of 15 SKUs are in deficit, yielding the 41.5 index.
+   - **System Risk Score (`20/100`)**: Computed in `RiskAnalysisEngine` aggregating inventory deficits, vendor reliability degradation, warehouse overutilization, and cargo delays.
+   - **Supplier Reliability (`86.25%`)**: Computed in `SupplierAnalyticsEngine` as the average reliability score across the 4 demo suppliers.
+
+2. **Simulated Disruption Benchmarks (Stress-Testing Outputs)**:
+   - **`$14,500` Capital Savings & 5 Days Lead Time Saved**: Generated in `MultiEchelonInventoryRebalancingEngine` as a benchmark simulation demonstrating inter-hub inventory rebalancing between surplus and deficit facilities.
+   - **`98.5%` SLA Customer Protection**: Evaluated in `CostSlaOptimizationEngine` as an expedited air freight tradeoff scenario ($5,500 cost vs. 98.5% SLA protection) compared to standard ground freight ($2,100 cost vs. 88.0% SLA).
+   - **`75.0 → 18.0` Residual Risk Reduction**: Generated in `PostRecoveryRiskEvaluationEngine` evaluating post-mitigation residual exposure across logistics and warehouse domains.
 
 ---
 
@@ -282,7 +323,7 @@ Below are the supported environment variables with safe placeholder values:
 | `GEMINI_API_KEY` | Google Gemini API key for chat & embeddings | `unconfigured` | `AIzaSyYourGeminiApiKeyPlaceholder` |
 | `OPENAI_BASE_URL` | OpenAI-compatible endpoint for Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
 | `SPRING_AI_MODEL` | Gemini LLM model name | `gemini-3.5-flash` | `gemini-3.5-flash` |
-| `EMBEDDING_PROVIDER` | Vector embedding engine (`gemini` or `onnx`) | `gemini` | `gemini` |
+| `EMBEDDING_PROVIDER` | Vector embedding engine (`gemini` active default; `onnx` legacy) | `gemini` | `gemini` |
 | `VECTOR_DIMENSIONS` | Vector store embedding dimensions | `768` | `768` |
 | `SPRING_MAIL_HOST` | SMTP server host for 2FA OTP | *(empty)* | `smtp.mailgun.org` |
 | `SPRING_MAIL_PORT` | SMTP port | `587` | `587` |
@@ -435,7 +476,7 @@ npx wrangler deploy --config wrangler.staging.json
 ## 🔒 Security, Compliance & Governance Safeguards
 
 1. **Human-in-the-Loop Consequential Gate**:
-   AI recommendations proposing inventory adjustments, purchase orders, or vendor rerouting are stored in `PENDING_APPROVAL` status. Consequential writes strictly require human manager authorization via `POST /api/actions/{id}/approve` with a verified `ROLE_MANAGER` or `ROLE_ADMIN` JWT token.
+   AI recommendations proposing inventory adjustments, purchase orders, or vendor rerouting are stored in `PENDING_APPROVAL` status. Consequential writes strictly require human manager authorization via `POST /api/actions/{id}/approve` with a verified `ROLE_SUPPLY_CHAIN_MANAGER` or `ROLE_ADMIN` JWT token.
 2. **Tenant Scoping Enforcement**:
    Every database query filters by `company_id`. Cross-tenant record leakage is prevented at both the application repository layer and the vector embedding search layer.
 3. **Audit Log Trail**:
