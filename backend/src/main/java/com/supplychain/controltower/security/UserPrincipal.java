@@ -24,14 +24,24 @@ public class UserPrincipal implements UserDetails {
 
     private Long companyId;
     private String companyCode;
+    private String companyName;
     private String companyStatus;
 
     private Collection<? extends GrantedAuthority> authorities;
+
+    public UserPrincipal(Long id, String username, String email, String password,
+                         Long companyId, String companyCode, String companyStatus,
+                         Collection<? extends GrantedAuthority> authorities) {
+        this(id, username, email, password, companyId, companyCode, "Demo Supply Chain Corp", companyStatus, authorities);
+    }
 
     public static UserPrincipal create(User user) {
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().name()));
         Long cId = user.getCompany() != null ? user.getCompany().getId() : 1L;
         String cCode = user.getCompany() != null ? user.getCompany().getCode() : "DEMO";
+        String cName = user.getCompany() != null && user.getCompany().getName() != null
+                ? user.getCompany().getName()
+                : "Demo Supply Chain Corp";
         String cStatus = user.getCompany() != null ? user.getCompany().getStatus() : "ACTIVE";
 
         return new UserPrincipal(
@@ -41,6 +51,7 @@ public class UserPrincipal implements UserDetails {
                 user.getPassword(),
                 cId,
                 cCode,
+                cName,
                 cStatus,
                 authorities
         );

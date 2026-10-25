@@ -37,14 +37,16 @@ This guide details the deployment architecture for both local containerized envi
 - **Actuator Health**: `https://ai-supply-chain-control-tower-backend-nkw0.onrender.com/actuator/health`
 
 ### Staging Frontend Build & Deploy
-Always use `wrangler.staging.json` for staging deployments to guarantee the production Worker is never targeted:
+Always use `wrangler.staging.json` (or `npm run deploy:staging`) for staging deployments to guarantee the production Worker is never targeted:
 
 ```bash
 cd frontend
-# 1. Build using staging mode (points VITE_API_BASE_URL to staging backend)
-npm run build -- --mode staging
 
-# 2. Deploy exclusively to the staging Cloudflare Worker target
+# Automated staging deploy (builds with --mode staging and targets wrangler.staging.json)
+npm run deploy:staging
+
+# Alternatively, step-by-step:
+npm run build:staging
 npx wrangler deploy --config wrangler.staging.json
 ```
 
@@ -89,12 +91,23 @@ Expected output:
 ## 🌐 Endpoints & Health Verification
 
 - **Frontend Application**: `http://localhost:3000`
-- **Backend API**: `http://localhost:8080/api/public/simulation/executive/command-center`
-- **Health Check**: `http://localhost:8080/actuator/health`
+- **Health Check (Unauthenticated)**: `http://localhost:8080/actuator/health`
+- **Simulation & Analytics APIs (Authenticated)**:
+  All analytical and simulation endpoints require an authenticated user JWT Bearer token to establish the caller's tenant context (`TenantContext`):
+  ```bash
+  # 1. Obtain token via authentication
+  TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"usernameOrEmail":"admin","password":"admin123"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+  # 2. Query tenant-scoped simulation scorecard
+  curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/public/simulation/executive/command-center
+  ```
+  *(Note: Calling operational or simulation endpoints without a Bearer token returns `HTTP 403 Forbidden` due to strict tenant isolation).*
 
 ---
 
 ## 🔒 Security & Multi-Tenant Governance
 - **Consequential Actions**: All write actions (`POST /api/actions/{id}/approve`) require an authenticated Manager JWT Bearer token (`ROLE_SUPPLY_CHAIN_MANAGER` or `ROLE_ADMIN`).
-- **Tenant Context**: All operational records are strictly scoped to the authenticated user's company context via `TenantContext`.
-- **Zero Unauthenticated Execution**: Unauthenticated action execution requests are rejected with `HTTP 403 Forbidden`.
+- **Tenant Context**: All operational records and analytical engines are strictly scoped to the authenticated user's company context via `TenantContext`.
+- **Zero Unauthenticated Execution**: Unauthenticated action execution requests and operational API calls without valid tenant context are rejected with `HTTP 403 Forbidden`.

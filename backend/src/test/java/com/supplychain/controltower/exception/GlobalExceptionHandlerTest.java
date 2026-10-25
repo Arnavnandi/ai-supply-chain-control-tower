@@ -107,6 +107,24 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void testHandleEmailDeliveryUnavailableException_ReturnsServiceUnavailable() {
+        com.supplychain.controltower.service.email.EmailDeliveryUnavailableException ex =
+                new com.supplychain.controltower.service.email.EmailDeliveryUnavailableException(
+                        "Internal details: SMTP host connect failed to smtp.brevo.com:587 with key secret_12345");
+        ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleEmailDeliveryUnavailableException(ex);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(503, response.getBody().getStatus());
+        assertEquals("Service Unavailable", response.getBody().getError());
+        // Verify sensitive credentials/hosts are not leaked in client response message
+        assertFalse(response.getBody().getMessage().contains("secret_12345"));
+        assertFalse(response.getBody().getMessage().contains("smtp.brevo.com"));
+        assertTrue(response.getBody().getMessage().contains("Email delivery service is currently unavailable"));
+        assertNotNull(response.getBody().getTimestamp());
+    }
+
+    @Test
     void testHandleGlobalException() {
         Exception ex = new RuntimeException("Unexpected DB connection pool exhausted");
         ResponseEntity<ErrorResponseDto> response = exceptionHandler.handleGlobalException(ex);

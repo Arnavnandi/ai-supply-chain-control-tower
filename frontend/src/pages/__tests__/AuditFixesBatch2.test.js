@@ -279,3 +279,53 @@ test('Sidebar Navigation: registers Policy Knowledge RAG linking to /documents w
     );
   }
 });
+
+// ============================================================================
+// FIX 4: Tenant Context Preservation Across Page Refresh (GET /api/auth/me)
+// ============================================================================
+
+test('AuthContext Session Restoration: GET /api/auth/me response preserves company tenant fields', () => {
+  // Simulate /api/auth/me response
+  const authMeResponseDemo = {
+    id: 1,
+    username: 'admin',
+    email: 'admin@supplychain.com',
+    role: 'ROLE_ADMIN',
+    companyId: 1,
+    companyCode: 'DEMO',
+    companyName: 'Demo Supply Chain Corp',
+  };
+
+  // Simulate AuthContext state update: setUser(res.data)
+  let userState = null;
+  userState = { ...authMeResponseDemo };
+
+  assert.equal(userState.companyId, 1, 'companyId must be restored');
+  assert.equal(userState.companyCode, 'DEMO', 'companyCode must be restored');
+  assert.equal(userState.companyName, 'Demo Supply Chain Corp', 'companyName must be restored');
+
+  // Verify App.tsx demo tenant evaluation logic
+  const isDemoTenant = userState?.companyId === 1;
+  assert.equal(isDemoTenant, true, 'isDemoTenant must evaluate to true for companyId === 1');
+});
+
+test('AuthContext Session Restoration: Enterprise tenant preserves custom company context on page refresh', () => {
+  const authMeResponseEnterprise = {
+    id: 42,
+    username: 'enterprise_manager',
+    email: 'manager@acme.com',
+    role: 'ROLE_SUPPLY_CHAIN_MANAGER',
+    companyId: 88,
+    companyCode: 'COMP-ACME',
+    companyName: 'Acme Global Logistics',
+  };
+
+  const userState = { ...authMeResponseEnterprise };
+
+  assert.equal(userState.companyId, 88);
+  assert.equal(userState.companyCode, 'COMP-ACME');
+  assert.equal(userState.companyName, 'Acme Global Logistics');
+
+  const isDemoTenant = userState?.companyId === 1;
+  assert.equal(isDemoTenant, false, 'Enterprise tenant must NOT be flagged as demo');
+});

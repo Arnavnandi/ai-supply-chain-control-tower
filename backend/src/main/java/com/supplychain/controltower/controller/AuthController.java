@@ -178,7 +178,10 @@ public class AuthController {
                 "id", userPrincipal.getId(),
                 "username", userPrincipal.getUsername(),
                 "email", userPrincipal.getEmail(),
-                "role", userPrincipal.getAuthorities().iterator().next().getAuthority()
+                "role", userPrincipal.getAuthorities().iterator().next().getAuthority(),
+                "companyId", userPrincipal.getCompanyId() != null ? userPrincipal.getCompanyId() : 1L,
+                "companyCode", userPrincipal.getCompanyCode() != null ? userPrincipal.getCompanyCode() : "DEMO",
+                "companyName", userPrincipal.getCompanyName() != null ? userPrincipal.getCompanyName() : "Demo Supply Chain Corp"
         ));
     }
 }

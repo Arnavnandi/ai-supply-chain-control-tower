@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:staging": "tsc -b && vite build --mode staging",
+    "build:prod": "tsc -b && vite build --mode production",
+    "deploy:staging": "npm run build:staging && npx wrangler deploy --config wrangler.staging.json",
+    "deploy:prod": "npm run build:prod && npx wrangler deploy --config wrangler.json",
     "lint": "oxlint",
     "test": "node --test src/pages/__tests__/*.test.js",
     "preview": "vite preview"

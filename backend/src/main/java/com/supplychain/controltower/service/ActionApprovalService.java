@@ -46,11 +46,17 @@ public class ActionApprovalService {
 
     @Transactional
     public Recommendation approveAndExecute(Long recommendationId, String username) {
+        return approveAndExecute(recommendationId, username, null);
+    }
+
+    @Transactional
+    public Recommendation approveAndExecute(Long recommendationId, String username, Long userId) {
         Long companyId = TenantContext.getRequiredCompanyId();
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
 
-        log.info("[ACTION APPROVAL] User '{}' approving recommendation ID={} for companyId={}", username, recommendationId, companyId);
+        log.info("[ACTION APPROVAL] User '{}' (userId={}) approving recommendation ID={} for companyId={}",
+                username, userId, recommendationId, companyId);
 
         Recommendation rec = recommendationRepository.findByCompanyIdAndId(companyId, recommendationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Recommendation not found: " + recommendationId));
@@ -77,10 +83,12 @@ public class ActionApprovalService {
             detailsStr = detailsStr.substring(0, 1950) + "...";
         }
 
-        // Save execution audit log
+        Long resolvedUserId = userId != null ? userId : 1L;
+
+        // Save execution audit log with authenticated userId
         auditLogRepository.save(AuditLog.builder()
                 .company(company)
-                .userId(1L)
+                .userId(resolvedUserId)
                 .username(username != null ? username : "Manager")
                 .actionTaken("APPROVED_AND_EXECUTED_AI_RECOMMENDATION")
                 .entityAffected("Recommendation")
@@ -94,11 +102,17 @@ public class ActionApprovalService {
 
     @Transactional
     public Recommendation rejectRecommendation(Long recommendationId, String username) {
+        return rejectRecommendation(recommendationId, username, null);
+    }
+
+    @Transactional
+    public Recommendation rejectRecommendation(Long recommendationId, String username, Long userId) {
         Long companyId = TenantContext.getRequiredCompanyId();
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new TenantContextMissingException("Company not found: " + companyId));
 
-        log.info("[ACTION REJECTION] User '{}' rejecting recommendation ID={} for companyId={}", username, recommendationId, companyId);
+        log.info("[ACTION REJECTION] User '{}' (userId={}) rejecting recommendation ID={} for companyId={}",
+                username, userId, recommendationId, companyId);
 
         Recommendation rec = recommendationRepository.findByCompanyIdAndId(companyId, recommendationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Recommendation not found: " + recommendationId));
@@ -109,9 +123,12 @@ public class ActionApprovalService {
 
         Recommendation saved = recommendationRepository.save(rec);
 
+        Long resolvedUserId = userId != null ? userId : 1L;
+
+        // Save rejection audit log with authenticated userId
         auditLogRepository.save(AuditLog.builder()
                 .company(company)
-                .userId(1L)
+                .userId(resolvedUserId)
                 .username(username != null ? username : "Manager")
                 .actionTaken("REJECTED_AI_RECOMMENDATION")
                 .entityAffected("Recommendation")

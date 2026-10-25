@@ -2,6 +2,7 @@ package com.supplychain.controltower.controller;
 
 import com.supplychain.controltower.entity.AuditLog;
 import com.supplychain.controltower.entity.Recommendation;
+import com.supplychain.controltower.security.UserPrincipal;
 import com.supplychain.controltower.service.ActionApprovalService;
 import com.supplychain.controltower.service.ReplenishmentProposalService;
 import lombok.RequiredArgsConstructor;
@@ -46,13 +47,15 @@ public class ActionApprovalController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPLY_CHAIN_MANAGER')")
     public ResponseEntity<Recommendation> approveAction(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails != null ? userDetails.getUsername() : "Manager";
-        return ResponseEntity.ok(actionApprovalService.approveAndExecute(id, username));
+        Long userId = (userDetails instanceof UserPrincipal up) ? up.getId() : null;
+        return ResponseEntity.ok(actionApprovalService.approveAndExecute(id, username, userId));
     }
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPPLY_CHAIN_MANAGER')")
     public ResponseEntity<Recommendation> rejectAction(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails != null ? userDetails.getUsername() : "Manager";
-        return ResponseEntity.ok(actionApprovalService.rejectRecommendation(id, username));
+        Long userId = (userDetails instanceof UserPrincipal up) ? up.getId() : null;
+        return ResponseEntity.ok(actionApprovalService.rejectRecommendation(id, username, userId));
     }
 }

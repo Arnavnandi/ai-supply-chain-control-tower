@@ -67,7 +67,46 @@ class ActionApprovalServiceTest {
         assertEquals(Recommendation.ApprovalStatus.EXECUTED, result.getStatus());
         assertEquals("ManagerJohn", result.getExecutedBy());
         verify(actionExecutionEngine, times(1)).executeApprovedAction(anyString(), anyString(), anyString());
-        verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+
+        org.mockito.ArgumentCaptor<AuditLog> logCaptor = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository, times(1)).save(logCaptor.capture());
+        assertEquals(1L, logCaptor.getValue().getUserId(), "Default userId should be 1L when not explicitly provided");
+        assertEquals("ManagerJohn", logCaptor.getValue().getUsername());
+    }
+
+    @Test
+    void testApproveAndExecuteRecommendation_WithExplicitUserId_RecordsInAuditLog() {
+        when(recommendationRepository.findByCompanyIdAndId(1L, 100L)).thenReturn(Optional.of(pendingRec));
+        when(actionExecutionEngine.executeApprovedAction(anyString(), anyString(), anyString()))
+                .thenReturn("Replenished 150 units of SKU-TEST-001");
+        when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Recommendation result = actionApprovalService.approveAndExecute(100L, "AdminSarah", 42L);
+
+        assertNotNull(result);
+        assertEquals(Recommendation.ApprovalStatus.EXECUTED, result.getStatus());
+        assertEquals("AdminSarah", result.getExecutedBy());
+
+        org.mockito.ArgumentCaptor<AuditLog> logCaptor = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository, times(1)).save(logCaptor.capture());
+        assertEquals(42L, logCaptor.getValue().getUserId(), "AuditLog must record authenticated user ID 42L");
+        assertEquals("AdminSarah", logCaptor.getValue().getUsername());
+    }
+
+    @Test
+    void testRejectRecommendation_WithExplicitUserId_RecordsInAuditLog() {
+        when(recommendationRepository.findByCompanyIdAndId(1L, 100L)).thenReturn(Optional.of(pendingRec));
+        when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(i -> i.getArgument(0));
+
+        Recommendation result = actionApprovalService.rejectRecommendation(100L, "AdminSarah", 88L);
+
+        assertNotNull(result);
+        assertEquals(Recommendation.ApprovalStatus.REJECTED, result.getStatus());
+
+        org.mockito.ArgumentCaptor<AuditLog> logCaptor = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository, times(1)).save(logCaptor.capture());
+        assertEquals(88L, logCaptor.getValue().getUserId(), "AuditLog must record authenticated user ID 88L");
+        assertEquals("AdminSarah", logCaptor.getValue().getUsername());
     }
 
     @Test

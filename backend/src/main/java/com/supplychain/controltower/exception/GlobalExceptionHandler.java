@@ -1,5 +1,6 @@
 package com.supplychain.controltower.exception;
 
+import com.supplychain.controltower.service.email.EmailDeliveryUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -112,6 +113,20 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDto);
+    }
+
+    @ExceptionHandler(EmailDeliveryUnavailableException.class)
+    public ResponseEntity<ErrorResponseDto> handleEmailDeliveryUnavailableException(EmailDeliveryUnavailableException ex) {
+        log.warn("[EMAIL DELIVERY UNAVAILABLE] {}", ex.getMessage());
+
+        ErrorResponseDto errorDto = ErrorResponseDto.builder()
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error("Service Unavailable")
+                .message("Email delivery service is currently unavailable. Please contact support or verify staging SMTP relay / Brevo API configuration.")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorDto);
     }
 
     @ExceptionHandler(Exception.class)

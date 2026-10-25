@@ -517,4 +517,46 @@ class AuthControllerTest {
         // Confirm OTP challenge was NEVER dispatched on subsequent sign-in
         verify(emailOtpService, never()).initiateOtpChallenge(any());
     }
+
+    @Test
+    void testGetCurrentUser_ReturnsTenantContextDetails() {
+        com.supplychain.controltower.security.UserPrincipal principal =
+                new com.supplychain.controltower.security.UserPrincipal(
+                        50L,
+                        "session_user",
+                        "session@company.com",
+                        "password",
+                        5L,
+                        "COMP-ACME",
+                        "Acme Global Logistics",
+                        "ACTIVE",
+                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_SUPPLY_CHAIN_MANAGER"))
+                );
+
+        ResponseEntity<?> response = authController.getCurrentUser(principal);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof Map<?, ?>);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+
+        assertEquals(50L, body.get("id"));
+        assertEquals("session_user", body.get("username"));
+        assertEquals("session@company.com", body.get("email"));
+        assertEquals("ROLE_SUPPLY_CHAIN_MANAGER", body.get("role"));
+        assertEquals(5L, body.get("companyId"), "Session restoration must return companyId");
+        assertEquals("COMP-ACME", body.get("companyCode"), "Session restoration must return companyCode");
+        assertEquals("Acme Global Logistics", body.get("companyName"), "Session restoration must return companyName");
+    }
+
+    @Test
+    void testGetCurrentUser_Unauthenticated_ReturnsUnauthorized() {
+        ResponseEntity<?> response = authController.getCurrentUser(null);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof Map<?, ?>);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("Unauthorized", body.get("message"));
+    }
 }
